@@ -1,0 +1,121 @@
+# Standalone POC compose — no connectengine dependency
+# Use when Docker works but connectengine is in a separate compose file:
+#   docker compose -f docker-compose.poc.yml up --build -d
+
+networks:
+  docker_compose_network:
+    name: alarampoc_docker_compose_network
+    external: true
+
+services:
+  alarm-engine:
+    build: ./CIS-Deployment/alarmEngine
+    container_name: CIS-alarm-engine
+    ports:
+      - "7020:9020"
+    environment:
+      SPRING_RABBITMQ_HOST: CIS-rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_VIRTUAL_HOST: ICUcharting
+      SPRING_RABBITMQ_USERNAME: ICUcharting
+      SPRING_RABBITMQ_PASSWORD: admin@123
+      SPRING_DATA_MONGODB_URI: mongodb://monish:admin%40123@CIS-mongodb:27017/?authSource=admin
+      ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
+      ALARM_DEMO_VITALS_ENABLED: "false"
+      CONNECT_ENGINE_URL: http://CIS-Deployment-connect-engine:9010
+      CONNECT_ENGINE_AUTO_RESTART: "true"
+      CONNECT_ENGINE_RESTART_DEBOUNCE_MS: "15000"
+      CONNECT_ENGINE_POST_SAVE_DEBOUNCE_MS: "10000"
+      CONNECT_ENGINE_CONTAINER: CIS-Deployment-connect-engine
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.10
+
+  notification-service:
+    build: ./CIS-Deployment/notificationService
+    container_name: CIS-notification-service
+    ports:
+      - "7030:9030"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      RABBITMQ_URL: amqp://ICUcharting:admin%40123@CIS-rabbitmq:5672/ICUcharting
+      MONGODB_URI: mongodb://monish:admin%40123@CIS-mongodb:27017/?authSource=admin
+      VAPID_PUBLIC_KEY: BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4
+      VAPID_PRIVATE_KEY: 567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg
+      VAPID_EMAIL: mailto:poc@rtwo.com
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.11
+
+  icu-watch-pwa:
+    build: ./CIS-Deployment/icuWatchPwa
+    container_name: CIS-icu-watch-pwa
+    ports:
+      - "7031:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.12
+
+  icu-connect-hub:
+    build: ./CIS-Deployment/icuConnectHub
+    container_name: CIS-icu-connect-hub
+    ports:
+      - "7040:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.15
+
+  rabbitmq-setup:
+    image: curlimages/curl:latest
+    container_name: CIS-rabbitmq-setup
+    restart: "no"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: >
+      sh -c "
+        echo 'Waiting 25 seconds for RabbitMQ to be ready...' &&
+        sleep 25 &&
+        echo 'Creating destination queue...' &&
+        curl -s -f -u ICUcharting:admin@123
+          -X PUT 'http://host.docker.internal:7004/api/queues/ICUcharting/alarm-engine.device.data.queue'
+          -H 'Content-Type: application/json'
+          -d '{\"durable\":true,\"auto_delete\":false,\"arguments\":{}}' &&
+        echo 'Creating shovel...' &&
+        curl -s -f -u ICUcharting:admin@123
+          -X PUT 'http://host.docker.internal:7004/api/parameters/shovel/ICUcharting/device-to-alarm-engine'
+          -H 'Content-Type: application/json'
+          -d '{\"value\":{\"src-protocol\":\"amqp091\",\"src-uri\":\"amqp://ICUcharting:admin%40123@host.docker.internal:7003/ICUcharting\",\"src-queue\":\"device.data.queue\",\"dest-protocol\":\"amqp091\",\"dest-uri\":\"amqp://ICUcharting:admin%40123@host.docker.internal:7003/ICUcharting\",\"dest-queue\":\"alarm-engine.device.data.queue\",\"ack-mode\":\"on-publish\",\"src-prefetch-count\":1000,\"reconnect-delay\":5}}' &&
+        echo 'RabbitMQ shovel setup complete.'
+      "
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.13
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: CIS-ngrok
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http host.docker.internal:7031 --log stdout
+    ports:
+      - "4040:4040"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - icu-watch-pwa
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.14
+    restart: unless-stopped

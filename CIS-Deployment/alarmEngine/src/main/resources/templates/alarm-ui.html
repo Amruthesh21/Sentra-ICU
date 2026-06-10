@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICU Active Alarms</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+        .stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 16px 24px;
+            flex: 1;
+        }
+        .stat-card .label { color: #888; font-size: 0.8rem; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+        .critical { color: #F44336; }
+        .warning { color: #FF9800; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+        }
+        th {
+            background: #0f3460;
+            color: #aaa;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.03); }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-critical { background: #F44336; color: #fff; }
+        .badge-warning { background: #FF9800; color: #000; }
+        .pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .empty {
+            text-align: center;
+            padding: 48px;
+            color: #666;
+        }
+        .refresh-note {
+            margin-top: 16px;
+            color: #555;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>ICU Active Alarms</h1>
+    <p class="subtitle">Live alarm feed — refreshes every 3 seconds</p>
+
+    <div class="stats">
+        <div class="stat-card">
+            <div class="label">Total Active</div>
+            <div class="value" id="totalCount" th:text="${#lists.size(alarms)}">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Critical</div>
+            <div class="value critical" id="criticalCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Warning</div>
+            <div class="value warning" id="warningCount">0</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Bed</th>
+                <th>Patient</th>
+                <th>Parameter</th>
+                <th>Value</th>
+                <th>Threshold</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody id="alarmBody">
+            <tr th:each="alarm : ${alarms}"
+                th:classappend="${alarm.severity == 'CRITICAL'} ? 'pulse' : ''">
+                <td th:text="${#temporals.format(alarm.timestamp, 'HH:mm:ss')}">--</td>
+                <td th:text="${alarm.bedId}">--</td>
+                <td th:text="${alarm.patientName}">--</td>
+                <td th:text="${alarm.paramName}">--</td>
+                <td th:text="${alarm.currentValue}">--</td>
+                <td>
+                    <span th:text="${alarm.threshold}">--</span>
+                    <span th:text="'(' + ${alarm.thresholdValue} + ')'">--</span>
+                </td>
+                <td>
+                    <span class="badge"
+                          th:classappend="${alarm.severity == 'CRITICAL'} ? 'badge-critical' : 'badge-warning'"
+                          th:text="${alarm.severity}">--</span>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(alarms)}">
+                <td colspan="7" class="empty">No active alarms — all vitals within thresholds</td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="refresh-note">Alarm Engine POC — port 7020</p>
+
+    <script>
+        function updateStats(alarms) {
+            document.getElementById('totalCount').textContent = alarms.length;
+            document.getElementById('criticalCount').textContent =
+                alarms.filter(a => a.severity === 'CRITICAL').length;
+            document.getElementById('warningCount').textContent =
+                alarms.filter(a => a.severity === 'WARNING').length;
+        }
+
+        function renderTable(alarms) {
+            const tbody = document.getElementById('alarmBody');
+            if (alarms.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty">No active alarms — all vitals within thresholds</td></tr>';
+                return;
+            }
+            tbody.innerHTML = alarms.map(alarm => {
+                const time = new Date(alarm.timestamp).toLocaleTimeString();
+                const badgeClass = alarm.severity === 'CRITICAL' ? 'badge-critical' : 'badge-warning';
+                const rowClass = alarm.severity === 'CRITICAL' ? ' class="pulse"' : '';
+                return `<tr${rowClass}>
+                    <td>${time}</td>
+                    <td>${alarm.bedId}</td>
+                    <td>${alarm.patientName || '--'}</td>
+                    <td>${alarm.paramName}</td>
+                    <td>${alarm.currentValue}</td>
+                    <td>${alarm.threshold} (${alarm.thresholdValue})</td>
+                    <td><span class="badge ${badgeClass}">${alarm.severity}</span></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function refresh() {
+            try {
+                const res = await fetch('/alarm-ui/api/active');
+                const alarms = await res.json();
+                updateStats(alarms);
+                renderTable(alarms);
+            } catch (e) {
+                console.error('Refresh failed', e);
+            }
+        }
+
+        setInterval(refresh, 3000);
+    </script>
+</body>
+</html>

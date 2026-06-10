@@ -1,0 +1,56 @@
+# MongoDB + RabbitMQ for ICU CIS stack and Alarm POC
+# Ports: MongoDB 7000, RabbitMQ AMQP 7003, RabbitMQ Management 7004
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: CIS-mongodb
+    ports:
+      - "7000:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: monish
+      MONGO_INITDB_ROOT_PASSWORD: admin@123
+    volumes:
+      - cis_mongodb_data:/data/db
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.20
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: CIS-rabbitmq
+    ports:
+      - "7003:5672"
+      - "7004:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ICUcharting
+      RABBITMQ_DEFAULT_PASS: admin@123
+      RABBITMQ_DEFAULT_VHOST: ICUcharting
+    command: >
+      bash -c "rabbitmq-plugins enable rabbitmq_shovel rabbitmq_shovel_management && rabbitmq-server"
+    volumes:
+      - cis_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.21
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  docker_compose_network:
+    name: alarampoc_docker_compose_network
+    external: true
+
+volumes:
+  cis_mongodb_data:
+  cis_rabbitmq_data:
