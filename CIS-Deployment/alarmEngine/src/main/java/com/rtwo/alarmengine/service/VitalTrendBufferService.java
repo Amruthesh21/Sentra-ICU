@@ -12,12 +12,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Rolling in-memory trend buffer — fills gaps when historyVitals is not yet tagged to a new patient visit.
+ * Rolling in-memory trend buffer (~5 min at 2s poll). Long-term history is in Mongo hubTrendVitals.
  */
 @Service
 public class VitalTrendBufferService {
 
-    private static final int MAX_POINTS_PER_PARAM = 180;
+    private static final int MAX_POINTS_PER_PARAM = 150;
 
     private final Map<String, Map<String, LinkedList<Map<String, Object>>>> buffer = new ConcurrentHashMap<>();
 

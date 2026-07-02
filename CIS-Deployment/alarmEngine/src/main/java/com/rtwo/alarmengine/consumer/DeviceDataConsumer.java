@@ -2,8 +2,11 @@ package com.rtwo.alarmengine.consumer;
 
 import com.rtwo.alarmengine.dto.DeviceDataMessage;
 import com.rtwo.alarmengine.service.AlarmCheckService;
+import com.rtwo.alarmengine.service.BedIdUtil;
 import com.rtwo.alarmengine.service.CisCenterService;
 import com.rtwo.alarmengine.service.LatestVitalsStore;
+import com.rtwo.alarmengine.service.VitalTrendBufferService;
+import com.rtwo.alarmengine.service.VitalsArchiveService;
 import com.rtwo.alarmengine.service.VitalsReadService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,13 +21,19 @@ public class DeviceDataConsumer {
     private final AlarmCheckService alarmCheckService;
     private final LatestVitalsStore latestVitalsStore;
     private final CisCenterService cisCenterService;
+    private final VitalTrendBufferService trendBufferService;
+    private final VitalsArchiveService vitalsArchiveService;
 
     public DeviceDataConsumer(AlarmCheckService alarmCheckService,
                               LatestVitalsStore latestVitalsStore,
-                              CisCenterService cisCenterService) {
+                              CisCenterService cisCenterService,
+                              VitalTrendBufferService trendBufferService,
+                              VitalsArchiveService vitalsArchiveService) {
         this.alarmCheckService = alarmCheckService;
         this.latestVitalsStore = latestVitalsStore;
         this.cisCenterService = cisCenterService;
+        this.trendBufferService = trendBufferService;
+        this.vitalsArchiveService = vitalsArchiveService;
     }
 
     @RabbitListener(queues = "${alarm.rabbitmq.device-data-queue}")
@@ -40,8 +49,10 @@ public class DeviceDataConsumer {
                 log.warn("Received device data without bedId, skipping");
                 return;
             }
-            deviceData.setBedId(normalizeBedId(deviceData.getBedId()));
+            deviceData.setBedId(BedIdUtil.canonicalAlarmBedId(deviceData.getBedId()));
             latestVitalsStore.putFromRabbit(deviceData);
+            trendBufferService.record(deviceData.getBedId(), deviceData);
+            vitalsArchiveService.archiveIfDue(deviceData.getBedId(), deviceData);
             alarmCheckService.processVitals(deviceData);
         } catch (Exception e) {
             log.error("Failed to process device data message: {}", e.getMessage(), e);
@@ -52,7 +63,7 @@ public class DeviceDataConsumer {
         for (String bedId : VitalsReadService.bedIdVariants("ICU-1-BED-01")) {
             String patientVisitId = cisCenterService.resolvePatientVisitId(bedId);
             if (patientVisitId != null && !patientVisitId.isBlank()) {
-                return normalizeBedId(bedId);
+                return BedIdUtil.canonicalAlarmBedId(bedId);
             }
         }
         return null;

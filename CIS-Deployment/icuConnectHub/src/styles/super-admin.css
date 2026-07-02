@@ -1,0 +1,1822 @@
+/* Super Admin — platform-only shell (matches login reference palette) */
+
+.sa-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  background: linear-gradient(135deg, #dceaf8 0%, #e8f2fa 45%, #d6e6f5 100%);
+  color: #0a3d62;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.sa-sidebar {
+  background: linear-gradient(180deg, #dceaf8 0%, #e8f2fa 48%, #d6e6f5 100%);
+  border-right: 1px solid rgba(10, 61, 98, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  min-height: 100vh;
+}
+
+.sa-sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6px 4px 22px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+  margin-bottom: 18px;
+}
+
+.sa-sidebar-logo-wrap {
+  width: 100%;
+  padding: 2px 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.sa-sidebar-brand .rtwo-logo {
+  width: auto;
+  max-width: 178px;
+}
+
+.sa-sidebar-brand .rtwo-logo-img {
+  width: 100%;
+  max-width: 178px;
+  max-height: 48px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.sa-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px auto 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(10, 61, 98, 0.92);
+  color: #fff;
+  border: 1px solid rgba(10, 61, 98, 0.15);
+  box-shadow: 0 3px 10px rgba(10, 61, 98, 0.14);
+}
+
+.sa-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.sa-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #3d6f96;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.sa-nav-item:hover {
+  background: rgba(255, 255, 255, 0.55);
+  color: #0a3d62;
+}
+
+.sa-nav-item.is-active {
+  background: #0a3d62;
+  color: #fff;
+}
+
+.sa-nav-item .nav-icon {
+  font-size: 1.2rem;
+}
+
+.sa-sidebar-foot {
+  padding: 14px 8px 6px;
+  border-top: 1px solid rgba(10, 61, 98, 0.1);
+  text-align: center;
+}
+
+.sa-sidebar-foot-text {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0a3d62;
+  letter-spacing: 0.02em;
+}
+
+.sa-sidebar-foot-sub {
+  margin: 5px 0 0;
+  font-size: 0.75rem;
+  color: #5a8fb0;
+}
+
+.sa-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.sa-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(220, 234, 248, 0.55);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(10, 61, 98, 0.08);
+}
+
+.sa-menu-toggle {
+  display: none;
+  border: none;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #0a3d62;
+}
+
+.sa-topbar-title h1 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0a3d62;
+}
+
+.sa-topbar-title p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: #5a8fb0;
+}
+
+.sa-topbar-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sa-topbar-clock {
+  font-size: 0.85rem;
+  color: #3d6f96;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-topbar-user {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0a3d62;
+}
+
+.sa-logout-btn {
+  border: 1px solid #c5d9eb;
+  background: #fff;
+  color: #0a3d62;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.sa-logout-btn:hover {
+  background: #f0f7fc;
+}
+
+.sa-content {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px 32px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.sa-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.sa-content::-webkit-scrollbar-thumb {
+  background: #b8cfe0;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.sa-content::-webkit-scrollbar-thumb:hover {
+  background: #9bb8d4;
+  background-clip: padding-box;
+}
+
+.platform-admin {
+  width: 100%;
+  max-width: 100%;
+}
+
+.platform-admin .form-card,
+.platform-admin .sa-stat-card {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sa-footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px;
+  font-size: 0.75rem;
+  color: #5a8fb0;
+  border-top: 1px solid rgba(10, 61, 98, 0.08);
+  background: rgba(220, 234, 248, 0.45);
+}
+
+.sa-sidebar-backdrop {
+  display: none;
+}
+
+.sa-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.sa-stat-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(10, 61, 98, 0.08);
+  box-shadow: 0 4px 16px rgba(10, 61, 98, 0.05);
+}
+
+.sa-stat-label {
+  font-size: 0.78rem;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.sa-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0a3d62;
+}
+
+@media (max-width: 900px) {
+  .sa-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 8px 0 24px rgba(10, 61, 98, 0.12);
+  }
+
+  .sa-shell--open .sa-sidebar {
+    transform: translateX(0);
+  }
+
+  .sa-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: none;
+    background: rgba(10, 61, 98, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .sa-shell--open .sa-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sa-menu-toggle {
+    display: inline-flex;
+  }
+
+  .sa-stat-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sa-panel-title {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0a3d62;
+}
+
+.sa-subheading {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sa-hospital-hint {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+}
+
+.sa-hospital-card {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.sa-hospital-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+}
+
+.sa-picker-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0a3d62;
+  white-space: nowrap;
+}
+
+.sa-hospital-select {
+  flex: 1;
+  max-width: 360px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #c5d9eb;
+  background: #fff;
+  color: #0a3d62;
+  font-size: 0.9rem;
+}
+
+.sa-empty-panel {
+  padding: 24px;
+  text-align: center;
+}
+
+.sa-centers-admins-grid {
+  margin-top: 12px;
+}
+
+.sa-centers-admins-page {
+  width: 100%;
+  padding-bottom: 8px;
+}
+
+.sa-centers-admins-layout {
+  display: grid;
+  gap: 16px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  scrollbar-gutter: stable;
+}
+
+.sa-centers-admins-layout--3 {
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+}
+
+.sa-centers-admins-layout--2 {
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+}
+
+.sa-col-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  margin-bottom: 0 !important;
+}
+
+.sa-col-panel-body {
+  flex: 1;
+  padding-right: 4px;
+}
+
+.sa-col-panel-body::-webkit-scrollbar,
+.sa-centers-admins-layout::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sa-col-panel-body::-webkit-scrollbar-thumb,
+.sa-centers-admins-layout::-webkit-scrollbar-thumb {
+  background: #c5d9eb;
+  border-radius: 4px;
+}
+
+.sa-col-panel-body::-webkit-scrollbar-thumb:hover,
+.sa-centers-admins-layout::-webkit-scrollbar-thumb:hover {
+  background: #9bb8d4;
+}
+
+.sa-data-table--column {
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  margin-top: 0;
+}
+
+.sa-data-card {
+  border: 1px solid #e8f0f8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.sa-data-card:last-child {
+  margin-bottom: 0;
+}
+
+.sa-data-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.sa-data-card-row:last-child {
+  margin-bottom: 0;
+}
+
+.sa-data-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sa-data-value {
+  font-size: 0.88rem;
+  color: #0a3d62;
+  word-break: break-word;
+}
+
+.sa-link-center-form {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sa-link-center-form .form-group {
+  margin: 0;
+}
+
+.sa-link-center-form .form-actions {
+  margin-top: 4px;
+}
+
+.sa-col-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.sa-col-search {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #c5d9eb;
+  background: #fff;
+  color: #0a3d62;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.sa-hospital-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+
+.sa-hospital-banner--inactive {
+  border-color: #f0c4c4;
+  background: #fffafa;
+}
+
+.sa-hospital-banner .sa-panel-title {
+  margin-bottom: 4px;
+}
+
+.sa-hospital-banner-info p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.sa-entity-card {
+  border: 1px solid #e0ecf6;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sa-entity-card:last-child {
+  margin-bottom: 0;
+}
+
+.sa-entity-card:hover {
+  border-color: #c5d9eb;
+  box-shadow: 0 4px 14px rgba(10, 61, 98, 0.06);
+}
+
+.sa-entity-card--inactive {
+  opacity: 0.88;
+  background: #fafcfe;
+  border-color: #ecd9d9;
+}
+
+.sa-entity-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sa-entity-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sa-entity-card-title {
+  font-size: 0.92rem;
+  color: #0a3d62;
+  word-break: break-word;
+}
+
+.sa-entity-card-sub {
+  font-size: 0.8rem;
+  color: #5a8fb0;
+  word-break: break-all;
+}
+
+.sa-entity-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sa-toggle-btn {
+  border: 1px solid #c5d9eb;
+  background: #f4f8fc;
+  color: #5a8fb0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sa-toggle-btn.is-on {
+  background: #e6f6ec;
+  border-color: #8fd4a8;
+  color: #1a6b3a;
+}
+
+.sa-toggle-btn--sm {
+  padding: 3px 8px;
+  font-size: 0.68rem;
+}
+
+.sa-delete-btn {
+  border: 1px solid #f0c4c4;
+  background: #fff5f5;
+  color: #b42318;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sa-delete-btn--sm {
+  padding: 3px 8px;
+  font-size: 0.68rem;
+}
+
+.sa-delete-btn:hover {
+  background: #fee;
+}
+
+.sa-entity-card-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.sa-entity-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sa-entity-field-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sa-entity-field-value {
+  font-size: 0.84rem;
+  color: #0a3d62;
+  word-break: break-word;
+}
+
+.sa-entity-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.sa-hospital-card--managed {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.sa-hospital-card-main {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 14px 16px 10px;
+  cursor: pointer;
+}
+
+.sa-hospital-card--inactive {
+  opacity: 0.9;
+}
+
+.sa-hospital-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 12px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+  .sa-entity-card-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-hospital-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.sa-filter-row--3 {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.55fr) minmax(0, 1.35fr);
+}
+
+.sa-table-panel {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+}
+
+.sa-platform-table {
+  min-width: 980px;
+}
+
+.sa-platform-table th:nth-child(1) { width: 14%; }
+.sa-platform-table th:nth-child(2) { width: 8%; }
+.sa-platform-table th:nth-child(3) { width: 14%; }
+.sa-platform-table th:nth-child(4) { width: 8%; }
+.sa-platform-table th:nth-child(5) { width: 22%; }
+.sa-platform-table th:nth-child(6) { width: 9%; }
+.sa-platform-table th:nth-child(7) { width: 9%; }
+.sa-platform-table th:nth-child(8) { width: 16%; }
+
+.sa-platform-table--admins th:nth-child(1) { width: auto; }
+
+.sa-platform-table--hospitals {
+  min-width: 900px;
+}
+
+.sa-platform-table--hospitals th:nth-child(1) { width: 16%; }
+.sa-platform-table--hospitals th:nth-child(2) { width: 10%; }
+.sa-platform-table--hospitals th:nth-child(3) { width: 18%; }
+.sa-platform-table--hospitals th:nth-child(4) { width: 20%; }
+.sa-platform-table--hospitals th:nth-child(5) { width: 9%; }
+.sa-platform-table--hospitals th:nth-child(6) { width: 14%; }
+.sa-platform-table--hospitals th.col-manage { width: 13%; }
+
+.sa-table-btn--manage {
+  background: #e8f2fc;
+  border-color: #9bb8d4;
+  color: #0a3d62;
+}
+
+.sa-hospitals-filter {
+  margin-bottom: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.sa-hospitals-filter .sa-filter-field--count {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.sa-create-hospital-modal {
+  max-width: 560px;
+}
+
+.col-manage {
+  text-align: right;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.sa-table-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #0a3d62;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sa-table-link:hover {
+  color: #1a6b9a;
+}
+
+.sa-table-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sa-table-row--muted {
+  opacity: 0.72;
+}
+
+.sa-table-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.sa-table-btn {
+  border: 1px solid #c5d9eb;
+  background: #f4f8fc;
+  color: #5a8fb0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sa-table-btn--on {
+  background: #e6f6ec;
+  border-color: #8fd4a8;
+  color: #1a6b3a;
+}
+
+.sa-table-btn--danger {
+  background: #fff5f5;
+  border-color: #f0c4c4;
+  color: #b42318;
+}
+
+.sa-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.sa-back-link {
+  border: none;
+  background: none;
+  color: #0a3d62;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.sa-hospital-banner--inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e0ecf6;
+  background: #fff;
+}
+
+.sa-link-toolbar {
+  padding: 14px 18px;
+}
+
+.sa-link-inline-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.sa-link-inline-form input {
+  padding: 7px 10px;
+  border: 1px solid #c5d9eb;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 900px) {
+  .sa-filter-row,
+  .sa-filter-row--3,
+  .sa-filter-row--4 {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-link-inline-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sa-filter-bar {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.sa-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.55fr) minmax(0, 0.55fr) minmax(0, 1.3fr);
+  gap: 16px;
+  align-items: end;
+  width: 100%;
+}
+
+.sa-filter-row--4 {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.5fr) minmax(0, 0.55fr) minmax(0, 1.35fr);
+}
+
+.sa-filter-field {
+  min-width: 0;
+}
+
+.sa-filter-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.sa-filter-field input,
+.sa-filter-field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #c5d9eb;
+  background: #fff;
+  color: #0a3d62;
+  font-size: 0.9rem;
+}
+
+.sa-filter-field .sa-hospital-select {
+  flex: none;
+  max-width: none;
+}
+
+.sa-filter-field--grow {
+  min-width: 0;
+}
+
+.sa-list-panel {
+  margin-bottom: 16px;
+}
+
+.sa-data-table {
+  margin-top: 12px;
+  border: 1px solid #e8f0f8;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sa-data-table-head,
+.sa-data-table-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.2fr 0.8fr;
+  gap: 12px;
+  padding: 10px 14px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.sa-data-table--admins .sa-data-table-head,
+.sa-data-table--admins .sa-data-table-row {
+  grid-template-columns: 1.2fr 1fr 1.4fr 0.7fr;
+}
+
+.sa-data-table-head {
+  background: #f0f7fc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sa-data-table-row {
+  border-top: 1px solid #e8f0f8;
+  background: #fff;
+}
+
+.sa-data-table-row:hover {
+  background: #fafcfe;
+}
+
+.sa-mono {
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 0.82rem;
+}
+
+.sa-stat-value--text {
+  font-size: 1rem !important;
+  line-height: 1.3;
+}
+
+@media (max-width: 1100px) {
+  .sa-centers-admins-layout--3,
+  .sa-centers-admins-layout--2 {
+    grid-template-columns: minmax(300px, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .sa-filter-row,
+  .sa-filter-row--4 {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-data-table-head {
+    display: none;
+  }
+
+  .sa-data-table-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.sa-stat-row--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sa-stat-row--6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.sa-stat-row--roles {
+  margin-top: -6px;
+}
+
+.sa-stat-sub {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: #5a8fb0;
+}
+
+.sa-stat-card--role .sa-stat-value {
+  font-size: 1.35rem;
+}
+
+.sa-table-sub {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+
+.sa-role-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sa-role-chip-row--wrap {
+  margin-top: 8px;
+}
+
+.sa-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef5fb;
+  border: 1px solid #d4e4f2;
+  font-size: 0.72rem;
+  color: #0a3d62;
+}
+
+.sa-role-chip-label {
+  color: #5a8fb0;
+  font-weight: 600;
+}
+
+.sa-hospital-detail-modal {
+  width: min(96vw, 1080px);
+  max-width: 1080px;
+  max-height: 92vh;
+  padding-bottom: 4px;
+}
+
+.sa-hospital-detail-head h3 {
+  margin: 0;
+}
+
+.sa-detail-code {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+
+.sa-hospital-detail {
+  padding: 0 22px 22px;
+}
+
+.sa-hospital-detail-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border: 1px solid #e0ecf6;
+  background: linear-gradient(135deg, #f8fbfe 0%, #fff 100%);
+}
+
+.sa-hospital-detail-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sa-detail-tagline {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.sa-hospital-detail-kpis {
+  display: flex;
+  gap: 28px;
+  flex-shrink: 0;
+}
+
+.sa-hospital-detail-kpis div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+}
+
+.sa-hospital-detail-kpis span {
+  font-size: 0.72rem;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sa-hospital-detail-kpis strong {
+  font-size: 1.65rem;
+  color: #0a3d62;
+}
+
+.sa-hospital-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.sa-detail-section {
+  border: 1px solid #e8f0f8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: #fff;
+  min-height: 160px;
+}
+
+.sa-detail-section--audit {
+  min-height: auto;
+  margin-bottom: 18px;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.sa-detail-audit-empty,
+.sa-detail-audit-loading {
+  margin: 0;
+  padding: 12px 4px;
+  font-size: 0.88rem;
+}
+
+/* Embedded audit grid (hospital Full info modal) */
+.sa-audit-embedded {
+  width: 100%;
+  border: 1px solid #e8f0f8;
+  border-radius: 10px;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.sa-audit-embedded-head,
+.sa-audit-embedded-row {
+  display: grid;
+  grid-template-columns: 150px minmax(180px, 1.3fr) 100px minmax(220px, 1.7fr) 112px;
+  gap: 12px 18px;
+  align-items: start;
+  padding: 12px 18px;
+  min-width: 860px;
+}
+
+.sa-audit-embedded-head {
+  background: #f0f7fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5a8fb0;
+  border-bottom: 1px solid #e8f0f8;
+}
+
+.sa-audit-embedded-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.sa-audit-embedded-row {
+  border-bottom: 1px solid #eef4fa;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: #0a3d62;
+}
+
+.sa-audit-embedded-row:last-child {
+  border-bottom: none;
+}
+
+.sa-audit-embedded-row:hover {
+  background: #fafcfe;
+}
+
+.sa-audit-embedded-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sa-audit-embedded-cell strong {
+  font-weight: 600;
+  color: #0a3d62;
+  word-break: break-word;
+}
+
+.sa-audit-embedded-email {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.sa-audit-embedded-cell--when time {
+  font-size: 0.82rem;
+  color: #3d6f96;
+  white-space: nowrap;
+}
+
+.sa-audit-embedded-label {
+  display: none;
+}
+
+.sa-audit-embedded-cell--detail span:last-child,
+.sa-audit-embedded-cell--hospital span:last-child {
+  word-break: break-word;
+}
+
+.sa-audit-embedded-cell--ip .sa-mono {
+  font-size: 0.8rem;
+}
+
+.sa-detail-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sa-hospital-detail-grid h4,
+.sa-detail-section h4 {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  color: #5a8fb0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sa-detail-section-head h4 {
+  margin: 0;
+}
+
+.sa-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sa-detail-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef4fa;
+  font-size: 0.88rem;
+}
+
+.sa-hospital-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid #e8f0f8;
+}
+
+.sa-audit-page {
+  width: 100%;
+}
+
+.sa-audit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sa-audit-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0a3d62;
+}
+
+.sa-audit-sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #5a8fb0;
+}
+
+.sa-audit-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.sa-audit-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.sa-audit-scope-hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.sa-audit-table-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.sa-audit-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sa-audit-table--full {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.88rem;
+}
+
+.sa-audit-table--full thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f0f7fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5a8fb0;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e8f0f8;
+  white-space: nowrap;
+}
+
+.sa-audit-table--full tbody td {
+  padding: 12px 14px;
+  vertical-align: top;
+  line-height: 1.45;
+  border-bottom: 1px solid #eef4fa;
+  color: #0a3d62;
+}
+
+.sa-audit-table--full tbody tr:hover {
+  background: #fafcfe;
+}
+
+.sa-audit-col-when {
+  width: 158px;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: #3d6f96;
+}
+
+.sa-audit-col-cat {
+  width: 108px;
+}
+
+.sa-audit-col-action {
+  width: 140px;
+  font-size: 0.8rem;
+}
+
+.sa-audit-col-actor {
+  min-width: 200px;
+  max-width: 260px;
+}
+
+.sa-audit-col-hospital {
+  width: 120px;
+}
+
+.sa-audit-col-detail {
+  min-width: 260px;
+  word-break: break-word;
+}
+
+.sa-audit-col-ip {
+  width: 128px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.sa-audit-actor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sa-audit-actor strong {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.sa-audit-actor-email {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.sa-audit-empty-row {
+  text-align: center;
+  padding: 24px 14px !important;
+}
+
+.sa-audit-cat {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #eef4fa;
+  color: #3d6f96;
+}
+
+.sa-audit-cat--auth {
+  background: #e8f2fc;
+  color: #0a3d62;
+}
+
+.sa-audit-cat--platform {
+  background: #fff4e6;
+  color: #9a5b00;
+}
+
+.sa-audit-cat--hospital {
+  background: #e6f6ec;
+  color: #1a6b3a;
+}
+
+.sa-analytics-page {
+  padding-bottom: 8px;
+}
+
+.sa-stat-card--analytics .sa-stat-sub {
+  margin-top: 6px;
+}
+
+.sa-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sa-analytics-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sa-analytics-panel {
+  padding: 16px 18px;
+}
+
+.sa-mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 140px;
+  padding-top: 8px;
+}
+
+.sa-mini-chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+}
+
+.sa-mini-chart-bar {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 6px 6px 2px 2px;
+  margin-top: auto;
+}
+
+.sa-mini-chart-label {
+  font-size: 0.65rem;
+  color: #5a8fb0;
+  margin-top: 6px;
+}
+
+.sa-analytics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sa-analytics-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef4fa;
+  font-size: 0.88rem;
+}
+
+.sa-table-link--block {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+/* Full-page hospital profile (like Centers & Admins detail mode) */
+.sa-hospital-detail-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+.sa-hospital-detail-hero-card {
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.sa-hospital-detail-name {
+  margin: 0 0 6px;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0a3d62;
+}
+
+.sa-hospital-detail-grid--page {
+  margin-bottom: 20px;
+}
+
+.sa-hospital-detail-actions--hero {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #e8f0f8;
+  border-bottom: none;
+}
+
+.sa-hospital-detail-audit-panel {
+  width: 100%;
+}
+
+.sa-hospital-detail-audit-panel .sa-audit-page {
+  width: 100%;
+}
+
+.sa-hospital-detail-audit-panel .sa-audit-head {
+  padding: 0 2px;
+}
+
+.sa-hospital-detail-audit-panel .sa-audit-filters {
+  margin-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid #e8f0f8;
+  border-bottom: none;
+}
+
+.sa-hospital-detail-audit-panel .sa-audit-table-panel {
+  border-radius: 0 0 12px 12px;
+  border: 1px solid #e8f0f8;
+  border-top: none;
+}
+
+@media (max-width: 1100px) {
+  .sa-stat-row--4,
+  .sa-stat-row--6 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sa-hospital-detail-grid,
+  .sa-analytics-grid,
+  .sa-analytics-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-hospital-detail-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sa-hospital-detail-kpis {
+    justify-content: space-around;
+  }
+
+  .sa-audit-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Platform analytics (super admin) — reuses ax-* from clinical analytics */
+.pax-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+.pax-hero {
+  background: linear-gradient(135deg, #0a3d62 0%, #1a5f8a 42%, #0c4a6e 100%);
+}
+
+.pax-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(10, 61, 98, 0.1);
+  border-radius: 12px;
+}
+
+.pax-tab {
+  border: none;
+  background: transparent;
+  color: #3d6f96;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pax-tab:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: #0a3d62;
+}
+
+.pax-tab.is-active {
+  background: #0a3d62;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(10, 61, 98, 0.2);
+}
+
+.pax-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pax-quick-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0a3d62;
+  text-decoration: none;
+}
+
+.pax-quick-link:hover {
+  text-decoration: underline;
+}
+
+.pax-table-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0a3d62;
+  text-decoration: none;
+}
+
+.pax-table-link:hover {
+  text-decoration: underline;
+}
+
+.pax-empty-chart {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  font-size: 0.88rem;
+}
+
+.pax-cat {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.pax-cat--auth {
+  background: #e8f2fc;
+  color: #0a3d62;
+}
+
+.pax-cat--platform {
+  background: #fff4e6;
+  color: #9a5b00;
+}
+
+.pax-cat--hospital {
+  background: #e6f6ec;
+  color: #1a6b3a;
+}
+
+.sa-password-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sa-password-field-row input {
+  flex: 1;
+}
+
+.sa-credentials-modal {
+  max-width: 520px;
+}
+
+.sa-credentials-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sa-credential-row {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(10, 61, 98, 0.08);
+}
+
+.sa-credential-row--highlight {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.sa-credential-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.sa-credential-value {
+  font-size: 0.92rem;
+  color: #0a3d62;
+  word-break: break-all;
+}
+
+.sa-credentials-note {
+  margin: 0;
+}
+
+.sa-detail-list--admins .sa-detail-admin-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sa-detail-admin-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

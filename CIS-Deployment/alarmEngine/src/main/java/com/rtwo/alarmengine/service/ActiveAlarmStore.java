@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Service
@@ -39,12 +40,45 @@ public class ActiveAlarmStore {
                 .toList();
     }
 
+    /** Recent alarms for hospital alarm center — includes acknowledged within retention window. */
+    public List<Map<String, Object>> getAlarmFeed() {
+        Instant cutoff = Instant.now().minusSeconds(RETENTION_MINUTES * 60);
+        return alarms.stream()
+                .filter(a -> a.getTimestamp() != null && a.getTimestamp().isAfter(cutoff))
+                .sorted(Comparator.comparing(AlarmEvent::getTimestamp).reversed())
+                .map(this::toFeedMap)
+                .toList();
+    }
+
+    private Map<String, Object> toFeedMap(AlarmEvent a) {
+        boolean acked = acknowledgmentService.isAcknowledged(a.getBedId(), a.getParamName(), a.getThreshold());
+        Instant ackAt = acknowledgmentService.getAcknowledgedAt(a.getBedId(), a.getParamName(), a.getThreshold());
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("bedId", a.getBedId());
+        m.put("patientName", a.getPatientName());
+        m.put("patientMRN", a.getPatientMRN());
+        m.put("paramName", a.getParamName());
+        m.put("currentValue", a.getCurrentValue());
+        m.put("threshold", a.getThreshold());
+        m.put("thresholdValue", a.getThresholdValue());
+        m.put("severity", a.getSeverity());
+        m.put("timestamp", a.getTimestamp() != null ? a.getTimestamp().toString() : null);
+        m.put("acknowledged", acked);
+        m.put("acknowledgedAt", ackAt != null ? ackAt.toString() : null);
+        m.put("title", buildFeedTitle(a));
+        return m;
+    }
+
+    private String buildFeedTitle(AlarmEvent a) {
+        String param = a.getParamName() != null ? a.getParamName() : "Alarm";
+        if ("LOW".equals(a.getThreshold())) return param + " below limit";
+        if ("HIGH".equals(a.getThreshold())) return param + " above limit";
+        return param + " alarm";
+    }
+
     public void acknowledge(String bedId, String paramName, String threshold, Double valueAtAck) {
         double ackValue = valueAtAck != null ? valueAtAck : 0.0;
         acknowledgmentService.acknowledge(bedId, paramName, threshold, ackValue);
-        alarms.removeIf(a -> bedId.equals(a.getBedId())
-                && paramName.equals(a.getParamName())
-                && threshold.equals(a.getThreshold()));
     }
 
     public void clearForParam(String bedId, String paramName) {

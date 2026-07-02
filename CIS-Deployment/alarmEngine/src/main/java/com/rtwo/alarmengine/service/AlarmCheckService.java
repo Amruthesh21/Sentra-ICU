@@ -50,6 +50,11 @@ public class AlarmCheckService {
     }
 
     public void processVitals(DeviceDataMessage deviceData) {
+        if (deviceData == null || deviceData.getBedId() == null || deviceData.getBedId().isBlank()) {
+            return;
+        }
+        deviceData.setBedId(BedIdUtil.canonicalAlarmBedId(deviceData.getBedId()));
+
         List<DoctorAlarmConfig> configs = configCacheService.getConfigsForBed(deviceData.getBedId());
         if (configs.isEmpty()) {
             return;
@@ -169,7 +174,7 @@ public class AlarmCheckService {
         event.setThreshold(thresholdType);
         event.setThresholdValue(thresholdValue);
         event.setSeverity(resolveSeverity(paramName, thresholdType, value));
-        event.setTimestamp(timestamp);
+        event.setTimestamp(Instant.now());
         return event;
     }
 

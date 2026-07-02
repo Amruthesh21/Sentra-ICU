@@ -217,7 +217,8 @@ public class PatientAdminService {
             entry.put("ip", CenterAdminService.decryptIp(bed.getString("ip")));
             payloadBeds.add(entry);
         }
-        return connectEngineClient.pushCenterUpdate(DEFAULT_CENTER, "JPN", payloadBeds);
+        return connectEngineClient.pushCenterUpdate(DEFAULT_CENTER, "JPN", payloadBeds,
+                ConnectEngineSyncService.SyncTrigger.PATIENT_ASSIGNMENT);
     }
 
     private String generateUpid() {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   VITAL_PARAMS,
   getAlarmConfig,
@@ -6,6 +6,9 @@ import {
   getDoctorId,
   mergeThresholds,
   demoThresholds,
+  canonicalAlarmBedId,
+  findBedAlarmConfig,
+  validateThresholds,
 } from '../api/alarmConfig';
 
 export default function AlarmThresholdPanel({ bedId, patientName, patientMRN }) {
@@ -13,40 +16,54 @@ export default function AlarmThresholdPanel({ bedId, patientName, patientMRN }) 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const dirtyRef = useRef(false);
+  const canonicalBedId = canonicalAlarmBedId(bedId);
+
+  const loadConfig = useCallback(async ({ force = false } = {}) => {
+    if (!force && dirtyRef.current) {
+      return;
+    }
+    try {
+      const configs = await getAlarmConfig();
+      if (!force && dirtyRef.current) {
+        return;
+      }
+      const bedConfig = findBedAlarmConfig(configs, canonicalBedId);
+      setAlarms(bedConfig?.alarms?.length ? mergeThresholds(bedConfig.alarms) : demoThresholds());
+    } catch {
+      if (!dirtyRef.current) {
+        setAlarms(demoThresholds());
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [canonicalBedId]);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const configs = await getAlarmConfig();
-        if (cancelled) return;
-        const bedConfig = configs.find((c) => c.bedId === bedId);
-        setAlarms(bedConfig?.alarms?.length ? mergeThresholds(bedConfig.alarms) : demoThresholds());
-      } catch {
-        if (!cancelled) setAlarms(demoThresholds());
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    const interval = setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [bedId]);
+    dirtyRef.current = false;
+    setLoading(true);
+    loadConfig({ force: true });
+  }, [canonicalBedId, loadConfig]);
 
   function updateAlarm(index, field, value) {
+    dirtyRef.current = true;
+    setMessage(null);
     setAlarms((prev) => prev.map((a, i) => (i === index ? { ...a, [field]: value } : a)));
   }
 
   async function handleSave() {
+    const validationError = validateThresholds(alarms);
+    if (validationError) {
+      setMessage({ type: 'error', text: validationError });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
     try {
       await saveAlarmConfig({
         doctorId: getDoctorId(),
-        bedId,
+        bedId: canonicalBedId,
         patientMRN: patientMRN || '--',
         patientName: patientName || 'Patient',
         alarms: alarms.map((a) => ({
@@ -56,7 +73,9 @@ export default function AlarmThresholdPanel({ bedId, patientName, patientMRN }) 
           enabled: !!a.enabled,
         })),
       });
-      setMessage({ type: 'success', text: 'Thresholds saved — synced with mobile PWA instantly.' });
+      dirtyRef.current = false;
+      setMessage({ type: 'success', text: 'Thresholds saved — alarms re-armed and synced with mobile PWA.' });
+      await loadConfig({ force: true });
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -69,7 +88,7 @@ export default function AlarmThresholdPanel({ bedId, patientName, patientMRN }) 
   return (
     <div className="alarm-panel">
       <h3>Alarm Thresholds</h3>
-      <p className="param-hint">Same settings as mobile PWA — changes sync live to both apps.</p>
+      <p className="param-hint">Same settings as mobile PWA — save to apply and re-arm alarms for this bed.</p>
 
       {message && (
         <div className={`message ${message.type}`} style={{ marginBottom: 12 }}>

@@ -1,0 +1,107 @@
+/**
+ * ICU Connect Hub typography
+ * — Arial: labels, words, letters, narrative text
+ * — Inter: numbers, vitals, metrics, timestamps, values
+ */
+:root {
+  --font-text: Arial, Helvetica, sans-serif;
+  --font-num: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+html {
+  font-family: var(--font-text);
+}
+
+body {
+  font-family: var(--font-text);
+}
+
+h1, h2, h3, h4, h5, h6,
+p, label, legend, li, dt, th,
+.nav-label,
+.tag,
+.status-pill,
+.order-status-badge,
+.fluids-type-badge,
+.alarm-status-pill,
+.ud-risk-badge,
+.ud-severity,
+.btn,
+select,
+textarea,
+input[type="text"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="url"] {
+  font-family: var(--font-text);
+}
+
+/* Utility — wrap numeric content in JSX when needed */
+.num,
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="range"],
+input.readonly,
+.topbar-clock,
+.alarm-badge,
+.order-tab-badge,
+.fluids-entry-count,
+.unit-code-badge,
+.bed-table-ip,
+.vital-chip .value,
+.vital-chip .unit,
+.vital-tile .v-value,
+.vital-tile .v-unit,
+.vital-inline-field input,
+.waveform-status-value,
+.waveform-status-unit,
+.waveforms-footer-tile-value,
+.waveforms-footer-tile-value strong,
+.waveforms-footer-tile-value span,
+.patient-summary-hero .num,
+.patient-summary-field-value.num,
+.patient-summary-grid dd.num,
+.kpi-row > :last-child,
+.ud-summary-value,
+.ud-summary-detail,
+.ud-unit-metrics span,
+.ud-occupancy-labels span:last-child,
+.alert-stat strong,
+.alarm-stat-pill,
+.alarm-center-card-value,
+.alarm-center-card-foot time,
+.fluids-stat-value,
+.fluids-stat-value small,
+.fluids-volume-cell,
+.fluids-time-cell,
+.order-ts,
+.col-timestamp,
+.col-discontinued,
+.report-overview-tile .val,
+.report-fluid-totals strong,
+.report-grid tbody td:not(.report-grid-sticky),
+.report-grid td strong,
+.report-data-table td:nth-child(3),
+.report-data-table td:nth-child(4),
+.clinical-table .fluids-volume-cell,
+.clinical-table .fluids-time-cell,
+.unit-stat-vacant,
+.unit-picker-stats strong,
+.metric-critical,
+.metric-warning,
+.metric-vent,
+.metric-infusion,
+time {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Material icon font must not inherit text/num rules */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-variant-numeric: normal;
+}

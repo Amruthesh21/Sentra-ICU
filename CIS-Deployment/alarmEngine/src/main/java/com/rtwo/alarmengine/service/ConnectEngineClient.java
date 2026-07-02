@@ -45,10 +45,15 @@ public class ConnectEngineClient {
      * MongoDB is saved before this call. Hub is always synced; CE catches up via debounced batch restart.
      */
     public boolean pushCenterUpdate(String centerName, String location, List<Map<String, Object>> beds) {
+        return pushCenterUpdate(centerName, location, beds, ConnectEngineSyncService.SyncTrigger.STRUCTURAL);
+    }
+
+    public boolean pushCenterUpdate(String centerName, String location, List<Map<String, Object>> beds,
+                                    ConnectEngineSyncService.SyncTrigger trigger) {
         if (pushUpdateRequest(centerName, location, beds)) {
             return true;
         }
-        return syncService.hubSynced();
+        return syncService.hubSynced(trigger);
     }
 
     private boolean pushUpdateRequest(String centerName, String location, List<Map<String, Object>> beds) {

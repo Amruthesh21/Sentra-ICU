@@ -1,5 +1,7 @@
 package com.rtwo.alarmengine.service;
 
+import com.rtwo.alarmengine.hub.entity.HubBedEntity;
+import com.rtwo.alarmengine.hub.repo.*;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -8,13 +10,8 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CenterAdminService {
@@ -26,35 +23,60 @@ public class CenterAdminService {
     private final ConnectEngineClient connectEngineClient;
     private final DeviceCatalogService deviceCatalogService;
     private final ConnectEngineSyncService connectEngineSyncService;
+    private final HubBedRepository hubBedRepository;
+    private final HubBedAssignmentRepository hubAssignmentRepository;
+    private final HubPatientVisitRepository hubVisitRepository;
+    private final HubPatientRepository hubPatientRepository;
 
     public CenterAdminService(MongoTemplate mongoTemplate,
                               ConnectEngineClient connectEngineClient,
                               DeviceCatalogService deviceCatalogService,
-                              ConnectEngineSyncService connectEngineSyncService) {
+                              ConnectEngineSyncService connectEngineSyncService,
+                              HubBedRepository hubBedRepository,
+                              HubBedAssignmentRepository hubAssignmentRepository,
+                              HubPatientVisitRepository hubVisitRepository,
+                              HubPatientRepository hubPatientRepository) {
         this.mongoTemplate = mongoTemplate;
         this.connectEngineClient = connectEngineClient;
         this.deviceCatalogService = deviceCatalogService;
         this.connectEngineSyncService = connectEngineSyncService;
+        this.hubBedRepository = hubBedRepository;
+        this.hubAssignmentRepository = hubAssignmentRepository;
+        this.hubVisitRepository = hubVisitRepository;
+        this.hubPatientRepository = hubPatientRepository;
     }
 
     public Map<String, Object> getCenterOverview() {
-        Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(DEFAULT_CENTER)), Document.class, "centerEntity");
+        return getCenterOverview(DEFAULT_CENTER);
+    }
+
+    public Map<String, Object> getCenterOverview(String centerId) {
+        String cid = resolveCenterId(centerId);
+        Document mongoCenter = mongoTemplate.findOne(
+                new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
         Map<String, Object> live = connectEngineClient.retrieve();
+        Map<String, String> display = resolveCenterDisplay(cid, mongoCenter, live);
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("centerName", DEFAULT_CENTER);
-        response.put("centerLocation", DEFAULT_LOCATION);
-        response.put("beds", mapBeds(center, live));
-        response.put("source", center != null ? "mongodb+connect" : "connect");
+        response.put("centerId", cid);
+        response.put("centerName", display.get("centerName"));
+        response.put("centerLocation", display.get("centerLocation"));
+        response.put("beds", mapBeds(cid, mongoCenter, live));
+        response.put("source", mongoCenter != null ? "mongodb+connect" : "postgres");
         return response;
     }
 
     public Map<String, Object> addBed(String bedLabel, String ip) {
+        return addBed(bedLabel, ip, DEFAULT_CENTER);
+    }
+
+    public Map<String, Object> addBed(String bedLabel, String ip, String centerId) {
+        String cid = resolveCenterId(centerId);
         if (bedLabel == null || bedLabel.isBlank()) {
             throw new IllegalArgumentException("bedLabel is required");
         }
 
-        Document center = ensureCenter();
+        Document center = ensureCenter(cid);
         List<Document> beds = getBedList(center);
 
         for (Document bed : beds) {
@@ -80,8 +102,8 @@ public class CenterAdminService {
         }
         beds.add(newBed);
 
-        saveBeds(beds);
-        boolean synced = syncConnectEngine(beds);
+        saveBeds(cid, beds, center);
+        syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
@@ -103,11 +125,16 @@ public class CenterAdminService {
     }
 
     public Map<String, Object> updateBedIp(String bedLabel, String ip) {
+        return updateBedIp(bedLabel, ip, DEFAULT_CENTER);
+    }
+
+    public Map<String, Object> updateBedIp(String bedLabel, String ip, String centerId) {
+        String cid = resolveCenterId(centerId);
         if (ip == null || ip.isBlank()) {
             throw new IllegalArgumentException("ip is required");
         }
 
-        Document center = ensureCenter();
+        Document center = ensureCenter(cid);
         List<Document> beds = getBedList(center);
         boolean found = false;
 
@@ -135,8 +162,8 @@ public class CenterAdminService {
             throw new IllegalArgumentException("Bed not found: " + bedLabel);
         }
 
-        saveBeds(beds);
-        boolean synced = syncConnectEngine(beds);
+        saveBeds(cid, beds, center);
+        syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
@@ -157,6 +184,33 @@ public class CenterAdminService {
         return result;
     }
 
+    private String resolveCenterId(String centerId) {
+        if (centerId == null || centerId.isBlank()) return DEFAULT_CENTER;
+        return centerId.trim().toUpperCase(Locale.ROOT);
+    }
+
+    /** Prefer Connect Engine / Mongo display names over Postgres hospital labels. */
+    private Map<String, String> resolveCenterDisplay(String centerId, Document mongoCenter, Map<String, Object> live) {
+        String name = null;
+        String location = null;
+
+        if (live != null && !live.isEmpty()) {
+            name = stringVal(live.get("name"), stringVal(live.get("centerName"), null));
+            location = stringVal(live.get("location"), stringVal(live.get("centerLocation"), null));
+        }
+        if (mongoCenter != null) {
+            if (name == null) name = mongoCenter.getString("centerName");
+            if (location == null) location = mongoCenter.getString("centerLocation");
+        }
+        if (name == null || name.isBlank()) name = centerId;
+        if (location == null) location = DEFAULT_CENTER.equals(centerId) ? DEFAULT_LOCATION : "";
+
+        Map<String, String> out = new LinkedHashMap<>();
+        out.put("centerName", name);
+        out.put("centerLocation", location);
+        return out;
+    }
+
     private String resolveBedIp(String requestedIp, List<Document> beds, String excludeBedLabel) {
         if (requestedIp != null && !requestedIp.isBlank() && !"auto".equalsIgnoreCase(requestedIp.trim())) {
             String ip = requestedIp.trim();
@@ -172,44 +226,37 @@ public class CenterAdminService {
         return nextAvailableIp(beds);
     }
 
-    /** Docker compose static addresses on alarampoc_docker_compose_network — skip for virtual bed IPs. */
     private static final Set<Integer> RESERVED_DOCKER_OCTETS = Set.of(10, 11, 12, 13, 14, 15);
 
     private String nextAvailableIp(List<Document> beds) {
         for (int i = 9; i <= 254; i++) {
-            if (RESERVED_DOCKER_OCTETS.contains(i)) {
-                continue;
-            }
+            if (RESERVED_DOCKER_OCTETS.contains(i)) continue;
             String candidate = "172.25.0." + i;
-            if (!isSimulatorIpInUse(candidate, beds, null)) {
-                return candidate;
-            }
+            if (!isSimulatorIpInUse(candidate, beds, null)) return candidate;
         }
         return "172.25.0.254";
     }
 
     private boolean isSimulatorIpInUse(String ip, List<Document> beds, String excludeBedLabel) {
         for (Document bed : beds) {
-            if (excludeBedLabel != null && excludeBedLabel.equals(bed.getString("bedLabel"))) {
-                continue;
-            }
-            if (ip.equals(decryptIp(bed.getString("ip")))) {
-                return true;
-            }
+            if (excludeBedLabel != null && excludeBedLabel.equals(bed.getString("bedLabel"))) continue;
+            if (ip.equals(decryptIp(bed.getString("ip")))) return true;
         }
         return false;
     }
 
-    private Document ensureCenter() {
-        Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(DEFAULT_CENTER)), Document.class, "centerEntity");
-        if (center != null) {
-            return center;
-        }
+    private Document ensureCenter(String centerId) {
+        String cid = resolveCenterId(centerId);
+        Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
+        if (center != null) return center;
+
+        Map<String, Object> live = connectEngineClient.retrieve();
+        Map<String, String> display = resolveCenterDisplay(cid, null, live);
 
         Document created = new Document();
-        created.put("_id", DEFAULT_CENTER);
-        created.put("centerName", DEFAULT_CENTER);
-        created.put("centerLocation", DEFAULT_LOCATION);
+        created.put("_id", cid);
+        created.put("centerName", display.get("centerName"));
+        created.put("centerLocation", display.get("centerLocation"));
         created.put("beds", new ArrayList<>());
         created.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.CenterEntity");
         mongoTemplate.save(created, "centerEntity");
@@ -222,26 +269,30 @@ public class CenterAdminService {
         if (bedsObj instanceof List<?> list) {
             List<Document> beds = new ArrayList<>();
             for (Object item : list) {
-                if (item instanceof Document doc) {
-                    beds.add(doc);
-                } else if (item instanceof Map<?, ?> map) {
-                    beds.add(new Document((Map<String, Object>) map));
-                }
+                if (item instanceof Document doc) beds.add(doc);
+                else if (item instanceof Map<?, ?> map) beds.add(new Document((Map<String, Object>) map));
             }
             return beds;
         }
         return new ArrayList<>();
     }
 
-    private void saveBeds(List<Document> beds) {
+    private void saveBeds(String centerId, List<Document> beds, Document center) {
+        String cid = resolveCenterId(centerId);
+        Map<String, String> display = resolveCenterDisplay(cid, center, connectEngineClient.retrieve());
         mongoTemplate.updateFirst(
-                new Query(Criteria.where("_id").is(DEFAULT_CENTER)),
-                new Update().set("beds", beds).set("centerName", DEFAULT_CENTER).set("centerLocation", DEFAULT_LOCATION),
+                new Query(Criteria.where("_id").is(cid)),
+                new Update()
+                        .set("beds", beds)
+                        .set("centerName", display.get("centerName"))
+                        .set("centerLocation", display.get("centerLocation")),
                 "centerEntity"
         );
     }
 
-    private boolean syncConnectEngine(List<Document> beds) {
+    private boolean syncConnectEngine(String centerId, List<Document> beds, Document center) {
+        String cid = resolveCenterId(centerId);
+        Map<String, String> display = resolveCenterDisplay(cid, center, connectEngineClient.retrieve());
         List<Map<String, Object>> payloadBeds = new ArrayList<>();
         for (Document bed : beds) {
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -249,11 +300,13 @@ public class CenterAdminService {
             entry.put("ip", decryptIp(bed.getString("ip")));
             payloadBeds.add(entry);
         }
-        return connectEngineClient.pushCenterUpdate(DEFAULT_CENTER, DEFAULT_LOCATION, payloadBeds);
+        return connectEngineClient.pushCenterUpdate(
+                display.get("centerName"), display.get("centerLocation"), payloadBeds);
     }
 
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> mapBeds(Document center, Map<String, Object> live) {
+    private List<Map<String, Object>> mapBeds(String centerId, Document center, Map<String, Object> live) {
+        String cid = resolveCenterId(centerId);
         List<Map<String, Object>> result = new ArrayList<>();
         Map<String, Map<String, Object>> liveByLabel = new LinkedHashMap<>();
 
@@ -268,73 +321,98 @@ public class CenterAdminService {
         }
 
         List<Document> mongoBeds = center != null ? getBedList(center) : List.of();
-        if (mongoBeds.isEmpty() && !liveByLabel.isEmpty()) {
-            for (Map.Entry<String, Map<String, Object>> entry : liveByLabel.entrySet()) {
-                result.add(mapBedEntry(entry.getKey(), entry.getValue(), null, List.of()));
-            }
-            return result;
+        Map<String, Document> mongoByLabel = mongoBeds.stream()
+                .collect(Collectors.toMap(b -> b.getString("bedLabel"), b -> b, (a, b) -> a));
+
+        Set<String> labels = new LinkedHashSet<>();
+        labels.addAll(mongoByLabel.keySet());
+        labels.addAll(liveByLabel.keySet());
+        hubBedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(cid).stream()
+                .map(HubBedEntity::getBedLabel)
+                .forEach(labels::add);
+
+        if (labels.isEmpty() && !liveByLabel.isEmpty()) {
+            labels.addAll(liveByLabel.keySet());
         }
 
-        for (Document bed : mongoBeds) {
-            String label = bed.getString("bedLabel");
-            result.add(mapBedEntry(label, liveByLabel.get(label), bed, mongoBeds));
+        for (String label : labels) {
+            result.add(mapBedEntry(cid, label, liveByLabel.get(label), mongoByLabel.get(label),
+                    mongoBeds.isEmpty() ? List.of() : mongoBeds));
         }
         return result;
     }
 
-    private Map<String, Object> mapBedEntry(String label, Map<String, Object> liveBed, Document mongoBed, List<Document> allBeds) {
+    private Map<String, Object> mapBedEntry(
+            String centerId,
+            String label,
+            Map<String, Object> liveBed,
+            Document mongoBed,
+            List<Document> allBeds) {
         Map<String, Object> bed = new LinkedHashMap<>();
         bed.put("bedLabel", label);
         bed.put("bedId", mongoBed != null ? mongoBed.get("_id") : liveBed != null ? liveBed.get("bedId") : null);
         bed.put("alarmBedId", "ICU-1-" + label);
-        Object patient = mongoBed != null ? mongoBed.get("patient") : null;
-        if (patient == null && liveBed != null) {
-            patient = liveBed.get("patient");
+
+        Map<String, Object> postgresPatient = resolvePostgresPatient(centerId, label);
+        if (postgresPatient != null) {
+            bed.put("patient", postgresPatient);
+            bed.put("occupied", true);
+        } else {
+            bed.put("occupied", false);
         }
 
         if (mongoBed != null) {
             String ip = decryptIp(mongoBed.getString("ip"));
             boolean liveSim = DeviceCatalogService.SIMULATOR_IP.equals(ip);
             boolean virtualSim = "virtual".equals(mongoBed.getString("simulationMode"))
-                    || (!liveSim && patient != null);
+                    || (!liveSim && postgresPatient != null);
             bed.put("deviceIp", ip);
             bed.put("simulatorConnected", liveSim);
             bed.put("liveVitalsCapable", liveSim);
             bed.put("virtualSimulatorActive", virtualSim);
             bed.put("simulationMode", mongoBed.getString("simulationMode"));
             bed.put("ipConflict", liveSim && isSimulatorIpInUse(ip, allBeds, label));
-        }
-        if (patient instanceof Map<?, ?> patientMap) {
-            Map<String, Object> p = new LinkedHashMap<>();
-            p.put("name", patientMap.get("name"));
-            p.put("mrn", firstNonNull(patientMap.get("puid"), patientMap.get("mrn")));
-            p.put("gender", patientMap.get("gender"));
-            p.put("weight", patientMap.get("weight"));
-            p.put("visitId", patientMap.get("id"));
-            bed.put("patient", p);
-            bed.put("occupied", true);
         } else {
-            bed.put("occupied", false);
+            hubBedRepository.findByCenterIdAndBedLabel(centerId, label).ifPresent(hubBed -> {
+                if (hubBed.getDeviceIp() != null) bed.put("deviceIp", hubBed.getDeviceIp());
+                if (hubBed.getSimulationMode() != null) bed.put("simulationMode", hubBed.getSimulationMode());
+            });
         }
         return bed;
     }
 
-    private Object firstNonNull(Object a, Object b) {
-        return a != null ? a : b;
+    private Map<String, Object> resolvePostgresPatient(String centerId, String bedLabel) {
+        return hubBedRepository.findByCenterIdAndBedLabel(resolveCenterId(centerId), bedLabel)
+                .flatMap(bed -> hubAssignmentRepository.findByBedIdAndActiveTrue(bed.getId())
+                        .flatMap(a -> hubVisitRepository.findById(a.getVisitId())
+                                .flatMap(v -> hubPatientRepository.findById(v.getPatientId())
+                                        .map(p -> {
+                                            Map<String, Object> patient = new LinkedHashMap<>();
+                                            patient.put("name", p.getFullName());
+                                            patient.put("mrn", p.getMrn());
+                                            patient.put("puid", p.getMrn());
+                                            patient.put("gender", p.getSex());
+                                            patient.put("weight", p.getBirthWeightKg());
+                                            patient.put("id", v.getId().toString());
+                                            patient.put("visitId", v.getId().toString());
+                                            return patient;
+                                        }))))
+                .orElse(null);
     }
 
-    static String encryptIp(String ip) {
+    private String stringVal(Object value, String fallback) {
+        if (value == null || value.toString().isBlank()) return fallback;
+        return value.toString().trim();
+    }
+
+    public static String encryptIp(String ip) {
         String b64 = Base64.getEncoder().encodeToString(ip.getBytes(StandardCharsets.UTF_8));
         return new StringBuilder(b64).reverse().toString();
     }
 
-    static String decryptIp(String encrypted) {
-        if (encrypted == null || encrypted.isBlank()) {
-            return "";
-        }
-        if (encrypted.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) {
-            return encrypted;
-        }
+    public static String decryptIp(String encrypted) {
+        if (encrypted == null || encrypted.isBlank()) return "";
+        if (encrypted.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) return encrypted;
         try {
             String reversed = new StringBuilder(encrypted).reverse().toString();
             return new String(Base64.getDecoder().decode(reversed), StandardCharsets.UTF_8);

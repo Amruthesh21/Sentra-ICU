@@ -31,17 +31,20 @@ public class VitalsReadService {
     private final CisCenterService cisCenterService;
     private final BedDeviceService bedDeviceService;
     private final BedVirtualVitalsService bedVirtualVitalsService;
+    private final OccupiedBedService occupiedBedService;
 
     public VitalsReadService(MongoTemplate mongoTemplate,
                              LatestVitalsStore latestVitalsStore,
                              CisCenterService cisCenterService,
                              BedDeviceService bedDeviceService,
-                             BedVirtualVitalsService bedVirtualVitalsService) {
+                             BedVirtualVitalsService bedVirtualVitalsService,
+                             OccupiedBedService occupiedBedService) {
         this.mongoTemplate = mongoTemplate;
         this.latestVitalsStore = latestVitalsStore;
         this.cisCenterService = cisCenterService;
         this.bedDeviceService = bedDeviceService;
         this.bedVirtualVitalsService = bedVirtualVitalsService;
+        this.occupiedBedService = occupiedBedService;
     }
 
     public Map<String, Object> getLatestVitals(String bedId) {
@@ -94,7 +97,10 @@ public class VitalsReadService {
 
     private boolean hasAdmittedPatient(String bedId) {
         String visitId = cisCenterService.resolvePatientVisitId(bedId);
-        return visitId != null && !visitId.isBlank();
+        if (visitId != null && !visitId.isBlank()) {
+            return true;
+        }
+        return occupiedBedService.isBedOccupied(bedId);
     }
 
     public Map<String, Object> loadMergedVitalsFromMongo(String bedId) {

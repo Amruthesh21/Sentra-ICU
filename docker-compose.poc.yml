@@ -8,11 +8,34 @@ networks:
     external: true
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: CIS-postgres
+    ports:
+      - "7001:5432"
+    environment:
+      POSTGRES_DB: icu_hub
+      POSTGRES_USER: icu_hub
+      POSTGRES_PASSWORD: hub@123
+    volumes:
+      - cis_postgres_data:/var/lib/postgresql/data
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.22
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U icu_hub -d icu_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   alarm-engine:
     build: ./CIS-Deployment/alarmEngine
     container_name: CIS-alarm-engine
     ports:
       - "7020:9020"
+    env_file:
+      - .env
     environment:
       SPRING_RABBITMQ_HOST: CIS-rabbitmq
       SPRING_RABBITMQ_PORT: 5672
@@ -26,11 +49,28 @@ services:
       CONNECT_ENGINE_AUTO_RESTART: "true"
       CONNECT_ENGINE_RESTART_DEBOUNCE_MS: "15000"
       CONNECT_ENGINE_POST_SAVE_DEBOUNCE_MS: "10000"
+      CONNECT_ENGINE_RESTART_ON_PATIENT_CHANGE: "false"
       CONNECT_ENGINE_CONTAINER: CIS-Deployment-connect-engine
+      SPRING_DATASOURCE_URL: jdbc:postgresql://CIS-postgres:5432/icu_hub
+      SPRING_DATASOURCE_USERNAME: icu_hub
+      SPRING_DATASOURCE_PASSWORD: hub@123
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-monish.reddy@invensis.net}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      HUB_AUTH_DEV_EXPOSE_OTP: ${HUB_AUTH_DEV_EXPOSE_OTP:-true}
+      HUB_AUTH_ENFORCED: ${HUB_AUTH_ENFORCED:-false}
+      SMTP_ENABLED: ${SMTP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       docker_compose_network:
         ipv4_address: 172.25.0.10
@@ -119,3 +159,6 @@ services:
       docker_compose_network:
         ipv4_address: 172.25.0.14
     restart: unless-stopped
+
+volumes:
+  cis_postgres_data:

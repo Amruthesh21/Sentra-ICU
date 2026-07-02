@@ -46,6 +46,27 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: CIS-postgres
+    ports:
+      - "7001:5432"
+    environment:
+      POSTGRES_DB: icu_hub
+      POSTGRES_USER: icu_hub
+      POSTGRES_PASSWORD: hub@123
+    volumes:
+      - cis_postgres_data:/var/lib/postgresql/data
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.25.0.22
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U icu_hub -d icu_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   docker_compose_network:
     name: alarampoc_docker_compose_network
@@ -54,3 +75,4 @@ networks:
 volumes:
   cis_mongodb_data:
   cis_rabbitmq_data:
+  cis_postgres_data:

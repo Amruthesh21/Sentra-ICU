@@ -112,12 +112,37 @@ export async function getLatestVitals(bedId) {
   return readJson(await apiFetch(`/api/vitals/latest/${encodeURIComponent(bedId)}`));
 }
 
-export async function getVitalsHistory(bedId, minutes = 60) {
-  return readJson(await apiFetch(`/api/vitals/history/${encodeURIComponent(bedId)}?minutes=${minutes}`));
+export async function getVitalsHistory(bedId, options = {}) {
+  const params = new URLSearchParams();
+  if (options.from && options.to) {
+    params.set('from', options.from);
+    params.set('to', options.to);
+  } else {
+    params.set('minutes', String(options.minutes ?? 60));
+  }
+  return readJson(await apiFetch(`/api/vitals/history/${encodeURIComponent(bedId)}?${params}`));
 }
 
 export async function getActiveAlarms() {
-  return readJson(await apiFetch('/api/alarm/active'));
+  const data = await readJson(await apiFetch('/api/alarm/active'));
+  return Array.isArray(data) ? data : [];
+}
+
+export function alarmConditionKey(alarm) {
+  if (!alarm) return '';
+  const bedId = alarm.bedId || '';
+  return `${bedId}|${alarm.paramName}|${alarm.threshold}`;
+}
+
+export async function getAlarmFeed() {
+  return readJson(await apiFetch('/api/alarm/feed'));
+}
+
+export async function acknowledgeAlarm({ bedId, paramName, threshold, currentValue }) {
+  return readJson(await apiFetch('/api/alarm/acknowledge', {
+    method: 'POST',
+    body: JSON.stringify({ bedId, paramName, threshold, currentValue }),
+  }));
 }
 
 export function vitalsToMap(data) {

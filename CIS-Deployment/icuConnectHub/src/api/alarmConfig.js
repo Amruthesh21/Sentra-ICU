@@ -6,6 +6,96 @@ export function getDoctorId() {
   return localStorage.getItem('doctorId') || DOCTOR_ID;
 }
 
+export function canonicalAlarmBedId(bedId) {
+  if (!bedId) return bedId;
+  let decoded = bedId;
+  try {
+    decoded = decodeURIComponent(bedId);
+  } catch {
+    decoded = bedId;
+  }
+  decoded = decoded.trim();
+  if (decoded.startsWith('ICU-1-')) return decoded;
+  if (/^BED-\d+$/i.test(decoded)) return `ICU-1-${decoded.toUpperCase()}`;
+  return `ICU-1-${decoded}`;
+}
+
+function bedIdVariants(bedId) {
+  const raw = canonicalAlarmBedId(bedId);
+  const set = new Set();
+  const add = (v) => {
+    if (!v || typeof v !== 'string') return;
+    const t = v.trim();
+    if (!t) return;
+    set.add(t);
+  };
+
+  add(raw);
+  const label = raw?.startsWith('ICU-1-') ? raw.slice('ICU-1-'.length) : raw;
+  add(label);
+
+  const collapsed = String(label || '').replace(/\s+/g, ' ');
+  const hyphen = collapsed.replace(/ /g, '-');
+  const spaced = collapsed.replace(/-/g, ' ');
+  add(collapsed);
+  add(hyphen);
+  add(spaced);
+  add(`ICU-1-${collapsed}`);
+  add(`ICU-1-${hyphen}`);
+  add(`ICU-1-${spaced}`);
+
+  const m = collapsed.match(/^BED[\s_-]*0*(\d+)$/i);
+  if (m) {
+    const n = String(Number(m[1]));
+    add(`BED ${n}`);
+    add(`BED-${n}`);
+    add(`ICU-1-BED ${n}`);
+    add(`ICU-1-BED-${n}`);
+  }
+  return [...set];
+}
+
+function normalizeBedKey(bedId) {
+  const canonical = canonicalAlarmBedId(bedId) || '';
+  return canonical
+    .toUpperCase()
+    .replace(/^ICU-1-/, '')
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+export function findBedAlarmConfig(configs, bedId) {
+  const keys = new Set(bedIdVariants(bedId).map(normalizeBedKey));
+  return (configs || [])
+    .filter((c) => keys.has(normalizeBedKey(c?.bedId)))
+    .sort((a, b) => {
+      const at = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
+      const bt = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
+      return bt - at;
+    })[0];
+}
+
+export function validateThresholds(alarms) {
+  for (const alarm of alarms || []) {
+    if (!alarm.enabled) continue;
+    const high = alarm.highThreshold === '' || alarm.highThreshold == null
+      ? null
+      : Number(alarm.highThreshold);
+    const low = alarm.lowThreshold === '' || alarm.lowThreshold == null
+      ? null
+      : Number(alarm.lowThreshold);
+    const label = VITAL_PARAMS.find((p) => p.paramName === alarm.paramName)?.label || alarm.paramName;
+    if (high != null && Number.isNaN(high)) return `${label}: high threshold must be a number`;
+    if (low != null && Number.isNaN(low)) return `${label}: low threshold must be a number`;
+    if (high == null && low == null) {
+      return `${label}: set at least one limit when alarm is enabled`;
+    }
+    if (high != null && low != null && high <= low) {
+      return `${label}: high limit must be greater than low limit`;
+    }
+  }
+  return null;
+}
+
 export const VITAL_PARAMS = [
   { paramName: 'SpO2', label: 'SpO2', unit: '%' },
   { paramName: 'HeartRate', label: 'Heart Rate', unit: 'bpm', aliases: ['Pulse', 'Heart Rate'] },

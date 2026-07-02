@@ -60,3 +60,56 @@ export function demoThresholds() {
     { paramName: 'VT', highThreshold: 800, lowThreshold: 200, enabled: false },
   ];
 }
+
+export function canonicalAlarmBedId(bedId) {
+  if (!bedId) return bedId;
+  let decoded = bedId;
+  try {
+    decoded = decodeURIComponent(bedId);
+  } catch {
+    decoded = bedId;
+  }
+  decoded = decoded.trim();
+  if (decoded.startsWith('ICU-1-')) return decoded;
+  if (/^BED-\d+$/i.test(decoded)) return `ICU-1-${decoded.toUpperCase()}`;
+  return `ICU-1-${decoded}`;
+}
+
+export function findBedAlarmConfig(configs, bedId) {
+  const canonical = canonicalAlarmBedId(bedId);
+  return (configs || []).find((c) => canonicalAlarmBedId(c.bedId) === canonical);
+}
+
+export function mergeThresholds(saved) {
+  return VITAL_PARAMS.map((param) => {
+    const existing = saved?.find((a) => a.paramName === param.paramName);
+    return existing || {
+      paramName: param.paramName,
+      highThreshold: null,
+      lowThreshold: null,
+      enabled: false,
+    };
+  });
+}
+
+export function validateThresholds(alarms) {
+  for (const alarm of alarms || []) {
+    if (!alarm.enabled) continue;
+    const high = alarm.highThreshold === '' || alarm.highThreshold == null
+      ? null
+      : Number(alarm.highThreshold);
+    const low = alarm.lowThreshold === '' || alarm.lowThreshold == null
+      ? null
+      : Number(alarm.lowThreshold);
+    const label = VITAL_PARAMS.find((p) => p.paramName === alarm.paramName)?.label || alarm.paramName;
+    if (high != null && Number.isNaN(high)) return `${label}: high threshold must be a number`;
+    if (low != null && Number.isNaN(low)) return `${label}: low threshold must be a number`;
+    if (high == null && low == null) {
+      return `${label}: set at least one limit when alarm is enabled`;
+    }
+    if (high != null && low != null && high <= low) {
+      return `${label}: high limit must be greater than low limit`;
+    }
+  }
+  return null;
+}

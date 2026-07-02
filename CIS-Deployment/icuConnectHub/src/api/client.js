@@ -1,15 +1,30 @@
+import { authFetch } from './auth';
+
 export function apiFetch(url, options = {}) {
-  const headers = new Headers(options.headers || {});
-  if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-  return fetch(url, { ...options, headers, cache: 'no-store' });
+  return authFetch(url, options);
 }
 
 export async function readJson(res) {
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Request failed (${res.status})`);
+    let msg = text;
+    if (text.trimStart().startsWith('<')) {
+      msg = `Request failed (${res.status}) — server returned HTML instead of JSON`;
+    } else {
+      try {
+        const j = JSON.parse(text);
+        msg = j.error || j.message || text;
+      } catch { /* keep text */ }
+    }
+    throw new Error(msg || `Request failed (${res.status})`);
   }
-  return res.json();
+  if (!text) return {};
+  if (text.trimStart().startsWith('<')) {
+    throw new Error('Server returned HTML instead of JSON — API route may be missing');
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON response from server');
+  }
 }

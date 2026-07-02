@@ -4,8 +4,8 @@ import { formatVitalValue } from '../api/hub';
 const VITAL_DISPLAY = [
   { key: 'SpO2', label: 'SpO2', unit: '%', criticalLow: 90 },
   { key: 'HeartRate', label: 'HR', unit: 'bpm', aliases: ['Pulse', 'Heart Rate'] },
-  { key: 'Temp1', label: 'Temp', unit: '°C', warningHigh: 38 },
-  { key: 'Resp.Rate', label: 'RR', unit: 'bpm' },
+  { key: 'Temp1', label: 'Temp', unit: '°C', warningHigh: 38, warningLow: 30, aliases: ['Temp', 'Temperature'] },
+  { key: 'Resp.Rate', label: 'RR', unit: 'bpm', aliases: ['RR', 'Resp Rate'] },
 ];
 
 function resolve(vitals, key, aliases = []) {
@@ -20,22 +20,40 @@ function statusFor(v, spec) {
   if (v == null) return '';
   if (spec.criticalLow != null && v < spec.criticalLow) return 'critical';
   if (spec.warningHigh != null && v > spec.warningHigh) return 'warning';
+  if (spec.warningLow != null && v < spec.warningLow) return 'warning';
   return '';
 }
 
-export default function PatientCard({ bed, vitals, alarmCount, cardClass }) {
+function admitPatientUrl(bedLabel, unitId) {
+  const params = new URLSearchParams();
+  if (unitId) params.set('unitId', unitId);
+  if (bedLabel) params.set('bedLabel', bedLabel);
+  const q = params.toString();
+  return q ? `/patients?${q}` : '/patients';
+}
+
+export default function PatientCard({ bed, vitals = {}, alarmCount = 0, cardClass, unitId }) {
   const bedRoute = bed.alarmBedId || `ICU-1-${bed.bedLabel}`;
   const patient = bed.patient;
   const occupied = bed.occupied && patient?.name;
+  const bedTitle = /^BED[\s-]/i.test(bed.bedLabel || '') ? bed.bedLabel : `Bed ${bed.bedLabel}`;
+  const cardTo = occupied
+    ? `/bed/${encodeURIComponent(bedRoute)}`
+    : admitPatientUrl(bed.bedLabel, unitId);
 
   return (
-    <Link to={`/bed/${encodeURIComponent(bedRoute)}`} className={`patient-card ${cardClass || ''}`}>
+    <Link to={cardTo} className={`patient-card ${cardClass || ''}${alarmCount > 0 ? ' has-alarm' : ''}`}>
       <div className="card-header">
         <div>
-          <div className="bed-label">Bed {bed.bedLabel}</div>
+          <div className="bed-label">{bedTitle}</div>
           <div className="patient-name">{occupied ? patient.name : 'No Patient'}</div>
         </div>
-        {alarmCount > 0 && <div className="alarm-badge">{alarmCount}</div>}
+        {alarmCount > 0 ? (
+          <div className="alarm-badge alarm-badge--live" title={`${alarmCount} active alarm${alarmCount > 1 ? 's' : ''}`}>
+            <span className="alarm-badge-icon" aria-hidden>!</span>
+            <span>{alarmCount}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="status-tags">
@@ -66,7 +84,7 @@ export default function PatientCard({ bed, vitals, alarmCount, cardClass }) {
           })}
         </div>
       ) : (
-        <div style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Tap to admit patient</div>
+        <div className="patient-card-admit-hint">Tap to admit patient</div>
       )}
     </Link>
   );

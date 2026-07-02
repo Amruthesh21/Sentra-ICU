@@ -13,7 +13,9 @@ public class LatestVitalsStore {
 
     public void put(DeviceDataMessage deviceData) {
         if (deviceData != null && deviceData.getBedId() != null) {
-            latestByBed.put(deviceData.getBedId(), deviceData);
+            String canonical = BedIdUtil.canonicalAlarmBedId(deviceData.getBedId());
+            deviceData.setBedId(canonical);
+            latestByBed.put(canonical, deviceData);
         }
     }
 
@@ -22,6 +24,20 @@ public class LatestVitalsStore {
     }
 
     public DeviceDataMessage get(String bedId) {
+        if (bedId == null) {
+            return null;
+        }
+        String canonical = BedIdUtil.canonicalAlarmBedId(bedId);
+        DeviceDataMessage direct = latestByBed.get(canonical);
+        if (direct != null) {
+            return direct;
+        }
+        for (String variant : VitalsReadService.bedIdVariants(bedId)) {
+            direct = latestByBed.get(BedIdUtil.canonicalAlarmBedId(variant));
+            if (direct != null) {
+                return direct;
+            }
+        }
         return latestByBed.get(bedId);
     }
 }

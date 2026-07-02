@@ -1,0 +1,4 @@
+ALTER TABLE hub_centers
+    ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE';
+
+UPDATE hub_centers SET status = 'ACTIVE' WHERE status IS NULL;

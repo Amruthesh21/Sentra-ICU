@@ -1,0 +1,810 @@
+/* Hospital Admin — center-scoped operations shell */
+
+.ha-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  background: linear-gradient(135deg, #dceaf8 0%, #e8f2fa 45%, #d6e6f5 100%);
+  color: #0a3d62;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.ha-sidebar {
+  background: linear-gradient(180deg, #dceaf8 0%, #e8f2fa 48%, #d6e6f5 100%);
+  border-right: 1px solid rgba(10, 61, 98, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  min-height: 100vh;
+}
+
+.ha-sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6px 4px 22px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+  margin-bottom: 18px;
+}
+
+.ha-sidebar-logo-wrap {
+  width: 100%;
+  padding: 2px 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.ha-sidebar-brand .rtwo-logo {
+  width: auto;
+  max-width: 178px;
+}
+
+.ha-sidebar-brand .rtwo-logo-img {
+  width: 100%;
+  max-width: 178px;
+  max-height: 48px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.ha-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px auto 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(10, 61, 98, 0.92);
+  color: #fff;
+  border: 1px solid rgba(10, 61, 98, 0.15);
+  box-shadow: 0 3px 10px rgba(10, 61, 98, 0.14);
+}
+
+.ha-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.ha-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #3d6f96;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.ha-nav-item:hover {
+  background: rgba(255, 255, 255, 0.55);
+  color: #0a3d62;
+}
+
+.ha-nav-item.is-active {
+  background: #0a3d62;
+  color: #fff;
+}
+
+.ha-sidebar-foot {
+  padding: 14px 8px 6px;
+  border-top: 1px solid rgba(10, 61, 98, 0.1);
+  text-align: center;
+}
+
+.ha-sidebar-foot-text {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0a3d62;
+  letter-spacing: 0.02em;
+}
+
+.ha-sidebar-foot-sub {
+  margin: 5px 0 0;
+  font-size: 0.75rem;
+  color: #5a8fb0;
+}
+
+.ha-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.ha-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 22px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(10, 61, 98, 0.08);
+}
+
+.ha-menu-toggle {
+  display: none;
+  border: none;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #0a3d62;
+}
+
+.ha-topbar-title h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.ha-topbar-title p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: #5a8fb0;
+}
+
+.ha-topbar-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ha-topbar-clock {
+  font-size: 0.85rem;
+  color: #3d6f96;
+  font-variant-numeric: tabular-nums;
+}
+
+.ha-topbar-user {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ha-logout-btn {
+  border: 1px solid #c5d9eb;
+  background: #fff;
+  color: #0a3d62;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ha-center-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 22px;
+  background: rgba(255, 255, 255, 0.55);
+  border-bottom: 1px solid rgba(10, 61, 98, 0.08);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.ha-back-center {
+  border: none;
+  background: none;
+  color: #0a3d62;
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 10px 12px 10px 0;
+  margin-right: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ha-center-tab {
+  border: none;
+  background: none;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #5a8fb0;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ha-center-tab.is-active {
+  color: #0a3d62;
+  font-weight: 600;
+  border-bottom-color: #0a3d62;
+}
+
+.ha-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 22px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ha-content > * {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+/* Full-width panels inside hospital admin (override global .form-card max-width: 520px) */
+.hospital-admin-page,
+.ha-content .admin-layout,
+.ha-content .order-mgmt.hospital-admin-page {
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.hospital-admin-page .form-card,
+.ha-content .admin-layout .form-card,
+.ha-content .admin-layout .units-beds-card,
+.ha-content .order-mgmt.hospital-admin-page .form-card {
+  max-width: none !important;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(10, 61, 98, 0.08);
+  box-shadow: 0 4px 20px rgba(10, 61, 98, 0.06);
+}
+
+.hospital-admin-page .sa-table-panel,
+.ha-content .order-mgmt.hospital-admin-page .sa-table-panel {
+  padding: 20px 22px;
+}
+
+.hospital-admin-page .order-mgmt-head,
+.ha-content .order-mgmt.hospital-admin-page .order-mgmt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.08);
+  margin-bottom: 2px;
+}
+
+.hospital-admin-page .order-mgmt-title,
+.ha-content .order-mgmt.hospital-admin-page .order-mgmt-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0a3d62;
+}
+
+.ha-panel-sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #5a8fb0;
+  line-height: 1.4;
+}
+
+.hospital-admin-page .clinical-table-wrap,
+.ha-content .admin-layout .clinical-table-wrap,
+.ha-content .order-mgmt.hospital-admin-page .clinical-table-wrap,
+.ha-content .order-mgmt.hospital-admin-page .order-table-wrap {
+  width: 100%;
+  min-height: 0;
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.hospital-admin-page .sa-platform-table,
+.ha-content .admin-layout .sa-platform-table,
+.ha-content .order-mgmt.hospital-admin-page .sa-platform-table,
+.ha-content .order-mgmt.hospital-admin-page .order-table {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: auto;
+}
+
+.ha-content .order-mgmt.hospital-admin-page .clinical-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a8fb0;
+  background: rgba(232, 242, 252, 0.5);
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+  padding: 12px 14px;
+}
+
+.ha-content .order-mgmt.hospital-admin-page .clinical-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.06);
+  color: #0f2744;
+  vertical-align: middle;
+}
+
+.ha-content .order-mgmt.hospital-admin-page .clinical-table tbody tr:hover {
+  background: rgba(232, 242, 252, 0.35);
+}
+
+.ha-content .order-mgmt.hospital-admin-page .message {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ha-content .order-mgmt.hospital-admin-page .ha-staff-tabs {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 10px 10px 0 0;
+  padding: 4px 10px 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+}
+
+.ha-content .order-mgmt.hospital-admin-page .form-card.glass-card {
+  border-radius: 0 0 14px 14px;
+  margin-top: -1px;
+}
+
+.hospital-admin-page .sa-platform-table--users th:nth-child(1) { width: 22%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(2) { width: 32%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(3) { width: 22%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(4) { width: 12%; }
+
+.hospital-admin-page .sa-platform-table--roles th:nth-child(1) { width: 20%; }
+.hospital-admin-page .sa-platform-table--roles th:nth-child(2) { width: 38%; }
+.hospital-admin-page .sa-platform-table--roles th:nth-child(3) { width: 12%; }
+.hospital-admin-page .sa-platform-table--roles th.col-manage { width: 10%; }
+
+.ha-staff-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+}
+
+.ha-staff-tab {
+  border: none;
+  background: none;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #5a8fb0;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.ha-staff-tab.is-active {
+  color: #0a3d62;
+  border-bottom-color: #0a3d62;
+}
+
+.ha-staff-tab-count {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e8f2fc;
+  color: #0a3d62;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.order-modal--wide {
+  max-width: 560px;
+}
+
+.order-modal--permissions {
+  max-width: min(720px, 96vw);
+}
+
+.permission-picker {
+  border: 1px solid rgba(10, 61, 98, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+}
+
+.permission-picker-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.08);
+  background: rgba(232, 242, 252, 0.55);
+}
+
+.permission-picker-count {
+  font-size: 0.82rem;
+  color: #5a8fb0;
+  font-weight: 600;
+}
+
+.permission-picker-select-all,
+.permission-picker-group-toggle {
+  border: none;
+  background: none;
+  color: #0a3d62;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.permission-picker-select-all:hover,
+.permission-picker-group-toggle:hover {
+  text-decoration: underline;
+}
+
+.permission-picker-select-all:disabled,
+.permission-picker-group-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.permission-picker-groups {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+}
+
+.permission-picker-group + .permission-picker-group {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(10, 61, 98, 0.06);
+}
+
+.permission-picker-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.permission-picker-group-head h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0a3d62;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.permission-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .permission-picker-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.permission-picker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(10, 61, 98, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.permission-picker-item:hover {
+  border-color: rgba(10, 61, 98, 0.22);
+}
+
+.permission-picker-item.is-checked {
+  border-color: #0a3d62;
+  background: rgba(232, 242, 252, 0.45);
+}
+
+.permission-picker-item input[type="checkbox"] {
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #0a3d62;
+}
+
+.permission-picker-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.permission-picker-item-text strong {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f2744;
+  line-height: 1.3;
+}
+
+.permission-picker-item-text small {
+  font-size: 0.74rem;
+  color: #5a8fb0;
+  line-height: 1.35;
+}
+
+.ha-footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px;
+  font-size: 0.75rem;
+  color: #5a8fb0;
+  border-top: 1px solid rgba(10, 61, 98, 0.06);
+  background: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.ha-sidebar-backdrop {
+  display: none;
+}
+
+/* Clinical views inside hospital admin — full width, same layout as clinical shell */
+.ha-content .universal-dashboard.universal-dashboard--ha,
+.ha-content .ax-page,
+.ha-content .alarm-center-page,
+.ha-content .order-mgmt.hospital-admin-page,
+.ha-content .admin-layout {
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  align-self: stretch;
+}
+
+.universal-dashboard--ha,
+.universal-dashboard.ha-embed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.universal-dashboard--ha .universal-main,
+.universal-dashboard.ha-embed .universal-main {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.universal-dashboard--ha .ud-summary-row,
+.universal-dashboard.ha-embed .ud-summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.universal-dashboard--ha .ud-center-panel,
+.universal-dashboard--ha .ud-deteriorating,
+.universal-dashboard--ha .ud-ha-alert-strip {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.universal-dashboard--ha .ud-blocks-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.universal-dashboard--ha .ud-block-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.universal-dashboard--ha .ud-unit-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  flex: 1;
+}
+
+.universal-dashboard--ha .ud-unit-card,
+.universal-dashboard--ha .ud-unit-card--static {
+  height: 100%;
+}
+
+.universal-dashboard--ha .ud-deteriorating-table {
+  width: 100%;
+}
+
+.universal-dashboard--ha .clinical-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ud-ha-alert-strip {
+  padding: 16px 18px;
+}
+
+.ud-ha-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.ud-ha-alert-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(10, 61, 98, 0.1);
+  background: #fff;
+  font-size: 0.82rem;
+}
+
+.ud-ha-alert-item strong {
+  color: #0a3d62;
+  font-size: 0.88rem;
+}
+
+.ud-ha-alert-item span {
+  color: #5a8fb0;
+}
+
+.ud-ha-alert-item small {
+  color: #94a3b8;
+}
+
+.ha-embed .alert-center {
+  display: none;
+}
+
+.ha-alarm-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.ha-alarm-scope-bar .form-group {
+  margin: 0;
+  min-width: 160px;
+}
+
+.hospital-admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(10, 61, 98, 0.1);
+}
+
+.hospital-admin-tab {
+  border: none;
+  background: none;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #5a8fb0;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.hospital-admin-tab.is-active {
+  color: #0a3d62;
+  border-bottom-color: #0a3d62;
+}
+
+.hospital-admin-page--embed .page-intro {
+  display: none;
+}
+
+.ha-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ha-section-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0a3d62;
+}
+
+.alarm-center-page--ha .alarm-center-toolbar {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .ha-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .ha-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .ha-shell--open .ha-sidebar {
+    transform: translateX(0);
+  }
+
+  .ha-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: none;
+    background: rgba(10, 61, 98, 0.25);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ha-shell--open .ha-sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .ha-menu-toggle {
+    display: inline-flex;
+  }
+}
+
+.ha-audit-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+.ha-audit-wrap .sa-audit-page {
+  width: 100%;
+}
+
+.ha-audit-wrap .sa-audit-filters,
+.ha-audit-wrap .sa-audit-table-panel {
+  max-width: none;
+}

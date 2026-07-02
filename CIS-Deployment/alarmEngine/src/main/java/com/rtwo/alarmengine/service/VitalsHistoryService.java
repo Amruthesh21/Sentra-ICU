@@ -35,50 +35,90 @@ public class VitalsHistoryService {
     }
 
     public Map<String, Object> getTrendHistory(String bedId, int minutes) {
-        if (cisCenterService.resolvePatientVisitId(bedId) == null) {
-            return Map.of("bedId", bedId, "series", List.of(), "source", "none");
+        Instant to = Instant.now();
+        Instant from = to.minus(minutes, ChronoUnit.MINUTES);
+        return getTrendHistory(bedId, from, to, true);
+    }
+
+    public Map<String, Object> getTrendHistory(String bedId, Instant from, Instant to, boolean includeLiveBuffer) {
+        if (from == null || to == null) {
+            return getTrendHistory(bedId, 60);
+        }
+        if (from.isAfter(to)) {
+            Instant swap = from;
+            from = to;
+            to = swap;
         }
 
-        Instant since = Instant.now().minus(minutes, ChronoUnit.MINUTES);
+        if (cisCenterService.resolvePatientVisitId(bedId) == null && !hasDeviceFallback(bedId)) {
+            return rangeResult(bedId, from, to, List.of(), "none");
+        }
+
         Map<String, List<Map<String, Object>>> seriesMap = new LinkedHashMap<>();
 
         String patientVisitId = cisCenterService.resolvePatientVisitId(bedId);
         if (patientVisitId != null) {
-            loadMongoSeries(seriesMap, Criteria.where("metadata.patientId").is(patientVisitId), since);
+            loadMongoSeries(seriesMap, Criteria.where("metadata.patientId").is(patientVisitId), from, to, "historyVitals");
+            loadMongoSeries(seriesMap, Criteria.where("metadata.patientId").is(patientVisitId), from, to, VitalsArchiveService.COLLECTION);
         }
 
-        if (seriesMap.isEmpty()) {
+        String normalizedBed = bedDeviceService.resolveBedLabel(bedId);
+        if (normalizedBed != null) {
+            loadMongoSeries(seriesMap, Criteria.where("bedId").is("ICU-1-" + normalizedBed), from, to, VitalsArchiveService.COLLECTION);
+            loadMongoSeries(seriesMap, Criteria.where("metadata.bedId").is("ICU-1-" + normalizedBed), from, to, VitalsArchiveService.COLLECTION);
+        }
+
+        if (seriesMap.isEmpty() && hasDeviceFallback(bedId)) {
             String bedLabel = bedDeviceService.resolveBedLabel(bedId);
             if (bedDeviceService.isLiveSimulatorBed(bedLabel)) {
                 List<String> deviceIds = bedDeviceService.getBedDeviceIds(bedLabel);
                 for (String deviceId : deviceIds) {
                     loadMongoSeries(seriesMap,
                             Criteria.where("metadata.deviceId").is(deviceId),
-                            since);
+                            from, to, "historyVitals");
                 }
             }
         }
 
-        mergeBufferSeries(seriesMap, trendBufferService.getSeriesForBed(bedId));
+        if (includeLiveBuffer && to.isAfter(Instant.now().minus(2, ChronoUnit.MINUTES))) {
+            mergeBufferSeries(seriesMap, trendBufferService.getSeriesForBed(bedId), from, to);
+        }
 
         List<Map<String, Object>> series = buildSeriesList(seriesMap);
+        String source = series.isEmpty() ? "none"
+                : patientVisitId != null ? "mongodb+archive+buffer" : "device+archive+buffer";
+        return rangeResult(bedId, from, to, series, source);
+    }
 
+    private boolean hasDeviceFallback(String bedId) {
+        String bedLabel = bedDeviceService.resolveBedLabel(bedId);
+        return bedDeviceService.isLiveSimulatorBed(bedLabel);
+    }
+
+    private Map<String, Object> rangeResult(String bedId, Instant from, Instant to,
+                                            List<Map<String, Object>> series, String source) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedId", bedId);
-        result.put("minutes", minutes);
+        result.put("from", from.toString());
+        result.put("to", to.toString());
+        result.put("minutes", ChronoUnit.MINUTES.between(from, to));
         result.put("series", series);
-        result.put("source", series.isEmpty() ? "none" : patientVisitId != null ? "mongodb+buffer" : "device+buffer");
+        result.put("source", source);
         return result;
     }
 
-    private void loadMongoSeries(Map<String, List<Map<String, Object>>> seriesMap, Criteria criteria, Instant since) {
-        Query query = new Query(criteria.and("timestamp").gte(Date.from(since)))
+    private void loadMongoSeries(Map<String, List<Map<String, Object>>> seriesMap,
+                                 Criteria criteria,
+                                 Instant from,
+                                 Instant to,
+                                 String collection) {
+        Query query = new Query(criteria.and("timestamp").gte(Date.from(from)).lte(Date.from(to)))
                 .with(Sort.by(Sort.Direction.ASC, "timestamp"))
-                .limit(500);
-        List<Document> docs = mongoTemplate.find(query, Document.class, "historyVitals");
+                .limit(12000);
+        List<Document> docs = mongoTemplate.find(query, Document.class, collection);
         for (Document doc : docs) {
             Instant ts = parseInstant(doc.get("timestamp"));
-            if (ts == null) {
+            if (ts == null || ts.isBefore(from) || ts.isAfter(to)) {
                 continue;
             }
             collectSeries(seriesMap, doc.get("primaryAttributes"), ts);
@@ -89,7 +129,9 @@ public class VitalsHistoryService {
 
     @SuppressWarnings("unchecked")
     private void mergeBufferSeries(Map<String, List<Map<String, Object>>> seriesMap,
-                                   List<Map<String, Object>> bufferSeries) {
+                                   List<Map<String, Object>> bufferSeries,
+                                   Instant from,
+                                   Instant to) {
         for (Map<String, Object> entry : bufferSeries) {
             String paramName = String.valueOf(entry.get("paramName"));
             Object pointsObj = entry.get("points");
@@ -99,6 +141,10 @@ public class VitalsHistoryService {
             List<Map<String, Object>> target = seriesMap.computeIfAbsent(paramName, k -> new ArrayList<>());
             for (Object p : points) {
                 if (p instanceof Map<?, ?> point) {
+                    Instant ts = parseInstant(point.get("timestamp"));
+                    if (ts == null || ts.isBefore(from) || ts.isAfter(to)) {
+                        continue;
+                    }
                     target.add(new LinkedHashMap<>((Map<String, Object>) point));
                 }
             }

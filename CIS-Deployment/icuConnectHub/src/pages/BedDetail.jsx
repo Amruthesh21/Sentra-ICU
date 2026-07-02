@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import TrendChart from '../components/TrendChart';
-import WaveformCanvas from '../components/WaveformCanvas';
+import WaveformsPanel from '../components/WaveformsPanel';
 import AlarmThresholdPanel from '../components/AlarmThresholdPanel';
+import ClinicalNotesPanel from '../components/ClinicalNotesPanel';
+import ClinicalOrdersPanel from '../components/ClinicalOrdersPanel';
+import LabsImagingPanel from '../components/LabsImagingPanel';
+import ClinicalFluidsPanel from '../components/ClinicalFluidsPanel';
+import PatientSummaryPanel from '../components/PatientSummaryPanel';
+import { getClinicalContext } from '../api/clinical';
 import {
   getPatient,
   getLatestVitals,
@@ -15,6 +21,32 @@ import {
   trendParamNames,
   formatVitalValue,
 } from '../api/hub';
+import { resolveBedTab } from '../constants/bedDetailTabs';
+import { canonicalAlarmBedId } from '../api/alarmConfig';
+
+const TREND_PRESETS = [
+  { id: 'live', label: 'Live (5m)', minutes: 5 },
+  { id: '6h', label: '6 hours', minutes: 360 },
+  { id: '12h', label: '12 hours', minutes: 720 },
+  { id: '24h', label: '24 hours', minutes: 1440 },
+  { id: 'custom', label: 'Custom range', minutes: null },
+];
+
+function toLocalInputValue(date) {
+  const d = new Date(date);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function rangeForPreset(presetId, customFrom, customTo) {
+  const now = new Date();
+  if (presetId === 'custom' && customFrom && customTo) {
+    return { from: new Date(customFrom).toISOString(), to: new Date(customTo).toISOString(), live: false };
+  }
+  const preset = TREND_PRESETS.find((p) => p.id === presetId) || TREND_PRESETS[0];
+  const from = new Date(now.getTime() - preset.minutes * 60 * 1000);
+  return { from: from.toISOString(), to: now.toISOString(), live: presetId === 'live', minutes: preset.minutes };
+}
 
 const PARAM_COLORS = {
   SpO2: '#f59e0b',
@@ -86,16 +118,29 @@ function paramLabel(key) {
 
 export default function BedDetail() {
   const { bedId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = resolveBedTab(searchParams.get('tab'));
   const [patient, setPatient] = useState(null);
   const [vitals, setVitals] = useState({});
   const [history, setHistory] = useState([]);
   const [alarms, setAlarms] = useState([]);
   const [deviceStatus, setDeviceStatus] = useState(null);
-  const [tab, setTab] = useState('overview');
   const [selectedParams, setSelectedParams] = useState([]);
   const [paramWarning, setParamWarning] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [clinicalCtx, setClinicalCtx] = useState(null);
+  const [trendPreset, setTrendPreset] = useState('live');
+  const [customFrom, setCustomFrom] = useState(() => toLocalInputValue(new Date(Date.now() - 3600000)));
+  const [customTo, setCustomTo] = useState(() => toLocalInputValue(new Date()));
+  const [historyMeta, setHistoryMeta] = useState(null);
   const localTrendRef = useRef({});
+
+  useEffect(() => {
+    const raw = searchParams.get('tab');
+    if (raw && raw !== tab) {
+      setSearchParams({ tab }, { replace: true });
+    }
+  }, [searchParams, tab, setSearchParams]);
 
   const availableParams = useMemo(
     () => deviceStatus?.availableParameters || [],
@@ -145,50 +190,77 @@ export default function BedDetail() {
     });
   }, [availableParams, selectableParams]);
 
-  function mergeSeries(param) {
+  function mergeSeries(param, includeLocal = true) {
     const server = getHistorySeries(history, param);
-    const local = localTrendRef.current[param] || [];
-    const merged = [...server];
-    const seen = new Set(server.map((p) => p.timestamp));
-    for (const p of local) {
-      if (!seen.has(p.timestamp)) merged.push(p);
+    const range = rangeForPreset(trendPreset, customFrom, customTo);
+    const fromMs = new Date(range.from).getTime();
+    const toMs = new Date(range.to).getTime();
+    const inRange = (p) => {
+      const t = new Date(p.timestamp).getTime();
+      return t >= fromMs && t <= toMs;
+    };
+    const merged = server.filter(inRange);
+    const seen = new Set(merged.map((p) => p.timestamp));
+    if (includeLocal && range.live) {
+      const local = localTrendRef.current[param] || [];
+      for (const p of local) {
+        if (!seen.has(p.timestamp) && inRange(p)) merged.push(p);
+      }
     }
     return merged.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
   }
 
+  const loadHistory = useCallback(async () => {
+    const range = rangeForPreset(trendPreset, customFrom, customTo);
+    try {
+      const historyData = await getVitalsHistory(bedId, { from: range.from, to: range.to });
+      setHistory(historyData.series || []);
+      setHistoryMeta({ from: historyData.from, to: historyData.to, source: historyData.source });
+    } catch {
+      setHistory([]);
+    }
+  }, [bedId, trendPreset, customFrom, customTo]);
+
   const load = useCallback(async () => {
     try {
-      const [patientInfo, vitalsData, historyData, activeAlarms, devices] = await Promise.all([
+      const range = rangeForPreset(trendPreset, customFrom, customTo);
+      const [patientInfo, vitalsData, historyData, activeAlarms, devices, ctx] = await Promise.all([
         getPatient(bedId),
         getLatestVitals(bedId),
-        getVitalsHistory(bedId, 60).catch(() => ({ series: [] })),
+        getVitalsHistory(bedId, range.live
+          ? { minutes: range.minutes ?? 5 }
+          : { from: range.from, to: range.to }),
         getActiveAlarms().catch(() => []),
         getBedDevices(bedId).catch(() => null),
+        getClinicalContext(bedId).catch(() => ({ hasPatient: false })),
       ]);
 
       const series = historyData.series || [];
       const vitalsMap = vitalsToMap(vitalsData);
       const now = new Date().toISOString();
 
-      Object.entries(vitalsMap).forEach(([key, val]) => {
-        if (val == null || Number.isNaN(val)) return;
-        const normalized = normalizeParamName(key);
-        if (!localTrendRef.current[normalized]) localTrendRef.current[normalized] = [];
-        const points = localTrendRef.current[normalized];
-        const last = points[points.length - 1];
-        // Append every poll so trends build even when values are unchanged.
-        if (!last || last.timestamp !== now) {
-          points.push({ timestamp: now, value: val });
-          if (points.length > 120) points.shift();
-        } else if (last.value !== val) {
-          last.value = val;
-        }
-      });
+      if (range.live) {
+        Object.entries(vitalsMap).forEach(([key, val]) => {
+          if (val == null || Number.isNaN(val)) return;
+          const normalized = normalizeParamName(key);
+          if (!localTrendRef.current[normalized]) localTrendRef.current[normalized] = [];
+          const points = localTrendRef.current[normalized];
+          const last = points[points.length - 1];
+          if (!last || last.timestamp !== now) {
+            points.push({ timestamp: now, value: val });
+            if (points.length > 120) points.shift();
+          } else if (last.value !== val) {
+            last.value = val;
+          }
+        });
+      }
 
       setPatient(patientInfo);
       setVitals(vitalsMap);
       setHistory(series);
-      setAlarms(activeAlarms.filter((a) => a.bedId === bedId));
+      setHistoryMeta({ from: historyData.from, to: historyData.to, source: historyData.source });
+      setClinicalCtx(ctx);
+      setAlarms(activeAlarms.filter((a) => canonicalAlarmBedId(a.bedId) === canonicalAlarmBedId(bedId)));
       setDeviceStatus(devices);
       setLastUpdate(new Date());
 
@@ -205,7 +277,7 @@ export default function BedDetail() {
     } catch (err) {
       console.error(err);
     }
-  }, [bedId]);
+  }, [bedId, trendPreset, customFrom, customTo]);
 
   useEffect(() => {
     localTrendRef.current = {};
@@ -213,6 +285,12 @@ export default function BedDetail() {
     const interval = setInterval(load, 3000);
     return () => clearInterval(interval);
   }, [load]);
+
+  useEffect(() => {
+    if (tab === 'trends' && trendPreset === 'custom') {
+      loadHistory();
+    }
+  }, [tab, trendPreset, customFrom, customTo, loadHistory]);
 
   function toggleParam(nameOrKey) {
     const normalized = normalizeParamName(nameOrKey);
@@ -239,36 +317,152 @@ export default function BedDetail() {
     );
   }
 
-  const hr = resolve(vitals, 'HeartRate', ['Pulse', 'Heart Rate']) || 72;
-  const rr = resolve(vitals, 'Resp.Rate', ['Resp.Rate']) || 16;
   const bedShort = bedId.replace('ICU-1-', '');
 
   const liveOnlyParams = selectableParams.filter(
     (k) => liveParams.includes(k) && !trendParams.some((t) => normalizeParamName(t) === k)
   );
 
-  const trendCharts = selectedParams.filter((param) => mergeSeries(param).length > 0);
+  const trendCharts = selectedParams.filter((param) => mergeSeries(param, trendPreset === 'live').length > 0);
+  const visitId = clinicalCtx?.visitId;
+  const isLiveTrend = trendPreset === 'live';
+  const showParamPanel = tab === 'trends';
+  const patientSummary = clinicalCtx?.patientSummary;
+
+  const paramPanel = showParamPanel ? (
+    <div className="param-list param-list--sidebar">
+      <h3>Parameters · Trends</h3>
+      <p className="param-hint">Select any parameter with live or trend data.</p>
+
+      {paramWarning && (
+        <div className="message error param-list-message">
+          {paramWarning}
+        </div>
+      )}
+
+      <div className="param-list-sections">
+        {trendParams.length > 0 && (
+          <div className="param-section">
+            <div className="param-section-title">Has trend history</div>
+            <div className="param-check-grid">
+              {trendParams.map((name) => {
+                const key = normalizeParamName(name);
+                return (
+                  <label key={name} className="param-item param-available">
+                    <input
+                      type="checkbox"
+                      checked={selectedParams.includes(key) || selectedParams.includes(name)}
+                      onChange={() => toggleParam(name)}
+                    />
+                    {name}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {liveOnlyParams.length > 0 && (
+          <div className="param-section">
+            <div className="param-section-title">Live now — trend building</div>
+            <div className="param-check-grid">
+              {liveOnlyParams.map((key) => (
+                <label key={key} className="param-item param-available">
+                  <input
+                    type="checkbox"
+                    checked={selectedParams.includes(key)}
+                    onChange={() => toggleParam(key)}
+                  />
+                  {paramLabel(key)}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectableParams.length === 0 && (
+          <p className="param-empty">Waiting for vitals…</p>
+        )}
+
+        {noDataParams.length > 0 && (
+          <div className="param-section param-section-muted">
+            <div className="param-section-title">No data — cannot select</div>
+            <div className="param-check-grid">
+              {noDataParams.map((name) => (
+                <div key={name} className="param-item param-disabled" title="No data">
+                  <span className="param-x">✕</span>
+                  <span>{name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {unavailableParams.length > 0 && (
+          <div className="param-section param-section-muted">
+            <div className="param-section-title">Device not connected</div>
+            <div className="param-check-grid">
+              {unavailableParams.map((p) => (
+                <div key={p.name} className="param-item param-unavailable" title={`Requires ${p.deviceName}`}>
+                  <span className="param-x">✕</span>
+                  <span>
+                    {p.name}
+                    <small>{p.deviceName}</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  const patientName = patient?.patientName || patientSummary?.patientName || 'No Patient';
+  const patientMrn = patient?.patientMRN || patientSummary?.mrn;
+  const patientAge = patient?.patientAge ?? patientSummary?.age;
+  const patientGender = patient?.patientGender || patientSummary?.gender;
+  const showFullSummary = tab === 'overview';
 
   return (
-    <div>
-      <Link to="/" style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: 16, display: 'inline-block' }}>
+    <div className="bed-detail-page">
+      <Link to="/" className="bed-detail-back">
         ← Back to Dashboard
       </Link>
 
-      <div className="detail-layout">
-        <div className="detail-main">
-          <div className="patient-banner">
-            <div>
-              <h2>{patient?.patientName || 'No Patient'}</h2>
-              <div className="meta">
-                {bedShort} · {patient?.patientMRN ? `MRN ${patient.patientMRN}` : 'Unassigned'}
-                {patient?.patientAge && ` · ${patient.patientAge} yr`}
-                {patient?.patientGender && ` · ${patient.patientGender}`}
+      <div className="bed-detail-chrome">
+        {showFullSummary ? (
+          <div className="patient-banner patient-banner--full">
+            <div className="patient-banner-top">
+              <div className="patient-banner-identity">
+                <h2>{patientName}</h2>
+                <div className="meta">
+                  {clinicalCtx?.bedLabel || bedShort}
+                  {patientMrn ? ` · MRN ${patientMrn}` : ' · Unassigned'}
+                  {patientAge != null && ` · ${patientAge} yr`}
+                  {patientGender && ` · ${patientGender}`}
+                </div>
               </div>
+              <div className="live-dot">Live</div>
             </div>
-            <div className="live-dot">Live</div>
+            {patientSummary && (
+              <PatientSummaryPanel summary={patientSummary} variant="header" />
+            )}
           </div>
+        ) : (
+          patientSummary && (
+            <PatientSummaryPanel
+              summary={patientSummary}
+              variant="context-bar"
+              bedLabel={clinicalCtx?.bedLabel || bedShort}
+            />
+          )
+        )}
 
+      </div>
+
+      <div className={`detail-layout${tab === 'trends' ? ' detail-layout--with-params' : ' detail-layout--full'}`}>
+        <div className="detail-main">
           {deviceStatus?.virtualSimulatorActive && (
             <div className="message info">
               Virtual simulation active — unique vitals generated for this bed (no physical device at {deviceStatus.deviceIp || 'virtual IP'}).
@@ -290,14 +484,6 @@ export default function BedDetail() {
               ))}
             </div>
           )}
-
-          <div className="tabs">
-            {['overview', 'trends', 'waveforms', 'alarms'].map((t) => (
-              <button key={t} type="button" className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
 
           {tab === 'overview' && (
             <div className="vitals-grid-large">
@@ -322,19 +508,55 @@ export default function BedDetail() {
 
           {tab === 'trends' && (
             <div style={{ display: 'grid', gap: 16 }}>
+              <div className="trend-range-bar glass-card">
+                <div className="trend-range-presets">
+                  {TREND_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`btn btn-sm${trendPreset === p.id ? ' btn-primary' : ' btn-outline'}`}
+                      onClick={() => setTrendPreset(p.id)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {trendPreset === 'custom' && (
+                  <div className="trend-range-custom form-grid two-col">
+                    <div className="form-group">
+                      <label>From</label>
+                      <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label>To</label>
+                      <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                    </div>
+                    <button type="button" className="btn btn-primary" onClick={loadHistory}>Apply range</button>
+                  </div>
+                )}
+                {historyMeta && (
+                  <p className="muted trend-range-hint">
+                    {isLiveTrend ? 'Live trend — updating every 3s' : 'Historical view'}
+                    {' · '}
+                    {new Date(historyMeta.from).toLocaleString()} — {new Date(historyMeta.to).toLocaleString()}
+                    {historyMeta.source && historyMeta.source !== 'none' ? ` · ${historyMeta.source}` : ''}
+                  </p>
+                )}
+              </div>
+
               {trendCharts.length === 0 ? (
                 <div className="empty-state">
-                  <p>Select parameters with live or trend data from the sidebar. Charts build automatically as vitals stream.</p>
+                  <p>Select parameters with live or trend data from the sidebar. Use the time range above to view history.</p>
                 </div>
               ) : (
                 trendCharts.map((param) => {
-                  const series = mergeSeries(param);
+                  const series = mergeSeries(param, isLiveTrend);
                   const building = series.length < 3;
                   return (
                     <div key={param} className="chart-panel">
                       <h3>
                         {paramLabel(param)}
-                        {building && (
+                        {building && isLiveTrend && (
                           <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 8 }}>
                             building trend…
                           </span>
@@ -353,11 +575,32 @@ export default function BedDetail() {
           )}
 
           {tab === 'waveforms' && (
-            <div style={{ display: 'grid', gap: 12 }}>
-              <WaveformCanvas heartRate={hr} color="#22c55e" label="ECG II" mode="ecg" />
-              <WaveformCanvas heartRate={hr} color="#eab308" label="PLETH" mode="pleth" />
-              <WaveformCanvas respiratoryRate={rr} color="#06b6d4" label="Resp.Wave" mode="resp" />
-            </div>
+            <WaveformsPanel
+              vitals={vitals}
+              deviceStatus={deviceStatus}
+              patient={patient}
+            />
+          )}
+
+          {tab === 'labs' && (
+            <LabsImagingPanel visitId={visitId} />
+          )}
+
+          {tab === 'notes' && (
+            <ClinicalNotesPanel
+              visitId={visitId}
+              patientName={patient?.patientName}
+              patientMRN={patient?.patientMRN}
+              bedLabel={clinicalCtx?.bedLabel}
+            />
+          )}
+
+          {tab === 'orders' && (
+            <ClinicalOrdersPanel visitId={visitId} bedLabel={clinicalCtx?.bedLabel} />
+          )}
+
+          {tab === 'fluids' && (
+            <ClinicalFluidsPanel visitId={visitId} bedLabel={clinicalCtx?.bedLabel} />
           )}
 
           {tab === 'alarms' && (
@@ -375,82 +618,11 @@ export default function BedDetail() {
           )}
         </div>
 
-        <div className="param-list">
-          <h3>Parameters · Trends</h3>
-          <p className="param-hint">Select any parameter with live or trend data.</p>
-
-          {paramWarning && (
-            <div className="message error" style={{ marginBottom: 12, fontSize: '0.8rem' }}>
-              {paramWarning}
-            </div>
-          )}
-
-          {trendParams.length > 0 && (
-            <div className="param-section">
-              <div className="param-section-title">Has trend history</div>
-              {trendParams.map((name) => {
-                const key = normalizeParamName(name);
-                return (
-                  <label key={name} className="param-item param-available">
-                    <input
-                      type="checkbox"
-                      checked={selectedParams.includes(key) || selectedParams.includes(name)}
-                      onChange={() => toggleParam(name)}
-                    />
-                    {name}
-                  </label>
-                );
-              })}
-            </div>
-          )}
-
-          {liveOnlyParams.length > 0 && (
-            <div className="param-section">
-              <div className="param-section-title">Live now — trend building</div>
-              {liveOnlyParams.map((key) => (
-                <label key={key} className="param-item param-available">
-                  <input
-                    type="checkbox"
-                    checked={selectedParams.includes(key)}
-                    onChange={() => toggleParam(key)}
-                  />
-                  {paramLabel(key)}
-                </label>
-              ))}
-            </div>
-          )}
-
-          {selectableParams.length === 0 && (
-            <p className="param-empty">Waiting for vitals…</p>
-          )}
-
-          {noDataParams.length > 0 && (
-            <div className="param-section param-section-muted">
-              <div className="param-section-title">No data — cannot select</div>
-              {noDataParams.map((name) => (
-                <div key={name} className="param-item param-disabled" title="No data">
-                  <span className="param-x">✕</span>
-                  <span>{name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {unavailableParams.length > 0 && (
-            <div className="param-section param-section-muted">
-              <div className="param-section-title">Device not connected</div>
-              {unavailableParams.map((p) => (
-                <div key={p.name} className="param-item param-unavailable" title={`Requires ${p.deviceName}`}>
-                  <span className="param-x">✕</span>
-                  <span>
-                    {p.name}
-                    <small>{p.deviceName}</small>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {showParamPanel && (
+          <aside className="detail-sidebar detail-sidebar--params">
+            {paramPanel}
+          </aside>
+        )}
       </div>
     </div>
   );

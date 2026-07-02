@@ -28,6 +28,11 @@ public class ActiveAlarmController {
         return activeAlarmStore.getActiveAlarms();
     }
 
+    @GetMapping("/feed")
+    public List<Map<String, Object>> getAlarmFeed() {
+        return activeAlarmStore.getAlarmFeed();
+    }
+
     @PostMapping("/acknowledge")
     public ResponseEntity<Map<String, Object>> acknowledge(@RequestBody AcknowledgeAlarmRequest request) {
         if (request.getBedId() == null || request.getParamName() == null || request.getThreshold() == null) {

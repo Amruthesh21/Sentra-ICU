@@ -25,6 +25,7 @@ public class MongoVitalsSyncScheduler {
     private final OccupiedBedService occupiedBedService;
     private final BedDeviceService bedDeviceService;
     private final BedVirtualVitalsService bedVirtualVitalsService;
+    private final VitalsArchiveService vitalsArchiveService;
 
     public MongoVitalsSyncScheduler(VitalsReadService vitalsReadService,
                                     LatestVitalsStore latestVitalsStore,
@@ -32,7 +33,8 @@ public class MongoVitalsSyncScheduler {
                                     VitalTrendBufferService trendBufferService,
                                     OccupiedBedService occupiedBedService,
                                     BedDeviceService bedDeviceService,
-                                    BedVirtualVitalsService bedVirtualVitalsService) {
+                                    BedVirtualVitalsService bedVirtualVitalsService,
+                                    VitalsArchiveService vitalsArchiveService) {
         this.vitalsReadService = vitalsReadService;
         this.latestVitalsStore = latestVitalsStore;
         this.alarmCheckService = alarmCheckService;
@@ -40,6 +42,7 @@ public class MongoVitalsSyncScheduler {
         this.occupiedBedService = occupiedBedService;
         this.bedDeviceService = bedDeviceService;
         this.bedVirtualVitalsService = bedVirtualVitalsService;
+        this.vitalsArchiveService = vitalsArchiveService;
     }
 
     @Scheduled(fixedRate = 2000)
@@ -47,12 +50,14 @@ public class MongoVitalsSyncScheduler {
         Set<String> bedIds = new LinkedHashSet<>(occupiedBedService.listMonitoredBedIds());
         for (String bedId : bedIds) {
             try {
-                DeviceDataMessage message = loadMessageForBed(bedId);
+                String canonical = BedIdUtil.canonicalAlarmBedId(bedId);
+                DeviceDataMessage message = loadMessageForBed(canonical);
                 if (message == null || message.getPrimaryAttributes() == null || message.getPrimaryAttributes().isEmpty()) {
                     continue;
                 }
                 latestVitalsStore.put(message);
-                trendBufferService.record(bedId, message);
+                trendBufferService.record(canonical, message);
+                vitalsArchiveService.archiveIfDue(canonical, message);
                 alarmCheckService.processVitals(message);
             } catch (Exception e) {
                 log.debug("Mongo vitals sync skipped for {}: {}", bedId, e.getMessage());

@@ -24,23 +24,27 @@ public class AlarmConfigService {
     }
 
     public DoctorAlarmConfig saveOrUpdate(AlarmConfigRequest request) {
-        DoctorAlarmConfig config = repository
-                .findByDoctorIdAndBedId(request.getDoctorId(), request.getBedId())
+        validateRequest(request);
+
+        String canonicalBedId = BedIdUtil.canonicalAlarmBedId(request.getBedId());
+        request.setBedId(canonicalBedId);
+
+        DoctorAlarmConfig config = findExistingConfig(request.getDoctorId(), request.getBedId())
                 .orElse(new DoctorAlarmConfig());
 
         if (config.getId() == null) {
             config.setCreatedAt(Instant.now());
         }
         config.setDoctorId(request.getDoctorId());
-        config.setBedId(request.getBedId());
+        config.setBedId(canonicalBedId);
         config.setPatientMRN(request.getPatientMRN());
         config.setPatientName(request.getPatientName());
         config.setAlarms(request.getAlarms());
         config.setUpdatedAt(Instant.now());
 
         DoctorAlarmConfig saved = repository.save(config);
-        cacheService.invalidate(request.getBedId());
-        alarmArmingService.rearmBedAndEvaluate(request.getBedId());
+        cacheService.invalidate(canonicalBedId);
+        alarmArmingService.rearmBedAndEvaluate(canonicalBedId);
         return saved;
     }
 
@@ -49,7 +53,53 @@ public class AlarmConfigService {
     }
 
     public void delete(String doctorId, String bedId) {
-        repository.deleteByDoctorIdAndBedId(doctorId, bedId);
-        cacheService.invalidate(bedId);
+        String canonicalBedId = BedIdUtil.canonicalAlarmBedId(bedId);
+        repository.deleteByDoctorIdAndBedId(doctorId, canonicalBedId);
+        for (String variant : BedIdUtil.allLookupIds(bedId)) {
+            repository.findByDoctorIdAndBedId(doctorId, variant)
+                    .ifPresent(existing -> repository.delete(existing));
+        }
+        cacheService.invalidate(canonicalBedId);
+    }
+
+    private java.util.Optional<DoctorAlarmConfig> findExistingConfig(String doctorId, String bedId) {
+        java.util.Optional<DoctorAlarmConfig> direct = repository.findByDoctorIdAndBedId(doctorId, bedId);
+        if (direct.isPresent()) {
+            return direct;
+        }
+        for (String variant : BedIdUtil.allLookupIds(bedId)) {
+            java.util.Optional<DoctorAlarmConfig> match = repository.findByDoctorIdAndBedId(doctorId, variant);
+            if (match.isPresent()) {
+                return match;
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    private void validateRequest(AlarmConfigRequest request) {
+        if (request.getDoctorId() == null || request.getDoctorId().isBlank()) {
+            throw new IllegalArgumentException("doctorId is required");
+        }
+        if (request.getBedId() == null || request.getBedId().isBlank()) {
+            throw new IllegalArgumentException("bedId is required");
+        }
+        if (request.getAlarms() == null || request.getAlarms().isEmpty()) {
+            throw new IllegalArgumentException("At least one alarm threshold is required");
+        }
+
+        for (DoctorAlarmConfig.AlarmThreshold threshold : request.getAlarms()) {
+            if (threshold.getEnabled() == null || !threshold.getEnabled()) {
+                continue;
+            }
+            Double high = threshold.getHighThreshold();
+            Double low = threshold.getLowThreshold();
+            String label = threshold.getParamName() != null ? threshold.getParamName() : "Parameter";
+            if (high == null && low == null) {
+                throw new IllegalArgumentException(label + ": set at least one limit when alarm is enabled");
+            }
+            if (high != null && low != null && high <= low) {
+                throw new IllegalArgumentException(label + ": high limit must be greater than low limit");
+            }
+        }
     }
 }

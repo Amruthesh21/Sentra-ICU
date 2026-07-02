@@ -24,24 +24,46 @@ public class ConnectEngineSyncService {
 
     private final long postSaveDebounceMs;
 
+    public enum SyncTrigger {
+        /** New/removed bed or device IP change — CE must reload bed list. */
+        STRUCTURAL,
+        /** Patient admit/discharge on existing bed — Mongo updated; restart optional. */
+        PATIENT_ASSIGNMENT,
+        /** Manual admin sync. */
+        MANUAL
+    }
+
     private final AtomicBoolean pending = new AtomicBoolean(false);
     private final AtomicLong lastRestartAt = new AtomicLong(0);
     private final AtomicLong lastSaveAt = new AtomicLong(0);
+    private final boolean restartOnPatientChange;
 
     public ConnectEngineSyncService(
             ConnectEngineReloader reloader,
             @Value("${connect.engine.auto-restart:true}") boolean autoRestart,
             @Value("${connect.engine.restart-debounce-ms:15000}") long debounceMs,
-            @Value("${connect.engine.post-save-debounce-ms:10000}") long postSaveDebounceMs) {
+            @Value("${connect.engine.post-save-debounce-ms:10000}") long postSaveDebounceMs,
+            @Value("${connect.engine.restart-on-patient-change:true}") boolean restartOnPatientChange) {
         this.reloader = reloader;
         this.autoRestart = autoRestart;
         this.debounceMs = debounceMs;
         this.postSaveDebounceMs = postSaveDebounceMs;
+        this.restartOnPatientChange = restartOnPatientChange;
     }
 
-    /** Hub saved to MongoDB — CE sync is queued, not immediate per change. */
-    public void markPending() {
+    /** Hub saved to MongoDB — queues CE restart based on change type. */
+    public void markPending(SyncTrigger trigger) {
+        if (trigger == SyncTrigger.PATIENT_ASSIGNMENT && !restartOnPatientChange) {
+            log.info("Connect Engine restart skipped for patient assignment (restart-on-patient-change=false)");
+            return;
+        }
         pending.set(true);
+        lastSaveAt.set(System.currentTimeMillis());
+    }
+
+    /** @deprecated use markPending(SyncTrigger) */
+    public void markPending() {
+        markPending(SyncTrigger.STRUCTURAL);
     }
 
     public boolean isPending() {
@@ -51,10 +73,13 @@ public class ConnectEngineSyncService {
     /**
      * Called after MongoDB save. Returns true = Hub is synced (mongo). CE may catch up later.
      */
-    public boolean hubSynced() {
-        markPending();
-        lastSaveAt.set(System.currentTimeMillis());
+    public boolean hubSynced(ConnectEngineSyncService.SyncTrigger trigger) {
+        markPending(trigger);
         return true;
+    }
+
+    public boolean hubSynced() {
+        return hubSynced(SyncTrigger.STRUCTURAL);
     }
 
     /** Drift detected between MongoDB beds and CE retrieve — restart sooner than batch debounce. */

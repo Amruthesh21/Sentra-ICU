@@ -4,11 +4,22 @@
   padding: 0;
 }
 
+:root {
+  --fs-xs: 0.6875rem;
+  --fs-sm: 0.75rem;
+  --fs-base: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 0.9375rem;
+  --fs-xl: 1.0625rem;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--fs-md);
   background: #1a1a2e;
   color: #eee;
   min-height: 100vh;
+  line-height: 1.45;
 }
 
 .app-layout {
@@ -32,7 +43,7 @@ body {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
 }
 
 .header-user {

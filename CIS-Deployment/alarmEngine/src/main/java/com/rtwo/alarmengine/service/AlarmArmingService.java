@@ -22,10 +22,11 @@ public class AlarmArmingService {
     }
 
     public void rearmBedAndEvaluate(String bedId) {
-        activeAlarmStore.rearmBed(bedId);
-        notifyStateService.rearmBed(bedId);
+        String canonical = BedIdUtil.canonicalAlarmBedId(bedId);
+        activeAlarmStore.rearmBed(canonical);
+        notifyStateService.rearmBed(canonical);
 
-        DeviceDataMessage latest = latestVitalsStore.get(bedId);
+        DeviceDataMessage latest = latestVitalsStore.get(canonical);
         if (latest != null) {
             alarmCheckService.processVitals(latest);
         }

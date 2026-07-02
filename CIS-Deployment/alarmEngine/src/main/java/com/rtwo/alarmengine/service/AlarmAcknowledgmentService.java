@@ -27,6 +27,11 @@ public class AlarmAcknowledgmentService {
         return acknowledged.contains(key(bedId, paramName, threshold));
     }
 
+    public Instant getAcknowledgedAt(String bedId, String paramName, String threshold) {
+        AckState state = ackStates.get(key(bedId, paramName, threshold));
+        return state != null ? state.ackTime() : null;
+    }
+
     public boolean shouldEscalate(String bedId, String paramName, String threshold, double currentValue) {
         AckState state = ackStates.get(key(bedId, paramName, threshold));
         if (state == null) {
