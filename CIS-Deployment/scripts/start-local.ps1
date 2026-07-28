@@ -31,9 +31,9 @@ $env:RABBITMQ_URL = "amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting"
 $env:MONGODB_URI = "mongodb://monish:admin%40123@localhost:7000/?authSource=admin"
 $env:VAPID_PUBLIC_KEY = "BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4"
 $env:VAPID_PRIVATE_KEY = "567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg"
-$env:VAPID_EMAIL = "mailto:poc@rtwo.com"
+$env:VAPID_EMAIL = "mailto:poc@Sentra ICU.health"
 $env:PORT = "9030"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$notifDir'; `$env:RABBITMQ_URL='amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting'; `$env:MONGODB_URI='mongodb://monish:admin%40123@localhost:7000/?authSource=admin'; `$env:VAPID_PUBLIC_KEY='BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4'; `$env:VAPID_PRIVATE_KEY='567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg'; `$env:VAPID_EMAIL='mailto:poc@rtwo.com'; npm start"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$notifDir'; `$env:RABBITMQ_URL='amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting'; `$env:MONGODB_URI='mongodb://monish:admin%40123@localhost:7000/?authSource=admin'; `$env:VAPID_PUBLIC_KEY='BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4'; `$env:VAPID_PRIVATE_KEY='567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg'; `$env:VAPID_EMAIL='mailto:poc@Sentra ICU.health'; npm start"
 
 Start-Sleep -Seconds 3
 

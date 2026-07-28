@@ -1,0 +1,517 @@
+{
+  "connections": [
+    {
+      "id": "48aa81bb-c103-4a08-bd76-1630e67ce6d0",
+      "type": "FHIR",
+      "name": "Lab",
+      "baseUrl": "http://127.0.0.1:9080/fhir",
+      "apiKey": "",
+      "status": "connected",
+      "createdAt": "2026-07-13T16:20:02.941Z",
+      "lastSyncAt": "2026-07-13T16:24:46.259Z",
+      "lastSyncCount": 3,
+      "lastError": null,
+      "latencyMs": 81
+    },
+    {
+      "id": "5907b5c6-f488-4e7c-8092-13f6d76dc22f",
+      "type": "FHIR",
+      "name": "Hospital FHIR",
+      "baseUrl": "http://127.0.0.1:9080/fhir",
+      "apiKey": "",
+      "status": "connected",
+      "createdAt": "2026-07-13T16:24:42.123Z",
+      "lastSyncAt": "2026-07-13T16:24:47.524Z",
+      "lastSyncCount": 3,
+      "lastError": null,
+      "latencyMs": 30
+    }
+  ],
+  "patients": {
+    "MRN-88421": {
+      "mrn": "MRN-88421",
+      "fullName": "Aanya Sharma",
+      "unit": "ICU-1",
+      "bed": "BED-03",
+      "source": "HL7",
+      "fhirPatientId": "pat-1001",
+      "vitals": {
+        "hr": 82,
+        "8867-4_unit": "/min",
+        "2708-6": "96",
+        "2708-6_unit": "%"
+      },
+      "status": "live",
+      "id": "MRN-88421",
+      "updatedAt": "2026-07-14T11:45:35.547Z",
+      "history": [
+        {
+          "at": "2026-07-14T11:45:35.546Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-14T11:45:34.888Z",
+          "event": "HL7 ADT^A01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-14T11:41:46.342Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-14T11:41:44.705Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-14T11:41:43.421Z",
+          "event": "HL7 ADT^A01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:24:56.736Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:24:54.700Z",
+          "event": "HL7 ADT^A01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:24:47.511Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:46.229Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:42.247Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:26.325Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:24:24.558Z",
+          "event": "HL7 ADT^A01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:20:10.944Z",
+          "event": "HL7 ORU^R01 received",
+          "channel": "HL7"
+        },
+        {
+          "at": "2026-07-13T16:20:08.188Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        }
+      ],
+      "messageType": "ORU^R01",
+      "identityMatch": {
+        "matched": true,
+        "strategy": "MRN",
+        "existingId": "MRN-88421",
+        "note": "Linked to existing patient Aanya Sharma"
+      }
+    },
+    "MRN-77109": {
+      "mrn": "MRN-77109",
+      "fullName": "Rohan Iyer",
+      "unit": "ICU-2",
+      "bed": "BED-01",
+      "source": "FHIR",
+      "fhirPatientId": "pat-1002",
+      "vitals": {
+        "hr": 102.4,
+        "spo2": 90.3
+      },
+      "status": "live",
+      "id": "MRN-77109",
+      "updatedAt": "2026-07-13T16:24:47.517Z",
+      "history": [
+        {
+          "at": "2026-07-13T16:24:47.517Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:46.248Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:42.255Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:20:08.237Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        }
+      ]
+    },
+    "MRN-65002": {
+      "mrn": "MRN-65002",
+      "fullName": "Meera Nair",
+      "unit": "HDU",
+      "bed": "BED-07",
+      "source": "DEVICE_ADAPTER",
+      "fhirPatientId": "pat-1003",
+      "vitals": {
+        "hr": 130,
+        "spo2": 87,
+        "sbp": 84,
+        "rr": 30
+      },
+      "status": "live",
+      "id": "MRN-65002",
+      "updatedAt": "2026-07-14T11:41:47.210Z",
+      "history": [
+        {
+          "at": "2026-07-14T11:41:47.210Z",
+          "event": "Device adapter vitals",
+          "channel": "DEVICE"
+        },
+        {
+          "at": "2026-07-14T11:41:45.614Z",
+          "event": "Device adapter vitals",
+          "channel": "DEVICE"
+        },
+        {
+          "at": "2026-07-13T16:24:59.301Z",
+          "event": "Device adapter vitals",
+          "channel": "DEVICE"
+        },
+        {
+          "at": "2026-07-13T16:24:58.052Z",
+          "event": "Device adapter vitals",
+          "channel": "DEVICE"
+        },
+        {
+          "at": "2026-07-13T16:24:47.524Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:46.258Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:42.262Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        },
+        {
+          "at": "2026-07-13T16:24:28.189Z",
+          "event": "Device adapter vitals",
+          "channel": "DEVICE"
+        },
+        {
+          "at": "2026-07-13T16:20:08.277Z",
+          "event": "FHIR Patient + Observation sync",
+          "channel": "FHIR"
+        }
+      ]
+    }
+  },
+  "buffer": [
+    {
+      "id": "d2a93ff6-ca4b-4bdb-868a-edec137f335f",
+      "channel": "HL7",
+      "controlId": "ORU1783959608759",
+      "receivedAt": "2026-07-13T16:20:10.947Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "58d25f67-d753-4edf-bce4-3a38433e5552",
+      "channel": "HL7",
+      "controlId": "HOSP1783959864474",
+      "receivedAt": "2026-07-13T16:24:24.563Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "e1c1febc-18b7-4945-87fb-e8b5612407b0",
+      "channel": "HL7",
+      "controlId": "ORU1783959866260",
+      "receivedAt": "2026-07-13T16:24:26.325Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "6c0db301-854c-4b2f-9f89-d18cf22e0a47",
+      "channel": "HL7",
+      "controlId": "HOSP1783959894668",
+      "receivedAt": "2026-07-13T16:24:54.700Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "35333af6-dccb-4f0f-9818-8bb12da8b4f0",
+      "channel": "HL7",
+      "controlId": "ORU1783959896723",
+      "receivedAt": "2026-07-13T16:24:56.736Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "84b59da2-95bb-4a1a-a58b-f107962cc494",
+      "channel": "HL7",
+      "controlId": "HOSP1784029303223",
+      "receivedAt": "2026-07-14T11:41:43.440Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "a7913c29-f302-433c-b0b5-6e3ccd9122cc",
+      "channel": "HL7",
+      "controlId": "ORU1784029304679",
+      "receivedAt": "2026-07-14T11:41:44.705Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "48ee0bfe-2301-48db-a8e3-7f1d44382aee",
+      "channel": "HL7",
+      "controlId": "ORU1784029306334",
+      "receivedAt": "2026-07-14T11:41:46.342Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "deed6ad0-877a-4cee-90a7-49d89be6e107",
+      "channel": "HL7",
+      "controlId": "HOSP1784029534875",
+      "receivedAt": "2026-07-14T11:45:34.888Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    },
+    {
+      "id": "320615a6-ed73-4b5c-88fb-ba02b3f87797",
+      "channel": "HL7",
+      "controlId": "ORU1784029535537",
+      "receivedAt": "2026-07-14T11:45:35.547Z",
+      "status": "processed",
+      "mrn": "MRN-88421"
+    }
+  ],
+  "audit": [
+    {
+      "id": "ab4c70f3-a9a0-476f-8f38-e909d36ba5c3",
+      "ts": "2026-07-14T11:45:35.547Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "f11f04bf796a"
+    },
+    {
+      "id": "5274ee3f-8604-4727-948c-118b649d8711",
+      "ts": "2026-07-14T11:45:34.889Z",
+      "channel": "HL7",
+      "action": "ADT^A01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "ba10bfac0af9"
+    },
+    {
+      "id": "32b2371b-db03-46c1-ac33-61ba53139358",
+      "ts": "2026-07-14T11:41:47.998Z",
+      "channel": "BUFFER",
+      "action": "REPLAY",
+      "result": "OK",
+      "detail": "Requeued 0 failed messages"
+    },
+    {
+      "id": "04d13522-9935-4814-a436-bf7cbc462bd7",
+      "ts": "2026-07-14T11:41:47.210Z",
+      "channel": "DEVICE",
+      "action": "VITALS",
+      "result": "OK",
+      "detail": "MRN-65002 BED-07"
+    },
+    {
+      "id": "2c902a63-02cf-42c4-842a-82938a40d637",
+      "ts": "2026-07-14T11:41:46.342Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "72dba26d7118"
+    },
+    {
+      "id": "ff53f55e-1497-4461-8c11-4eb50d33e67c",
+      "ts": "2026-07-14T11:41:45.620Z",
+      "channel": "DEVICE",
+      "action": "VITALS",
+      "result": "OK",
+      "detail": "MRN-65002 BED-07"
+    },
+    {
+      "id": "afc0c183-3da6-42c3-b99e-301e2bac3e96",
+      "ts": "2026-07-14T11:41:44.705Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "5ffe3c3c5065"
+    },
+    {
+      "id": "4ebd2b0b-8aa2-44c3-adaa-07a3cfcd5a89",
+      "ts": "2026-07-14T11:41:43.448Z",
+      "channel": "HL7",
+      "action": "ADT^A01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "d9ef06f6fec8"
+    },
+    {
+      "id": "4fd4dd1e-89dc-444b-8a2d-d583f912ba1a",
+      "ts": "2026-07-13T16:25:00.536Z",
+      "channel": "BUFFER",
+      "action": "REPLAY",
+      "result": "OK",
+      "detail": "Requeued 0 failed messages"
+    },
+    {
+      "id": "677302fa-814e-4d2c-a420-c905aa1316b1",
+      "ts": "2026-07-13T16:24:59.301Z",
+      "channel": "DEVICE",
+      "action": "VITALS",
+      "result": "OK",
+      "detail": "MRN-65002 BED-07"
+    },
+    {
+      "id": "334389a3-0b6a-4746-8e05-2dfa7892575b",
+      "ts": "2026-07-13T16:24:58.052Z",
+      "channel": "DEVICE",
+      "action": "VITALS",
+      "result": "OK",
+      "detail": "MRN-65002 BED-07"
+    },
+    {
+      "id": "e9865404-e442-4ce5-bec5-247aa57d226a",
+      "ts": "2026-07-13T16:24:56.737Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "d048401be2d2"
+    },
+    {
+      "id": "3da7a728-03a0-4441-9357-d390cbf2b14a",
+      "ts": "2026-07-13T16:24:54.700Z",
+      "channel": "HL7",
+      "action": "ADT^A01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "b1b91a393b63"
+    },
+    {
+      "id": "42d93542-704c-4593-a0b6-9e63cf1b3289",
+      "ts": "2026-07-13T16:24:47.524Z",
+      "channel": "FHIR",
+      "action": "PULL_OK",
+      "result": "OK",
+      "detail": "Synced 3 patients from http://127.0.0.1:9080/fhir",
+      "connectionId": "5907b5c6-f488-4e7c-8092-13f6d76dc22f",
+      "hash": "fhir-3-30"
+    },
+    {
+      "id": "1d576af8-01c5-4ca3-a2ac-ae90c93a91c0",
+      "ts": "2026-07-13T16:24:46.265Z",
+      "channel": "FHIR",
+      "action": "PULL_OK",
+      "result": "OK",
+      "detail": "Synced 3 patients from http://127.0.0.1:9080/fhir",
+      "connectionId": "48aa81bb-c103-4a08-bd76-1630e67ce6d0",
+      "hash": "fhir-3-81"
+    },
+    {
+      "id": "40dea07c-e822-43f7-973a-f14edb401b81",
+      "ts": "2026-07-13T16:24:42.263Z",
+      "channel": "FHIR",
+      "action": "PULL_OK",
+      "result": "OK",
+      "detail": "Synced 3 patients from http://127.0.0.1:9080/fhir",
+      "connectionId": "5907b5c6-f488-4e7c-8092-13f6d76dc22f",
+      "hash": "fhir-3-129"
+    },
+    {
+      "id": "1f1a6038-c401-4364-8b9f-996f00c8076d",
+      "ts": "2026-07-13T16:24:42.123Z",
+      "channel": "FHIR",
+      "action": "CONNECTION_CREATED",
+      "result": "PENDING",
+      "detail": "Target http://127.0.0.1:9080/fhir",
+      "connectionId": "5907b5c6-f488-4e7c-8092-13f6d76dc22f"
+    },
+    {
+      "id": "e315ea52-d186-4165-b811-c72b04138290",
+      "ts": "2026-07-13T16:24:28.189Z",
+      "channel": "DEVICE",
+      "action": "VITALS",
+      "result": "OK",
+      "detail": "MRN-65002 BED-07"
+    },
+    {
+      "id": "9fee7bc1-cfa6-4d87-aa9d-ce23558e9ab8",
+      "ts": "2026-07-13T16:24:26.326Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "a678305b51c0"
+    },
+    {
+      "id": "3b193744-b443-4f2e-ae4c-ac8fb5587976",
+      "ts": "2026-07-13T16:24:24.568Z",
+      "channel": "HL7",
+      "action": "ADT^A01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "5907cbc158c0"
+    },
+    {
+      "id": "731585aa-e006-49b0-bc9b-53aecf192047",
+      "ts": "2026-07-13T16:20:10.967Z",
+      "channel": "HL7",
+      "action": "ORU^R01",
+      "result": "OK",
+      "detail": "Aanya Sharma ICU-1 BED-03 · MRN",
+      "hash": "2fc08865ff18"
+    },
+    {
+      "id": "cfc6eacc-a783-40b2-913a-49490e362bcc",
+      "ts": "2026-07-13T16:20:08.277Z",
+      "channel": "FHIR",
+      "action": "PULL_OK",
+      "result": "OK",
+      "detail": "Synced 3 patients from http://127.0.0.1:9080/fhir",
+      "connectionId": "48aa81bb-c103-4a08-bd76-1630e67ce6d0",
+      "hash": "fhir-3-5292"
+    },
+    {
+      "id": "deef0f6c-dfd5-4bff-9191-509d8333dd56",
+      "ts": "2026-07-13T16:20:02.944Z",
+      "channel": "FHIR",
+      "action": "CONNECTION_CREATED",
+      "result": "PENDING",
+      "detail": "Target http://127.0.0.1:9080/fhir",
+      "connectionId": "48aa81bb-c103-4a08-bd76-1630e67ce6d0"
+    }
+  ]
+}

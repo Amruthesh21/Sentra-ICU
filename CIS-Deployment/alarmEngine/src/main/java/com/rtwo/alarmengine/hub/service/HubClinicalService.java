@@ -135,6 +135,8 @@ public class HubClinicalService {
         if (visit.getAdmissionType() != null) summary.put("admissionType", visit.getAdmissionType());
         if (visit.getAdmissionSource() != null) summary.put("admissionSource", visit.getAdmissionSource());
         if (visit.getReferringPhysician() != null) summary.put("referringPhysician", visit.getReferringPhysician());
+        if (visit.getAttendingPhysician() != null) summary.put("attendingPhysician", visit.getAttendingPhysician());
+        if (visit.getPrimaryNurse() != null) summary.put("primaryNurse", visit.getPrimaryNurse());
         if (visit.getPrimaryDiagnosis() != null) summary.put("diagnosis", visit.getPrimaryDiagnosis());
         if (visit.getAdmittedAt() != null) summary.put("admittedAt", visit.getAdmittedAt().toString());
 

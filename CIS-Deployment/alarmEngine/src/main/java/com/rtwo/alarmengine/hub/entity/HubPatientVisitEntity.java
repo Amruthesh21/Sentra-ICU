@@ -26,6 +26,10 @@ public class HubPatientVisitEntity {
     private String admissionSource;
     private String referringPhysician;
 
+    private String attendingPhysician;
+
+    private String primaryNurse;
+
     @Column(columnDefinition = "text")
     private String primaryDiagnosis;
 
@@ -98,6 +102,10 @@ public class HubPatientVisitEntity {
     public void setAdmissionSource(String admissionSource) { this.admissionSource = admissionSource; }
     public String getReferringPhysician() { return referringPhysician; }
     public void setReferringPhysician(String referringPhysician) { this.referringPhysician = referringPhysician; }
+    public String getAttendingPhysician() { return attendingPhysician; }
+    public void setAttendingPhysician(String attendingPhysician) { this.attendingPhysician = attendingPhysician; }
+    public String getPrimaryNurse() { return primaryNurse; }
+    public void setPrimaryNurse(String primaryNurse) { this.primaryNurse = primaryNurse; }
     public String getPrimaryDiagnosis() { return primaryDiagnosis; }
     public void setPrimaryDiagnosis(String primaryDiagnosis) { this.primaryDiagnosis = primaryDiagnosis; }
     public String getProvisionalDiagnosis() { return provisionalDiagnosis; }

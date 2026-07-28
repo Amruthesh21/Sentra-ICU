@@ -43,6 +43,14 @@ public class AlarmConfigService {
         config.setUpdatedAt(Instant.now());
 
         DoctorAlarmConfig saved = repository.save(config);
+        // Drop true duplicates for the same canonical bed (different stored bedId string), never touch other beds.
+        for (DoctorAlarmConfig other : repository.findByDoctorId(request.getDoctorId())) {
+            if (other.getId() != null
+                    && !other.getId().equals(saved.getId())
+                    && canonicalBedId.equals(BedIdUtil.canonicalAlarmBedId(other.getBedId()))) {
+                repository.delete(other);
+            }
+        }
         cacheService.invalidate(canonicalBedId);
         alarmArmingService.rearmBedAndEvaluate(canonicalBedId);
         return saved;
@@ -53,13 +61,11 @@ public class AlarmConfigService {
     }
 
     public void delete(String doctorId, String bedId) {
-        String canonicalBedId = BedIdUtil.canonicalAlarmBedId(bedId);
-        repository.deleteByDoctorIdAndBedId(doctorId, canonicalBedId);
-        for (String variant : BedIdUtil.allLookupIds(bedId)) {
-            repository.findByDoctorIdAndBedId(doctorId, variant)
-                    .ifPresent(existing -> repository.delete(existing));
-        }
-        cacheService.invalidate(canonicalBedId);
+        // Exact stored bedId only. Do NOT canonicalize then delete — that mapped
+        // ICU-1-BED-01 → ICU-1-BED 1 and wiped the live config after every "purge".
+        repository.findByDoctorIdAndBedId(doctorId, bedId).ifPresent(repository::delete);
+        cacheService.invalidate(bedId);
+        cacheService.invalidate(BedIdUtil.canonicalAlarmBedId(bedId));
     }
 
     private java.util.Optional<DoctorAlarmConfig> findExistingConfig(String doctorId, String bedId) {

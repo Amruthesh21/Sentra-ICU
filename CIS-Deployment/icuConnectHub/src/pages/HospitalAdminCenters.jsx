@@ -88,7 +88,7 @@ export default function HospitalAdminCenters() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="muted order-empty">
-                    No centers linked to your hospital yet. Contact platform admin to link Connect Engine centers.
+                    No centers linked to your hospital yet. Contact platform admin to link hospital centers.
                   </td>
                 </tr>
               )}

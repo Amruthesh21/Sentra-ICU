@@ -61,6 +61,8 @@ const ROWS = [
   { key: 'admissionType', label: 'Admission type', fmt: (s) => fmtText(s.admissionType) },
   { key: 'admissionSource', label: 'Admission source', fmt: (s) => fmtText(s.admissionSource) },
   { key: 'referringPhysician', label: 'Referring physician', fmt: (s) => fmtText(s.referringPhysician) },
+  { key: 'attendingPhysician', label: 'Assigned doctor', fmt: (s) => fmtText(s.attendingPhysician) },
+  { key: 'primaryNurse', label: 'Assigned nurse', fmt: (s) => fmtText(s.primaryNurse) },
   { key: 'isolationPrecautions', label: 'Isolation', fmt: (s) => fmtIsolation(s.isolationPrecautions) },
   { key: 'diagnosis', label: 'Diagnosis', fmt: (s) => fmtText(s.diagnosis) },
   { key: 'provisionalDiagnosis', label: 'Provisional dx', fmt: (s) => fmtText(s.provisionalDiagnosis) },
@@ -74,7 +76,8 @@ const ROWS = [
 
 const HEADER_COMPACT_ORDER = [
   'mrn', 'age', 'dateOfBirth', 'gender', 'weightKg', 'heightCm', 'bloodGroup',
-  'unitBed', 'admissionType', 'admissionSource', 'referringPhysician', 'isolationPrecautions', 'admittedAt',
+  'unitBed', 'admissionType', 'admissionSource', 'referringPhysician',
+  'attendingPhysician', 'primaryNurse', 'isolationPrecautions', 'admittedAt',
 ];
 
 const HEADER_NARRATIVE_ORDER = [

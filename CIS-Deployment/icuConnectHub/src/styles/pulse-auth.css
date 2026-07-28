@@ -1,0 +1,306 @@
+/* Sentra ICU login + MFA — match brand screenshot */
+
+.pulse-auth {
+  --pulse-ink: #0b1220;
+  --pulse-muted: #8b93a0;
+  --pulse-line: #e6e8ec;
+  --pulse-serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+  --pulse-sans: "Inter", system-ui, sans-serif;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fff;
+  color: var(--pulse-ink);
+  font-family: var(--pulse-sans);
+}
+
+.pulse-auth * {
+  box-sizing: border-box;
+}
+
+.pulse-auth-left {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  background: #fff;
+  min-height: 100vh;
+}
+
+.pulse-auth-left-top {
+  margin-bottom: clamp(2rem, 6vh, 4rem);
+}
+
+.pulse-auth-form-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+.pulse-auth-eyebrow {
+  margin: 0 0 0.75rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pulse-muted);
+  font-weight: 500;
+}
+
+.pulse-auth-title {
+  margin: 0 0 2.2rem;
+  font-family: var(--pulse-serif);
+  font-weight: 500;
+  font-size: clamp(2.4rem, 4vw, 3.2rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #0b1220;
+}
+
+.pulse-auth-field {
+  margin-bottom: 1.35rem;
+}
+
+.pulse-auth-field label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pulse-muted);
+  margin-bottom: 0.55rem;
+  font-weight: 500;
+}
+
+.pulse-auth-field input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--pulse-line);
+  border-radius: 0;
+  padding: 0.55rem 0 0.75rem;
+  font-size: 1rem;
+  color: #0b1220;
+  background: transparent;
+  outline: none;
+  font-family: var(--pulse-sans);
+}
+
+.pulse-auth-field input:focus {
+  border-bottom-color: #0b1220;
+}
+
+.pulse-auth-field--otp input {
+  letter-spacing: 0.35em;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 1.25rem;
+}
+
+.pulse-auth-error {
+  margin: 0 0 1rem;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.pulse-auth-hint {
+  margin: 0 0 1rem;
+  color: #667080;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pulse-auth-submit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding: 1rem 1.15rem;
+  border: none;
+  border-radius: 2px;
+  background: #0b1220;
+  color: #fff;
+  font-family: var(--pulse-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pulse-auth-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pulse-auth-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.pulse-auth-alt {
+  margin: 1.15rem 0 0;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--pulse-muted);
+}
+
+.pulse-auth-alt button,
+.pulse-auth-alt a {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #0b1220;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pulse-auth-demo {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  color: #a0a7b2;
+}
+
+.pulse-auth-demo svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.pulse-auth-right {
+  position: relative;
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 70% 30%, #1a2233 0%, #0b1220 55%, #070b14 100%);
+  color: #f4f5f7;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+}
+
+.pulse-auth-right-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(244, 245, 247, 0.45);
+  z-index: 2;
+}
+
+.pulse-auth-mesh {
+  position: absolute;
+  inset: 12% 8% 22%;
+  opacity: 0.9;
+  z-index: 1;
+}
+
+.pulse-auth-right-bottom {
+  margin-top: auto;
+  z-index: 2;
+  position: relative;
+}
+
+.pulse-auth-vitals {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: rgba(244, 245, 247, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse-auth-tagline {
+  margin: 0;
+  max-width: 14ch;
+  font-family: var(--pulse-serif);
+  font-weight: 500;
+  font-size: clamp(2.2rem, 4vw, 3.3rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.pulse-auth-resend {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.pulse-auth-resend button {
+  background: none;
+  border: none;
+  color: #0b1220;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.pulse-auth-otp-boxes {
+  display: flex;
+  gap: 0.55rem;
+  margin-bottom: 1.2rem;
+}
+
+.pulse-auth-otp-boxes input {
+  width: 100%;
+  text-align: center;
+  font-size: 1.35rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  padding: 0.75rem 0;
+  border: 1px solid var(--pulse-line);
+  border-radius: 2px;
+  outline: none;
+}
+
+.pulse-auth-otp-boxes input:focus {
+  border-color: #0b1220;
+}
+
+.pulse-auth-dev-code {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  background: #f3f4f6;
+  border: 1px solid var(--pulse-line);
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.pulse-auth-dev-code strong {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.2em;
+  color: #0b1220;
+}
+
+@media (max-width: 900px) {
+  .pulse-auth {
+    grid-template-columns: 1fr;
+  }
+
+  .pulse-auth-right {
+    min-height: 42vh;
+    order: -1;
+  }
+
+  .pulse-auth-tagline {
+    max-width: none;
+  }
+
+  .pulse-auth-mesh {
+    inset: 8% 5% 28%;
+    opacity: 0.55;
+  }
+}
+
+/* Unlock scroll when auth pages mount inside locked app shell */
+html.pulse-auth-active,
+html.pulse-auth-active body,
+html.pulse-auth-active #root {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+}

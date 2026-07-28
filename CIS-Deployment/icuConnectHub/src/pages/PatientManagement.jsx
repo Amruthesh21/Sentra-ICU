@@ -11,6 +11,7 @@ import {
   saveAdmissionDraft,
   searchPatients,
 } from '../api/admissions';
+import { listStaff } from '../api/staff';
 
 import PatientSummaryPanel, { buildSummaryFromForm } from '../components/PatientSummaryPanel';
 import DischargeSummaryPanel from '../components/DischargeSummaryPanel';
@@ -73,6 +74,8 @@ function emptyForm() {
     bloodGroup: '',
     admissionSource: 'Emergency department',
     referringPhysician: '',
+    attendingPhysician: '',
+    primaryNurse: '',
     unitId: '',
     bedLabel: '',
     admissionType: 'Medical',
@@ -127,6 +130,8 @@ export default function PatientManagement() {
   const [loading, setLoading] = useState(true);
   const [dischargePreview, setDischargePreview] = useState(null);
   const [dischargePreviewLoading, setDischargePreviewLoading] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [nurses, setNurses] = useState([]);
 
   const scrollRef = useRef(null);
   const sectionRefs = useRef({});
@@ -179,9 +184,16 @@ export default function PatientManagement() {
   }
 
   useEffect(() => {
-    Promise.all([listUnits(), getDevices()])
-      .then(async ([unitList, devList]) => {
+    Promise.all([
+      listUnits(),
+      getDevices(),
+      listStaff('doctor').catch(() => []),
+      listStaff('nurse').catch(() => []),
+    ])
+      .then(async ([unitList, devList, doctorList, nurseList]) => {
         setUnits(unitList);
+        setDoctors(doctorList);
+        setNurses(nurseList);
         const sorted = [...devList].sort((a, b) => {
           const ai = DEVICE_ORDER.indexOf(a.deviceId);
           const bi = DEVICE_ORDER.indexOf(b.deviceId);
@@ -358,6 +370,10 @@ export default function PatientManagement() {
       bloodGroup: form.bloodGroup || null,
       admissionSource: form.admissionSource,
       referringPhysician: form.referringPhysician,
+      attendingPhysician: form.attendingPhysician,
+      primaryNurse: form.primaryNurse,
+      assignedDoctor: form.attendingPhysician,
+      assignedNurse: form.primaryNurse,
       admissionType: form.admissionType,
       admissionDateTime: form.admissionDateTime
         ? new Date(form.admissionDateTime).toISOString()
@@ -633,6 +649,44 @@ export default function PatientManagement() {
                   </div>
                   <div className="form-group"><label>Admission type</label><select value={form.admissionType} onChange={(e) => patch({ admissionType: e.target.value })}><option>Medical</option><option>Surgical</option></select></div>
                   <div className="form-group"><label>Admission date / time</label><input type="datetime-local" value={form.admissionDateTime} onChange={(e) => patch({ admissionDateTime: e.target.value })} /></div>
+                  <div className="form-group">
+                    <label>Assign doctor *</label>
+                    {doctors.length === 0 ? (
+                      <p className="muted">No doctors in Staff roster — add under Admin → Staff.</p>
+                    ) : (
+                      <select
+                        value={form.attendingPhysician}
+                        onChange={(e) => patch({ attendingPhysician: e.target.value })}
+                        required
+                      >
+                        <option value="">Select doctor…</option>
+                        {doctors.filter((d) => d.onDuty !== false).map((d) => (
+                          <option key={d.id} value={d.fullName || d.name}>
+                            {d.fullName || d.name}{d.roleLabel ? ` · ${d.roleLabel}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label>Assign nurse *</label>
+                    {nurses.length === 0 ? (
+                      <p className="muted">No nurses in Staff roster — add under Admin → Staff.</p>
+                    ) : (
+                      <select
+                        value={form.primaryNurse}
+                        onChange={(e) => patch({ primaryNurse: e.target.value })}
+                        required
+                      >
+                        <option value="">Select nurse…</option>
+                        {nurses.filter((n) => n.onDuty !== false).map((n) => (
+                          <option key={n.id} value={n.fullName || n.name}>
+                            {n.fullName || n.name}{n.roleLabel ? ` · ${n.roleLabel}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Isolation / precautions</label>

@@ -6,6 +6,7 @@ export function getDoctorId() {
   return localStorage.getItem('doctorId') || DOCTOR_ID;
 }
 
+/** Canonical alarm bed id: ICU-1-BED {n} (space, no leading zeros). */
 export function canonicalAlarmBedId(bedId) {
   if (!bedId) return bedId;
   let decoded = bedId;
@@ -15,63 +16,26 @@ export function canonicalAlarmBedId(bedId) {
     decoded = bedId;
   }
   decoded = decoded.trim();
-  if (decoded.startsWith('ICU-1-')) return decoded;
-  if (/^BED-\d+$/i.test(decoded)) return `ICU-1-${decoded.toUpperCase()}`;
+  if (/^ICU-1-/i.test(decoded)) {
+    decoded = decoded.slice('ICU-1-'.length).trim();
+  }
+  const bedNum = decoded.match(/^BED[\s_-]*0*(\d+)$/i);
+  if (bedNum) {
+    return `ICU-1-BED ${Number(bedNum[1])}`;
+  }
   return `ICU-1-${decoded}`;
 }
 
-function bedIdVariants(bedId) {
-  const raw = canonicalAlarmBedId(bedId);
-  const set = new Set();
-  const add = (v) => {
-    if (!v || typeof v !== 'string') return;
-    const t = v.trim();
-    if (!t) return;
-    set.add(t);
-  };
-
-  add(raw);
-  const label = raw?.startsWith('ICU-1-') ? raw.slice('ICU-1-'.length) : raw;
-  add(label);
-
-  const collapsed = String(label || '').replace(/\s+/g, ' ');
-  const hyphen = collapsed.replace(/ /g, '-');
-  const spaced = collapsed.replace(/-/g, ' ');
-  add(collapsed);
-  add(hyphen);
-  add(spaced);
-  add(`ICU-1-${collapsed}`);
-  add(`ICU-1-${hyphen}`);
-  add(`ICU-1-${spaced}`);
-
-  const m = collapsed.match(/^BED[\s_-]*0*(\d+)$/i);
-  if (m) {
-    const n = String(Number(m[1]));
-    add(`BED ${n}`);
-    add(`BED-${n}`);
-    add(`ICU-1-BED ${n}`);
-    add(`ICU-1-BED-${n}`);
-  }
-  return [...set];
-}
-
-function normalizeBedKey(bedId) {
-  const canonical = canonicalAlarmBedId(bedId) || '';
-  return canonical
-    .toUpperCase()
-    .replace(/^ICU-1-/, '')
-    .replace(/[^A-Z0-9]/g, '');
-}
-
 export function findBedAlarmConfig(configs, bedId) {
-  const keys = new Set(bedIdVariants(bedId).map(normalizeBedKey));
-  return (configs || [])
-    .filter((c) => keys.has(normalizeBedKey(c?.bedId)))
-    .sort((a, b) => {
-      const at = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
-      const bt = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
-      return bt - at;
-    })[0];
+  const canonical = canonicalAlarmBedId(bedId);
+  const matches = (configs || []).filter(
+    (c) => canonicalAlarmBedId(c?.bedId) === canonical,
+  );
+  return matches.sort((a, b) => {
+    const at = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
+    const bt = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
+    return bt - at;
+  })[0];
 }
 
 export function validateThresholds(alarms) {
@@ -111,7 +75,11 @@ export async function getAlarmConfig(doctorId = getDoctorId()) {
 export async function saveAlarmConfig(payload) {
   return readJson(await apiFetch('/api/alarm-config', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      bedId: canonicalAlarmBedId(payload.bedId),
+      doctorId: payload.doctorId || getDoctorId(),
+    }),
   }));
 }
 
@@ -124,23 +92,31 @@ export function defaultThresholds() {
   }));
 }
 
-export function demoThresholds() {
-  return [
-    { paramName: 'SpO2', highThreshold: null, lowThreshold: 90, enabled: true },
-    { paramName: 'HeartRate', highThreshold: 120, lowThreshold: 50, enabled: true },
-    { paramName: 'Temp1', highThreshold: 38.5, lowThreshold: 30, enabled: true },
-    { paramName: 'Resp.Rate', highThreshold: 30, lowThreshold: 8, enabled: false },
-  ];
+/** Empty template for a bed that has never been configured (do not invent demo limits). */
+export function emptyThresholds() {
+  return defaultThresholds();
 }
 
 export function mergeThresholds(saved) {
   return VITAL_PARAMS.map((param) => {
-    const existing = saved?.find((a) => a.paramName === param.paramName);
-    return existing || {
+    const existing = (saved || []).find(
+      (a) => a.paramName === param.paramName
+        || (param.aliases || []).includes(a.paramName)
+        || (param.paramName === 'Temp1' && (a.paramName === 'Temp' || a.paramName === 'Temp2')),
+    );
+    if (!existing) {
+      return {
+        paramName: param.paramName,
+        highThreshold: null,
+        lowThreshold: null,
+        enabled: false,
+      };
+    }
+    return {
       paramName: param.paramName,
-      highThreshold: null,
-      lowThreshold: null,
-      enabled: false,
+      highThreshold: existing.highThreshold ?? null,
+      lowThreshold: existing.lowThreshold ?? null,
+      enabled: existing.enabled === true || existing.enabled === 'true',
     };
   });
 }

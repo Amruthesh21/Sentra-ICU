@@ -6,6 +6,8 @@ import './index.css';
 import './styles/auth-login.css';
 import './styles/super-admin.css';
 import './styles/hospital-admin.css';
+import './styles/pulse-landing.css';
+import './styles/pulse-auth.css';
 import './themes/ui-themes.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

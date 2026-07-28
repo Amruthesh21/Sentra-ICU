@@ -14,7 +14,7 @@ services:
       - cis_mongodb_data:/data/db
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.20
+        ipv4_address: ${DOCKER_COMPOSE_IP_MONGODB:-172.31.0.20}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -38,7 +38,7 @@ services:
       - cis_rabbitmq_data:/var/lib/rabbitmq
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.21
+        ipv4_address: ${DOCKER_COMPOSE_IP_RABBITMQ:-172.31.0.21}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -59,7 +59,7 @@ services:
       - cis_postgres_data:/var/lib/postgresql/data
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.22
+        ipv4_address: ${DOCKER_COMPOSE_IP_POSTGRES:-172.31.0.22}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U icu_hub -d icu_hub"]

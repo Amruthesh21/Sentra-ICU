@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { reloadConnectEngine } from '../api/hub';
 import { addBedToUnit, createUnit, listUnits, getUnit } from '../api/units';
-
-const SIMULATOR_IP = '172.25.0.8';
 
 export default function Admin({ hospitalAdmin = false }) {
   const { user } = useAuth();
@@ -21,7 +18,7 @@ export default function Admin({ hospitalAdmin = false }) {
     name: '',
   });
 
-  const [bedForm, setBedForm] = useState({ bedLabel: '', ip: 'auto' });
+  const [bedForm, setBedForm] = useState({ bedLabel: '' });
 
   async function loadUnits(selectFirst = false) {
     const list = await listUnits();
@@ -83,21 +80,10 @@ export default function Admin({ hospitalAdmin = false }) {
     setMessage(null);
     setError(null);
     try {
-      const result = await addBedToUnit(selectedUnitId, bedForm);
+      const result = await addBedToUnit(selectedUnitId, { ...bedForm, ip: 'auto' });
       setMessage(result.message || `Bed ${result.bedLabel} added`);
-      setBedForm({ bedLabel: '', ip: 'auto' });
+      setBedForm({ bedLabel: '' });
       await refresh();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleSyncConnectEngine() {
-    setMessage(null);
-    setError(null);
-    try {
-      const result = await reloadConnectEngine();
-      setMessage(result.message || 'Connect Engine sync requested');
     } catch (err) {
       setError(err.message);
     }
@@ -112,25 +98,21 @@ export default function Admin({ hospitalAdmin = false }) {
       <div className="page-intro admin-header">
         <div>
           <h2 className="page-intro-title">
-            {hospitalAdmin ? (user?.displayName || 'Hospital setup') : 'Hospital · RTWO / JPN'}
+            {hospitalAdmin
+              ? (user?.displayName || 'Hospital setup')
+              : 'Hospital setup'}
           </h2>
-          <p className="muted">Create ICU units (blocks/wings), then add beds per unit. Connect Engine syncs on bed add.</p>
+          <p className="muted">
+            Create ICU units and beds locally. Live patient data and history come from hospital
+            connectivity (HL7 / FHIR / adapters) — not Connect Engine.
+          </p>
         </div>
-        {!hospitalAdmin && (
         <div className="admin-header-actions">
-          <Link to="/analytics" className="btn btn-primary">ICU Command Center</Link>
-          <button type="button" className="btn btn-outline" onClick={handleSyncConnectEngine}>
-            Sync Connect Engine
-          </button>
+          <Link to="/connectivity" className="btn btn-primary">Open Connectivity</Link>
+          {!hospitalAdmin && (
+            <Link to="/analytics" className="btn btn-outline">ICU Command Center</Link>
+          )}
         </div>
-        )}
-        {hospitalAdmin && (
-        <div className="admin-header-actions">
-          <button type="button" className="btn btn-outline" onClick={handleSyncConnectEngine}>
-            Sync Connect Engine
-          </button>
-        </div>
-        )}
       </div>
 
       {message && <div className="message success">{message}</div>}
@@ -156,13 +138,13 @@ export default function Admin({ hospitalAdmin = false }) {
                 value={unitForm.code}
                 onChange={(e) => setUnitForm({ ...unitForm, code: e.target.value.toUpperCase() })}
               />
-              <small className="muted">Short code shown in dropdowns</small>
+              <small className="muted">e.g. ICU1, ICU2</small>
             </div>
             <div className="form-group">
               <label>Unit name *</label>
               <input
                 required
-                placeholder="e.g. ICU 1, Cardiac ICU, Surgery ICU"
+                placeholder="e.g. ICU 1, ICU 2, ICU 3"
                 value={unitForm.name}
                 onChange={(e) => setUnitForm({ ...unitForm, name: e.target.value })}
               />
@@ -195,15 +177,6 @@ export default function Admin({ hospitalAdmin = false }) {
                   value={bedForm.bedLabel}
                   onChange={(e) => setBedForm({ ...bedForm, bedLabel: e.target.value.toUpperCase() })}
                 />
-              </div>
-              <div className="form-group">
-                <label>Device IP</label>
-                <input
-                  placeholder="auto"
-                  value={bedForm.ip}
-                  onChange={(e) => setBedForm({ ...bedForm, ip: e.target.value })}
-                />
-                <small className="muted">Use {SIMULATOR_IP} for live demo vitals (one bed at a time).</small>
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn btn-primary">Add bed</button>
@@ -242,36 +215,33 @@ export default function Admin({ hospitalAdmin = false }) {
                   {u.blockName && <div className="unit-picker-block">{u.blockName}</div>}
                   <div className="unit-picker-stats">
                     <span className="unit-stat-vacant">{u.vacantCount} vacant</span>
-                    <span className="unit-stat-divider">·</span>
-                    <span>{u.bedCount} beds</span>
+                    <span className="unit-stat-occupied">{u.occupiedCount} occupied</span>
                   </div>
                 </button>
               ))}
             </aside>
 
-            <div className="unit-beds-panel">
-              {!selectedUnitId ? (
-                <p className="muted unit-beds-placeholder">Select a unit to view its beds.</p>
-              ) : !unitDetail?.beds?.length ? (
-                <p className="muted unit-beds-placeholder">No beds in this unit yet — add one above.</p>
+            <div className="beds-panel">
+              {!unitDetail ? (
+                <p className="muted">Select a unit.</p>
+              ) : (unitDetail.beds || []).length === 0 ? (
+                <p className="muted">No beds in this unit yet.</p>
               ) : (
-                <div className="bed-table" role="table">
-                  <div className="bed-table-head" role="row">
-                    <span role="columnheader">Bed</span>
-                    <span role="columnheader">Status</span>
-                    <span role="columnheader">Device IP</span>
-                  </div>
-                  {unitDetail.beds.map((bed) => (
-                    <div key={bed.bedId} className="bed-table-row" role="row">
-                      <span className="bed-table-label" role="cell">{bed.bedLabel}</span>
-                      <span className="bed-table-status" role="cell">
-                        <span className={`status-pill ${bed.occupied ? 'status-pill--occupied' : 'status-pill--vacant'}`}>
+                <div className="clinical-table-wrap">
+                  <div className="bed-table" role="table">
+                    <div className="bed-table-head" role="row">
+                      <span role="columnheader">Bed</span>
+                      <span role="columnheader">Status</span>
+                    </div>
+                    {(unitDetail.beds || []).map((bed) => (
+                      <div className="bed-table-row" role="row" key={bed.bedId || bed.bedLabel}>
+                        <span className="bed-table-label" role="cell">{bed.bedLabel}</span>
+                        <span className="bed-table-status" role="cell">
                           {bed.occupied ? 'Occupied' : 'Vacant'}
                         </span>
-                      </span>
-                      <span className="bed-table-ip muted" role="cell">{bed.deviceIp || '—'}</span>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

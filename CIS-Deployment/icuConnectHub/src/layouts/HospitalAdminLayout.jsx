@@ -1,13 +1,13 @@
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import RtowLogo from '../components/RtowLogo';
+import PulseLogo from '../components/PulseLogo';
 import NavIcon from '../components/NavIcon';
 import { useAuth } from '../context/AuthContext';
 import '../styles/hospital-admin.css';
 
 const NAV = [
-  { to: '/', label: 'Universal', icon: 'dashboard', end: true },
-  { to: '/admin', label: 'Administration', icon: 'admin_panel_settings', end: false },
+  { to: '/universal', label: 'Universal', icon: 'dashboard', end: true },
+  { to: '/hospital-config', label: 'Administration', icon: 'admin_panel_settings', end: false },
   { to: '/analytics', label: 'Analytics', icon: 'insights', end: false },
   { to: '/alarms', label: 'Alarm Center', icon: 'notifications_active', end: false },
   { to: '/users', label: 'Users & Roles', icon: 'groups', end: false },
@@ -19,9 +19,9 @@ const PAGE_META = {
     title: 'Universal Dashboard',
     subtitle: 'Hospital-wide ICU overview — occupancy, risk, and active alarms',
   },
-  '/admin': {
+  '/hospital-config': {
     title: 'Administration',
-    subtitle: 'Create ICU units, add beds, and sync Connect Engine',
+    subtitle: 'Create ICU units and beds — hospital feed via Connectivity',
   },
   '/analytics': {
     title: 'ICU Analytics',
@@ -61,10 +61,10 @@ export default function HospitalAdminLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.title = 'Hospital Admin · ICU Connect V2';
+    document.title = 'Hospital Admin · Sentra ICU';
   }, []);
 
-  const pageMeta = PAGE_META[location.pathname] || PAGE_META['/admin'];
+  const pageMeta = PAGE_META[location.pathname] || PAGE_META['/hospital-config'];
   const pageTitle = pageMeta.title;
   const pageSubtitle = pageMeta.subtitle;
 
@@ -79,7 +79,9 @@ export default function HospitalAdminLayout() {
       <aside className="ha-sidebar">
         <div className="ha-sidebar-brand">
           <div className="ha-sidebar-logo-wrap">
-            <RtowLogo blend />
+            <Link to="/" aria-label="Sentra ICU home">
+              <PulseLogo size="sm" />
+            </Link>
           </div>
           <span className="ha-role-badge">Hospital Admin</span>
         </div>
@@ -139,7 +141,7 @@ export default function HospitalAdminLayout() {
         </main>
         <footer className="ha-footer">
           <span>V2.0</span>
-          <span>© Rtwo Healthcare Technologies</span>
+          <span>© Sentra ICU</span>
         </footer>
       </div>
     </div>

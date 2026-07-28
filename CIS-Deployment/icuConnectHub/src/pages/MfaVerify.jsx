@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resendMfa, verifyMfa } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { redirectAfterLogin } from '../utils/authRedirect';
-import RtowLogo from '../components/RtowLogo';
-import '../styles/auth-login.css';
+import { PulseAuthShell } from '../components/PulseAuthShell';
+import '../styles/pulse-auth.css';
 
-const OTP_LEN = 6;
-
-function loadMfaPending() {
+function readPending() {
   try {
-    const raw = sessionStorage.getItem('icu_mfa_pending');
-    return raw ? JSON.parse(raw) : null;
+    return JSON.parse(sessionStorage.getItem('icu_mfa_pending') || 'null');
   } catch {
     return null;
   }
@@ -21,16 +18,17 @@ export default function MfaVerify() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { applySession } = useAuth();
-  const [pending, setPending] = useState(loadMfaPending);
-  const [digits, setDigits] = useState(Array(OTP_LEN).fill(''));
-  const [method, setMethod] = useState('email');
-  const [error, setError] = useState('');
+  const [pending, setPending] = useState(readPending);
+  const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [resendIn, setResendIn] = useState(30);
-  const inputsRef = useRef([]);
+  const inputs = useRef([]);
 
   useEffect(() => {
-    if (!pending?.mfaToken) navigate('/login', { replace: true });
+    if (!pending?.mfaToken) {
+      navigate('/login', { replace: true });
+    }
   }, [pending, navigate]);
 
   useEffect(() => {
@@ -39,50 +37,40 @@ export default function MfaVerify() {
     return () => clearTimeout(t);
   }, [resendIn]);
 
-  useEffect(() => {
-    if (pending?.methods?.includes('totp') && !pending?.methods?.includes('email')) {
-      setMethod('totp');
-    }
-  }, [pending]);
-
-  function updateDigit(index, value) {
+  function setDigitAt(index, value) {
     const v = value.replace(/\D/g, '').slice(-1);
     const next = [...digits];
     next[index] = v;
     setDigits(next);
-    if (v && index < OTP_LEN - 1) inputsRef.current[index + 1]?.focus();
-  }
-
-  function handleKeyDown(index, e) {
-    if (e.key === 'Backspace' && !digits[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
+    if (v && index < 5) inputs.current[index + 1]?.focus();
   }
 
   function handlePaste(e) {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (!text) return;
     e.preventDefault();
-    const next = Array(OTP_LEN).fill('');
-    text.split('').forEach((ch, i) => { next[i] = ch; });
-    setDigits(next);
-    inputsRef.current[Math.min(text.length, OTP_LEN - 1)]?.focus();
+    const next = text.split('');
+    while (next.length < 6) next.push('');
+    setDigits(next.slice(0, 6));
+    inputs.current[Math.min(text.length, 5)]?.focus();
   }
 
-  async function handleVerify(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const code = digits.join('');
-    if (code.length < OTP_LEN) {
-      setError('Enter the 6-digit code');
+    if (code.length !== 6) {
+      setError('Enter the 6-digit verification code');
       return;
     }
     setLoading(true);
-    setError('');
+    setError(null);
     try {
-      const session = await verifyMfa(pending.mfaToken, code, method);
+      const session = await verifyMfa(pending.mfaToken, code);
       applySession(session);
       sessionStorage.removeItem('icu_mfa_pending');
-      redirectAfterLogin(navigate, session?.user, searchParams);
+      const params = new URLSearchParams(searchParams);
+      if (pending.returnTo && !params.get('returnTo')) params.set('returnTo', pending.returnTo);
+      redirectAfterLogin(navigate, session.user, params);
     } catch (err) {
       setError(err.message || 'Verification failed');
     } finally {
@@ -91,128 +79,73 @@ export default function MfaVerify() {
   }
 
   async function handleResend() {
-    if (resendIn > 0 || method !== 'email') return;
-    setError('');
     try {
       const result = await resendMfa(pending.mfaToken);
-      const updated = {
-        ...pending,
-        mfaToken: result.mfaToken,
-        devOtp: result.devOtp,
-        devMode: result.devMode,
-        emailDeliveryFailed: result.emailDeliveryFailed,
-        emailSent: result.emailSent,
-      };
+      const updated = { ...pending, devOtp: result.devOtp || '123456' };
       setPending(updated);
       sessionStorage.setItem('icu_mfa_pending', JSON.stringify(updated));
-      setResendIn(result.resendAfterSeconds || 30);
-      setDigits(Array(OTP_LEN).fill(''));
+      setResendIn(30);
+      setError(null);
     } catch (err) {
-      setError(err.message || 'Could not resend code');
+      setError(err.message);
     }
   }
 
-  function toggleMethod() {
-    if (!pending?.methods?.includes('totp')) return;
-    setMethod((m) => (m === 'email' ? 'totp' : 'email'));
-    setDigits(Array(OTP_LEN).fill(''));
-    setError('');
-  }
-
-  if (!pending) return null;
-
-  const masked = pending.maskedEmail || 'your email';
-  const hint = method === 'totp'
-    ? 'Enter the 6-digit code from your authenticator app'
-    : `Verification code has been sent to ${masked}`;
+  if (!pending?.mfaToken) return null;
 
   return (
-    <div className="auth-shell">
-      <div className="auth-shell-inner">
-        <section className="auth-brand auth-brand--logo-only">
-          <RtowLogo blend />
-        </section>
+    <PulseAuthShell eyebrowRight="MFA · SECURE GATE">
+      <p className="pulse-auth-eyebrow">Identity verification</p>
+      <h1 className="pulse-auth-title">Confirm access.</h1>
+      <p className="pulse-auth-hint">
+        Enter the 6-digit code sent to <strong>{pending.email}</strong>
+      </p>
 
-        <section className="auth-card-wrap">
-          <div className="auth-card auth-card--mfa">
-          <h2 className="auth-card-title">Verify Your Identity</h2>
-          <p className="auth-card-sub auth-card-sub--center">{hint}</p>
+      {(pending.devOtp || pending.source !== 'api') && (
+        <div className="pulse-auth-dev-code">
+          Demo verification code: <strong>{pending.devOtp || '123456'}</strong>
+        </div>
+      )}
 
-          {pending.devMode && method === 'email' && (
-            <div className="auth-dev-otp-banner">
-              <p className="auth-dev-otp-label">Development mode — use this code:</p>
-              <p className="auth-dev-otp-code">{pending.devOtp || '123456'}</p>
-              <p className="auth-dev-otp-note">Email delivery is disabled for local POC. Production will use real email OTP.</p>
-            </div>
-          )}
+      <form onSubmit={handleSubmit}>
+        <div className="pulse-auth-otp-boxes" onPaste={handlePaste}>
+          {digits.map((d, i) => (
+            <input
+              key={i}
+              ref={(el) => { inputs.current[i] = el; }}
+              inputMode="numeric"
+              maxLength={1}
+              value={d}
+              onChange={(e) => setDigitAt(i, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Backspace' && !digits[i] && i > 0) {
+                  inputs.current[i - 1]?.focus();
+                }
+              }}
+              aria-label={`Digit ${i + 1}`}
+            />
+          ))}
+        </div>
 
-          {!pending.devMode && pending.emailSent && !pending.devOtp && method === 'email' && (
-            <p className="auth-email-hint">
-              Check inbox and spam for mail from <strong>monish.reddy@invensis.net</strong>.
-              {' '}Didn&apos;t receive it? Wait for Resend, then the code will appear here.
-            </p>
-          )}
+        {error ? <p className="pulse-auth-error">{error}</p> : null}
 
-          {!pending.devMode && pending.emailDeliveryFailed && method === 'email' && (
-            <p className="auth-email-fail">
-              Email could not be delivered. Use the code below or try Resend Code.
-            </p>
-          )}
+        <button type="submit" className="pulse-auth-submit" disabled={loading}>
+          <span>{loading ? 'Verifying…' : 'Verify & enter'}</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </form>
 
-          {!pending.devMode && pending.devOtp && method === 'email' && (
-            <p className="auth-dev-otp">Verification code: <strong>{pending.devOtp}</strong></p>
-          )}
-
-          <form onSubmit={handleVerify}>
-            <div className="auth-otp-row" onPaste={handlePaste}>
-              {digits.map((d, i) => (
-                <input
-                  key={i}
-                  ref={(el) => { inputsRef.current[i] = el; }}
-                  className="auth-otp-box"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={d}
-                  onChange={(e) => updateDigit(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  aria-label={`Digit ${i + 1}`}
-                />
-              ))}
-            </div>
-
-            {method === 'email' && (
-              <div className="auth-resend-row">
-                {resendIn > 0 ? (
-                  <span className="auth-resend-muted">Resend Code in {resendIn}s</span>
-                ) : (
-                  <button type="button" className="auth-link-btn" onClick={handleResend}>
-                    Resend Code
-                  </button>
-                )}
-              </div>
-            )}
-
-            {error && <p className="auth-error">{error}</p>}
-
-            <button type="submit" className="auth-submit" disabled={loading}>
-              {loading ? 'Verifying…' : 'Verify'}
-            </button>
-          </form>
-
-          {pending.methods?.includes('totp') && (
-            <button type="button" className="auth-alt-link" onClick={toggleMethod}>
-              {method === 'email' ? 'Use authenticator app instead' : 'Use email code instead'}
-            </button>
-          )}
-          </div>
-        </section>
+      <div className="pulse-auth-resend">
+        {resendIn > 0 ? (
+          <span className="pulse-auth-hint" style={{ margin: 0 }}>Resend code in {resendIn}s</span>
+        ) : (
+          <button type="button" onClick={handleResend}>Resend code</button>
+        )}
       </div>
 
-      <footer className="auth-footer">
-        <span>V2.0</span>
-        <span>Privacy Policy</span>
-        <span>© Rtwo Healthcare Technologies</span>
-      </footer>
-    </div>
+      <p className="pulse-auth-alt">
+        <Link to="/login">← Back to sign in</Link>
+      </p>
+    </PulseAuthShell>
   );
 }

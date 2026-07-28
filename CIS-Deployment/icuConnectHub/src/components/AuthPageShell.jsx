@@ -7,7 +7,7 @@ export default function AuthPageShell({ title, subtitle, children, cardClassName
       <div className="auth-shell-inner">
         <section className="auth-brand">
           <RtowLogo blend />
-          <h1 className="auth-product-title">ICU Connect V2 — Critical Care Monitoring Platform</h1>
+          <h1 className="auth-product-title">Sentra ICU — Critical Care Intelligence Platform</h1>
           <p className="auth-product-tagline">Live Vitals. Faster Decisions. Zero Delays.</p>
         </section>
 
@@ -23,7 +23,7 @@ export default function AuthPageShell({ title, subtitle, children, cardClassName
       <footer className="auth-footer">
         <span>V2.0</span>
         <span>Privacy Policy</span>
-        <span>© Rtwo Healthcare Technologies</span>
+        <span>© Sentra ICU</span>
       </footer>
     </div>
   );

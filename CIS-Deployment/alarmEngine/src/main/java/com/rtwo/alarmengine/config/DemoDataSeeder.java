@@ -20,14 +20,15 @@ public class DemoDataSeeder {
     @Bean
     CommandLineRunner seedDemoAlarmConfig(DoctorAlarmConfigRepository repository) {
         return args -> {
-            if (repository.findByDoctorIdAndBedId("doctor-001", "ICU-1-BED-01").isPresent()) {
+            if (repository.findByDoctorIdAndBedId("doctor-001", "ICU-1-BED 1").isPresent()
+                    || repository.findByDoctorIdAndBedId("doctor-001", "ICU-1-BED-01").isPresent()) {
                 log.info("Demo alarm config already exists, skipping seed");
                 return;
             }
 
             DoctorAlarmConfig config = new DoctorAlarmConfig();
             config.setDoctorId("doctor-001");
-            config.setBedId("ICU-1-BED-01");
+            config.setBedId("ICU-1-BED 1");
             // Patient name/MRN come from CIS centerEntity when admitted on ICU Connect
             config.setPatientMRN(null);
             config.setPatientName(null);

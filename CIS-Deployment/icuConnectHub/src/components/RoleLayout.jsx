@@ -1,6 +1,6 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Layout from './Layout';
+import { PulseShellLayout } from './PulseShell';
 import SuperAdminLayout from '../layouts/SuperAdminLayout';
 import HospitalAdminLayout from '../layouts/HospitalAdminLayout';
 import { isHospitalAdminUser, isSuperAdminUser } from '../utils/userRoles';
@@ -24,17 +24,17 @@ export default function RoleLayout() {
     return <HospitalAdminLayout />;
   }
 
-  return <Layout />;
+  return <PulseShellLayout />;
 }
 
 /** Clinical bedside routes — not for platform admins; hospital admins use dedicated pages */
 export function ClinicalStaffOnly({ children }) {
   const { user } = useAuth();
   if (isSuperAdminUser(user)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/hospitals" replace />;
   }
   if (isHospitalAdminUser(user)) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/hospital-config" replace />;
   }
   return children;
 }
@@ -43,7 +43,7 @@ export function ClinicalStaffOnly({ children }) {
 export function SuperAdminBlock({ children }) {
   const { user } = useAuth();
   if (isSuperAdminUser(user)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/hospitals" replace />;
   }
   return children;
 }

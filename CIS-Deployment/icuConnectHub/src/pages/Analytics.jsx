@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCenterAnalytics } from '../api/analytics';
+import { BRAND_NAME, brandCenterLabel } from '../utils/brand';
 
 function statusClass(status) {
   if (status === 'critical') return 'is-critical';
@@ -202,7 +203,7 @@ export default function Analytics({ centerId, hospitalAdmin = false }) {
       <header className="ax-hero">
         <div className="ax-hero-text">
           <p className="ax-hero-eyebrow">ICU Command Center · Executive Analytics</p>
-          <h1>{data?.center?.displayName || 'RTWO JPN'} — Complete Center Intelligence</h1>
+          <h1>{brandCenterLabel(data?.center?.displayName || data?.center?.centerName) || BRAND_NAME} — Complete Center Intelligence</h1>
           <p className="ax-hero-sub">
             Real-time fusion of occupancy, acuity, alarms, clinical scores, orders, fluids, and device fleet
           </p>
@@ -293,7 +294,7 @@ export default function Analytics({ centerId, hospitalAdmin = false }) {
                   <tr key={u.unitId}>
                     <td>
                       {hospitalAdmin ? (u.code || u.name) : (
-                      <Link to={`/unit?unitId=${u.unitId}`} className="ax-unit-link">
+                      <Link to={`/overview`} className="ax-unit-link">
                         {u.code || u.name}
                       </Link>
                       )}

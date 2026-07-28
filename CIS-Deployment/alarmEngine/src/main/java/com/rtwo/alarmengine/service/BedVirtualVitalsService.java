@@ -76,6 +76,15 @@ public class BedVirtualVitalsService {
         double bolusVol = (seed % 3) == 0 ? round2(2 + Math.sin(slowPhase) * 1.5) : 0;
         double bolusRate = bolusVol > 0 ? 1200 : 0;
 
+        // BPL Ultima stream often omits NIBP — synthesize realistic per-bed BP.
+        double sysBase = pick(template, "NIBP Sys", "NIBP_Sys", "Systolic", 118.0);
+        double diaBase = pick(template, "NIBP Dia", "NIBP_Dia", "Diastolic", 74.0);
+        double nibpSys = round0(clamp(sysBase + ((seed >> 2) % 17) - 8 + Math.sin(slowPhase) * 3, 85, 165));
+        double nibpDia = round0(clamp(diaBase + ((seed >> 4) % 11) - 5 + Math.sin(slowPhase * 1.1) * 2, 48, 100));
+        if (nibpDia >= nibpSys - 20) {
+            nibpDia = Math.max(48, nibpSys - 30 - (seed % 8));
+        }
+
         List<Map<String, Object>> primary = new ArrayList<>();
         addParam(primary, "SpO2", spo2, "%");
         addParam(primary, "Heart Rate", heartRate, "bpm");
@@ -83,6 +92,8 @@ public class BedVirtualVitalsService {
         addParam(primary, "Pulse", heartRate, "bpm");
         addParam(primary, "Resp.Rate", respRate, "bpm");
         addParam(primary, "Temp1", temp1, "°C");
+        addParam(primary, "NIBP Sys", nibpSys, "mmHg");
+        addParam(primary, "NIBP Dia", nibpDia, "mmHg");
 
         List<Map<String, Object>> secondary = new ArrayList<>();
         addParam(secondary, "Inf Vol", infVol, "ml");
@@ -191,7 +202,9 @@ public class BedVirtualVitalsService {
             return round1(value);
         }
         if ("Heart Rate".equals(name) || "HeartRate".equals(name) || "Pulse".equals(name)
-                || "Resp.Rate".equals(name) || "Bolus Rate".equals(name)) {
+                || "Resp.Rate".equals(name) || "Bolus Rate".equals(name)
+                || "NIBP Sys".equals(name) || "NIBP Dia".equals(name)
+                || "NIBP_Sys".equals(name) || "NIBP_Dia".equals(name)) {
             return round0(value);
         }
         return round1(value);

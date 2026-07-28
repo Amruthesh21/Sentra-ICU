@@ -1,0 +1,24 @@
+# Override CIS stack fixed IPs to match alarampoc network 172.31.0.0/16
+services:
+  nginx:
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.31.0.2
+  connectengine:
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.31.0.3
+        aliases:
+          - connectengine
+  visualizationengine:
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.31.0.4
+  critixperticubackendengine:
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.31.0.5
+  icuconnectdevicesimulatorbed1:
+    networks:
+      docker_compose_network:
+        ipv4_address: 172.31.0.8

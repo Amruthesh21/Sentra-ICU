@@ -1,5 +1,5 @@
 /**
- * Hub permissions that map to real ICU Connect features.
+ * Hub permissions that map to real Sentra ICU features.
  * Keys must stay in sync with PermissionCatalog.HUB_ASSIGNABLE (backend).
  */
 export const PERMISSION_GROUPS = [
@@ -71,10 +71,16 @@ export const PERMISSION_LABELS = Object.fromEntries(
 /** Nav item → required permission (any one match shows the link) */
 export const NAV_PERMISSIONS = {
   '/universal': ['dashboard.universal'],
+  '/overview': ['dashboard.unit'],
   '/unit': ['dashboard.unit'],
   '/patients': ['patient.read', 'patient.write', 'patient.create'],
+  '/beds': ['dashboard.unit', 'patient.read'],
+  '/alerts': ['alarm.read'],
+  '/staff': ['dashboard.unit'],
+  '/admissions': ['patient.read', 'patient.write', 'patient.create'],
   '/alarms': ['alarm.read'],
   '/analytics': ['kpi.read'],
   '/scoring': ['scoring.read'],
   '/reports': ['reports.read', 'reports.write'],
+  '/connectivity': ['dashboard.unit', 'dashboard.universal', 'kpi.read'],
 };

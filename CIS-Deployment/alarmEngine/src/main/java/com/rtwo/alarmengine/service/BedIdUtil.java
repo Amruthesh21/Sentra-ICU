@@ -26,11 +26,15 @@ public final class BedIdUtil {
             decoded = bedId;
         }
         decoded = decoded.trim();
-        if (decoded.startsWith("ICU-1-")) {
-            return decoded;
+        if (decoded.regionMatches(true, 0, "ICU-1-", 0, "ICU-1-".length())) {
+            decoded = decoded.substring("ICU-1-".length()).trim();
         }
-        if (decoded.matches("(?i)BED-\\d+")) {
-            return "ICU-1-" + decoded.toUpperCase();
+        // Normalize "BED-01" / "BED-1" / "BED 1" → "ICU-1-BED 1" to match center bed labels
+        java.util.regex.Matcher bedNum = java.util.regex.Pattern
+                .compile("(?i)^BED[\\s_-]*0*(\\d+)$")
+                .matcher(decoded);
+        if (bedNum.matches()) {
+            return "ICU-1-BED " + Integer.parseInt(bedNum.group(1));
         }
         return "ICU-1-" + decoded;
     }
@@ -98,13 +102,20 @@ public final class BedIdUtil {
                 .compile("(?i)^BED[\\s_-]*0*(\\d+)$")
                 .matcher(collapsedSpaces);
         if (m.matches()) {
-            String n = String.valueOf(Integer.parseInt(m.group(1)));
+            int num = Integer.parseInt(m.group(1));
+            String n = String.valueOf(num);
+            String padded = String.format("%02d", num);
             String bedSpace = "BED " + n;
             String bedHyphen = "BED-" + n;
+            String bedPadded = "BED-" + padded;
             ids.add(bedSpace);
             ids.add(bedHyphen);
+            ids.add(bedPadded);
+            ids.add("BED " + padded);
             ids.add("ICU-1-" + bedSpace);
             ids.add("ICU-1-" + bedHyphen);
+            ids.add("ICU-1-" + bedPadded);
+            ids.add("ICU-1-BED " + padded);
         }
     }
 }

@@ -36,7 +36,7 @@ public class EmailOtpService {
         String text = "Your password reset code is: " + code + "\n\n"
                 + "This code expires in " + expiry + " minutes.\n\n"
                 + "If you did not request this, ignore this email.\n\n"
-                + "— Rtwo Global Healthcare";
+                + "— Sentra ICU";
         String html = """
                 <div style="font-family:Segoe UI,Arial,sans-serif;max-width:480px;color:#0f2d5c">
                   <p style="font-size:18px;font-weight:700;margin:0 0 12px">%s — Password reset</p>
@@ -72,10 +72,10 @@ public class EmailOtpService {
         String from = properties.getMail().getFrom();
         String issuer = properties.getMfa().getIssuer();
         String subject = issuer + " — Your sign-in code";
-        String text = "Your ICU Connect verification code is: " + otp + "\n\n"
+        String text = "Your Sentra ICU verification code is: " + otp + "\n\n"
                 + "This code expires in " + properties.getOtp().getExpiryMinutes() + " minutes.\n\n"
                 + "If you did not request this, ignore this email.\n\n"
-                + "— Rtwo Global Healthcare";
+                + "— Sentra ICU";
         String html = """
                 <div style="font-family:Segoe UI,Arial,sans-serif;max-width:480px;color:#0f2d5c">
                   <p style="font-size:18px;font-weight:700;margin:0 0 12px">%s</p>

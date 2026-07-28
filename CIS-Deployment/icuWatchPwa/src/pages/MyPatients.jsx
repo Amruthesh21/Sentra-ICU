@@ -142,7 +142,7 @@ export default function MyPatients() {
       const occupied = bedList.filter((b) => b.occupied);
       if (occupied.length === 0) {
         setBedData({});
-        setError('No admitted patients — add beds and admit patients in ICU Connect Hub Admin.');
+        setError('No admitted patients — add beds and admit patients in Sentra ICU Hub Admin.');
         setLoading(false);
         return;
       }

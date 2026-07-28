@@ -61,7 +61,7 @@ public class AuthProperties {
     }
 
     public static class Mfa {
-        private String issuer = "ICU Connect V2";
+        private String issuer = "Sentra ICU";
         private int trustMinutes = 60;
         public String getIssuer() { return issuer; }
         public void setIssuer(String issuer) { this.issuer = issuer; }

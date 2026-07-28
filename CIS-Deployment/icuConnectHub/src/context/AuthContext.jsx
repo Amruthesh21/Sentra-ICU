@@ -1,10 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   clearStoredAuth,
-  fetchMe,
   getStoredAuth,
   logout as apiLogout,
-  refreshSession,
   setStoredAuth,
 } from '../api/auth';
 
@@ -18,43 +16,21 @@ export function AuthProvider({ children }) {
     if (!session?.accessToken) return;
     setStoredAuth(session);
     setUser(session.user || null);
-  }, []);
-
-  const refreshUser = useCallback(async () => {
-    const stored = getStoredAuth();
-    if (!stored?.accessToken) {
-      setUser(null);
-      return null;
-    }
-    try {
-      const me = await fetchMe();
-      setUser(me);
-      setStoredAuth({ ...stored, user: me });
-      return me;
-    } catch {
-      try {
-        const session = await refreshSession();
-        setUser(session.user || stored.user || null);
-        const me = await fetchMe();
-        setUser(me);
-        setStoredAuth({ ...getStoredAuth(), user: me });
-        return me;
-      } catch {
-        clearStoredAuth();
-        setUser(null);
-        return null;
-      }
+    if (!localStorage.getItem('doctorId')) {
+      localStorage.setItem('doctorId', 'doctor-001');
     }
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const stored = getStoredAuth();
-      if (stored?.user) setUser(stored.user);
-      if (stored?.accessToken) await refreshUser();
-      setLoading(false);
-    })();
-  }, [refreshUser]);
+    const stored = getStoredAuth();
+    if (stored?.accessToken && stored?.user) {
+      setUser(stored.user);
+    } else {
+      clearStoredAuth();
+      setUser(null);
+    }
+    setLoading(false);
+  }, []);
 
   const logout = useCallback(async () => {
     await apiLogout();
@@ -66,9 +42,8 @@ export function AuthProvider({ children }) {
     loading,
     isAuthenticated: Boolean(user && getStoredAuth()?.accessToken),
     applySession,
-    refreshUser,
     logout,
-  }), [user, loading, applySession, refreshUser, logout]);
+  }), [user, loading, applySession, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

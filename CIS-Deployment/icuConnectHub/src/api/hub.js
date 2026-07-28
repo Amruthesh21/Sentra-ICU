@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { brandCenterLabel } from '../utils/brand';
 
 export async function readJson(res) {
   const text = await res.text();
@@ -18,7 +19,11 @@ export async function readJson(res) {
 }
 
 export async function getCenter() {
-  return readJson(await apiFetch('/api/center'));
+  const data = await readJson(await apiFetch('/api/center'));
+  if (data && typeof data === 'object') {
+    data.centerName = brandCenterLabel(data.centerName);
+  }
+  return data;
 }
 
 export async function addBed(bedLabel, ip = 'auto') {
@@ -26,10 +31,6 @@ export async function addBed(bedLabel, ip = 'auto') {
     method: 'POST',
     body: JSON.stringify({ bedLabel, ip }),
   }));
-}
-
-export async function reloadConnectEngine() {
-  return readJson(await apiFetch('/api/center/reload', { method: 'POST' }));
 }
 
 export async function getDevices() {
@@ -151,10 +152,18 @@ export function vitalsToMap(data) {
     const key = a.paramName || a.name;
     const raw = a.value;
     if (key == null || raw == null || raw === '--') return;
+    // Keep combined BP strings like "118/76"
+    if (typeof raw === 'string' && raw.includes('/')) {
+      map[key] = raw.trim();
+      return;
+    }
     const num = typeof raw === 'number' ? raw : parseFloat(raw);
     if (Number.isNaN(num)) return;
     map[key] = num;
     if (key === 'Pulse' || key === 'Heart Rate') map.HeartRate = num;
+    // Normalize BP aliases for Overview cards
+    if (/nibp\s*sys|nibp_sys|systolic|sbp|bp\s*sys/i.test(key)) map.NIBP_Sys = num;
+    if (/nibp\s*dia|nibp_dia|diastolic|dbp|bp\s*dia/i.test(key)) map.NIBP_Dia = num;
   });
   return map;
 }

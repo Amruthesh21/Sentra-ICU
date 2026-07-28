@@ -56,6 +56,12 @@ public class CenterController {
         return ResponseEntity.ok(centerAdminService.reloadConnectEngine());
     }
 
+    @PostMapping("/sync-metadata")
+    public ResponseEntity<Map<String, Object>> syncCenterMetadata(HttpServletRequest request) {
+        return ResponseEntity.ok(centerAdminService.syncCenterMetadataFromConnectEngine(
+                hospitalContextService.resolveCenterId(request)));
+    }
+
     @GetMapping("/beds/{bedLabel}/devices")
     public Map<String, Object> bedDevices(@PathVariable String bedLabel) {
         return bedDeviceService.getBedDeviceStatus("ICU-1-" + bedLabel);

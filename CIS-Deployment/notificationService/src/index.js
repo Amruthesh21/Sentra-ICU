@@ -240,7 +240,7 @@ async function start() {
   const rabbitUrl = process.env.RABBITMQ_URL;
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
-  const vapidEmail = process.env.VAPID_EMAIL || 'mailto:poc@rtwo.com';
+  const vapidEmail = process.env.VAPID_EMAIL || 'mailto:poc@Sentra ICU.health';
 
   if (!mongoUri || !rabbitUrl || !vapidPublic || !vapidPrivate) {
     console.error('Missing required environment variables');

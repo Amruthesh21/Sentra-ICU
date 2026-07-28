@@ -1,10 +1,12 @@
 package com.rtwo.alarmengine.hub.service;
 
 import com.rtwo.alarmengine.dto.AlarmEvent;
+import com.rtwo.alarmengine.hub.HubCenterIds;
 import com.rtwo.alarmengine.hub.entity.*;
 import com.rtwo.alarmengine.hub.repo.*;
 import com.rtwo.alarmengine.service.ActiveAlarmStore;
 import com.rtwo.alarmengine.service.BedDeviceService;
+import com.rtwo.alarmengine.service.CenterAdminService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -27,6 +29,7 @@ public class HubOverviewService {
     private final HubPatientRepository patientRepository;
     private final ActiveAlarmStore activeAlarmStore;
     private final BedDeviceService bedDeviceService;
+    private final CenterAdminService centerAdminService;
 
     public HubOverviewService(HubUnitRepository unitRepository,
                               HubBedRepository bedRepository,
@@ -34,7 +37,8 @@ public class HubOverviewService {
                               HubPatientVisitRepository visitRepository,
                               HubPatientRepository patientRepository,
                               ActiveAlarmStore activeAlarmStore,
-                              BedDeviceService bedDeviceService) {
+                              BedDeviceService bedDeviceService,
+                              CenterAdminService centerAdminService) {
         this.unitRepository = unitRepository;
         this.bedRepository = bedRepository;
         this.assignmentRepository = assignmentRepository;
@@ -42,6 +46,7 @@ public class HubOverviewService {
         this.patientRepository = patientRepository;
         this.activeAlarmStore = activeAlarmStore;
         this.bedDeviceService = bedDeviceService;
+        this.centerAdminService = centerAdminService;
     }
 
     public Map<String, Object> getOverview() {
@@ -53,6 +58,13 @@ public class HubOverviewService {
                 ? centerId.trim().toUpperCase(java.util.Locale.ROOT)
                 : CENTER_ID;
         List<HubUnitEntity> units = unitRepository.findByCenterIdOrderByNameAsc(cid);
+        Map<String, Object> centerMeta = centerAdminService.getCenterOverview(cid);
+        String centerName = scrubBrandLabel(stringVal(centerMeta.get("centerName"), cid));
+        String centerLocation = stringVal(centerMeta.get("centerLocation"), "");
+        String centerDisplayName = scrubBrandLabel(centerLocation.isBlank()
+                ? centerName
+                : centerName + " " + centerLocation);
+
         List<HubBedEntity> allBeds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(cid);
         List<AlarmEvent> activeAlarms = activeAlarmStore.getActiveAlarms();
 
@@ -135,7 +147,6 @@ public class HubOverviewService {
             totalCritical += critical;
             totalWarning += warning;
 
-            String centerDisplayName = "RTWO JPN";
             String blockKey = normalizeBlockDisplay(resolveBlockKey(unit.getBlockName(), centerDisplayName));
 
             Map<String, Object> unitCard = new LinkedHashMap<>();
@@ -195,9 +206,9 @@ public class HubOverviewService {
 
         Map<String, Object> center = new LinkedHashMap<>();
         center.put("centerId", cid);
-        center.put("centerName", cid);
-        center.put("location", "");
-        center.put("displayName", cid);
+        center.put("centerName", centerName);
+        center.put("location", centerLocation);
+        center.put("displayName", centerDisplayName);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("center", center);
@@ -210,7 +221,20 @@ public class HubOverviewService {
         return result;
     }
 
-    /** Block A/B are wards inside center RTWO JPN — center name must not be used as a block key. */
+    /** Replace legacy RTWO labels so APIs never surface the old brand. */
+    private static String scrubBrandLabel(String value) {
+        if (value == null || value.isBlank()) {
+            return HubCenterIds.BRAND_DISPLAY;
+        }
+        String scrubbed = value
+                .replaceAll("(?i)\\bRTWO\\b", HubCenterIds.BRAND_DISPLAY)
+                .replaceAll("(?i)\\bSentra ICU(?:\\s+ICU)+\\b", HubCenterIds.BRAND_DISPLAY)
+                .replaceAll("\\s+", " ")
+                .trim();
+        return scrubbed.isBlank() ? HubCenterIds.BRAND_DISPLAY : scrubbed;
+    }
+
+    /** Block A/B are wards inside the center — center brand name must not be used as a block key. */
     private String resolveBlockKey(String blockName, String centerDisplayName) {
         if (blockName == null || blockName.isBlank()) {
             return "General";
@@ -218,6 +242,9 @@ public class HubOverviewService {
         String trimmed = blockName.trim();
         String upper = trimmed.toUpperCase();
         if (upper.equals(centerDisplayName.toUpperCase())
+                || upper.equals("SENTRA ICU")
+                || upper.equals("SENTRA ICU JPN")
+                || upper.equals("SENTRA")
                 || upper.equals("RTWO JPN")
                 || upper.equals("RTWO")
                 || upper.equals("MAIN ICU")
@@ -380,5 +407,10 @@ public class HubOverviewService {
         int nurses = Math.max(1, (int) Math.ceil(occupied / 4.0));
         int ratio = (int) Math.ceil((double) occupied / nurses);
         return "1:" + ratio;
+    }
+
+    private static String stringVal(Object value, String fallback) {
+        if (value == null || value.toString().isBlank()) return fallback;
+        return value.toString().trim();
     }
 }

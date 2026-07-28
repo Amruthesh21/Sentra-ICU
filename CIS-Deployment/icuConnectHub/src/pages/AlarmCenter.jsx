@@ -4,6 +4,7 @@ import { acknowledgeAlarm, getAlarmFeed } from '../api/hub';
 import { canonicalAlarmBedId } from '../api/alarmConfig';
 import { listCenters } from '../api/hospitalAdmin';
 import { getUnit, listUnits } from '../api/units';
+import { bedDetailPath } from '../constants/bedDetailTabs';
 
 const MUTE_KEY = 'icuHub.alarmCenterMuted';
 const ALL_UNITS_ID = 'all';
@@ -14,7 +15,7 @@ const SCOPE_UNIT = 'unit';
 
 function unitOptionLabel(unit) {
   const code = unit.code || unit.name;
-  if (unit.blockName && !unit.blockName.toUpperCase().includes('RTWO JPN')) {
+  if (unit.blockName && !unit.blockName.toUpperCase().includes('SENTRA') && !unit.blockName.toUpperCase().includes('RTWO')) {
     return `${code} · ${unit.blockName}`;
   }
   return unit.name && unit.name !== code ? `${code} — ${unit.name}` : code;
@@ -39,11 +40,24 @@ function alarmTitle(alarm) {
 }
 
 function AlarmCard({ alarm, unitLabel, onAcknowledge, hospitalAdmin = false }) {
-  const bedRoute = alarm.bedId || `ICU-1-${bedLabelFromId(alarm.bedId)}`;
+  const navigate = useNavigate();
+  const waveformsPath = bedDetailPath(alarm.bedId, 'waveforms');
   const label = bedLabelFromId(alarm.bedId);
 
   return (
-    <article className={`alarm-center-card ${alarm.acknowledged ? 'is-acked' : 'is-active'}`}>
+    <article
+      className={`alarm-center-card ${alarm.acknowledged ? 'is-acked' : 'is-active'}${hospitalAdmin ? '' : ' is-clickable'}`}
+      role={hospitalAdmin ? undefined : 'link'}
+      tabIndex={hospitalAdmin ? undefined : 0}
+      title={hospitalAdmin ? undefined : 'Open live waveforms'}
+      onClick={hospitalAdmin ? undefined : () => navigate(waveformsPath)}
+      onKeyDown={hospitalAdmin ? undefined : (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(waveformsPath);
+        }
+      }}
+    >
       <div className="alarm-center-card-head">
         <div>
           <div className="alarm-center-patient">{alarm.patientName || 'Unknown patient'}</div>
@@ -58,13 +72,21 @@ function AlarmCard({ alarm, unitLabel, onAcknowledge, hospitalAdmin = false }) {
               type="button"
               className="alarm-icon-btn"
               title="Acknowledge"
-              onClick={() => onAcknowledge(alarm)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAcknowledge(alarm);
+              }}
             >
               ✓
             </button>
           )}
           {!hospitalAdmin && (
-          <Link to={`/bed/${encodeURIComponent(bedRoute)}`} className="alarm-icon-btn" title="Open bed">
+          <Link
+            to={waveformsPath}
+            className="alarm-icon-btn"
+            title="Open waveforms"
+            onClick={(e) => e.stopPropagation()}
+          >
             ↗
           </Link>
           )}

@@ -3,7 +3,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.25.0.0/16
+        - subnet: ${DOCKER_COMPOSE_SUBNET:-172.31.0.0/16}
 
 services:
   alarm-engine:
@@ -22,7 +22,7 @@ services:
       ALARM_DEMO_VITALS_ENABLED: "false"
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.10
+        ipv4_address: ${DOCKER_COMPOSE_IP_ALARM_ENGINE:-172.31.0.10}
 
   notification-service:
     build: ./CIS-Deployment/notificationService
@@ -39,10 +39,10 @@ services:
       MONGODB_URI: mongodb://monish:admin%40123@host.docker.internal:7000/?authSource=admin
       VAPID_PUBLIC_KEY: BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4
       VAPID_PRIVATE_KEY: 567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg
-      VAPID_EMAIL: mailto:poc@rtwo.com
+      VAPID_EMAIL: mailto:poc@Sentra ICU.health
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.11
+        ipv4_address: ${DOCKER_COMPOSE_IP_NOTIFICATION_SERVICE:-172.31.0.11}
 
   icu-watch-pwa:
     build: ./CIS-Deployment/icuWatchPwa
@@ -53,7 +53,7 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.12
+        ipv4_address: ${DOCKER_COMPOSE_IP_ICU_WATCH_PWA:-172.31.0.12}
 
   rabbitmq-setup:
     image: curlimages/curl:latest
@@ -85,7 +85,7 @@ services:
       "
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.13
+        ipv4_address: ${DOCKER_COMPOSE_IP_RABBITMQ_SETUP:-172.31.0.13}
 
   ngrok:
     image: ngrok/ngrok:latest
@@ -99,5 +99,5 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       docker_compose_network:
-        ipv4_address: 172.25.0.14
+        ipv4_address: ${DOCKER_COMPOSE_IP_NGROK:-172.31.0.14}
     restart: unless-stopped

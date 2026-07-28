@@ -14,6 +14,8 @@ import {
   getLatestVitals,
   getVitalsHistory,
   getActiveAlarms,
+  getAlarmFeed,
+  acknowledgeAlarm,
   getBedDevices,
   vitalsToMap,
   hasTrendData,
@@ -21,8 +23,19 @@ import {
   trendParamNames,
   formatVitalValue,
 } from '../api/hub';
-import { resolveBedTab } from '../constants/bedDetailTabs';
+import { BED_DETAIL_TABS, resolveBedTab } from '../constants/bedDetailTabs';
 import { canonicalAlarmBedId } from '../api/alarmConfig';
+
+function sameAlarmBed(a, b) {
+  return canonicalAlarmBedId(a) === canonicalAlarmBedId(b);
+}
+
+function severityClass(severity) {
+  const s = String(severity || '').toUpperCase();
+  if (s === 'CRITICAL') return 'is-critical';
+  if (s === 'WARNING' || s === 'WARN') return 'is-warning';
+  return 'is-info';
+}
 
 const TREND_PRESETS = [
   { id: 'live', label: 'Live (5m)', minutes: 5 },
@@ -87,12 +100,14 @@ const ALIASES = {
 };
 
 const OVERVIEW_ORDER = [
+  { key: 'HeartRate', unit: 'bpm', aliases: ['Pulse', 'Heart Rate'] },
+  { key: 'SpO2', unit: '%', aliases: [] },
+  { key: 'NIBP Sys', unit: 'mmHg', aliases: ['NIBP_Sys', 'Systolic', 'SBP', 'ABP Sys'] },
+  { key: 'NIBP Dia', unit: 'mmHg', aliases: ['NIBP_Dia', 'Diastolic', 'DBP', 'ABP Dia'] },
+  { key: 'Resp.Rate', unit: 'bpm', aliases: [] },
+  { key: 'Temp1', unit: '°C', aliases: ['Temp2'] },
   { key: 'Inf Vol', unit: 'ml', aliases: [] },
   { key: 'Inf Rate', unit: 'ml/h', aliases: [] },
-  { key: 'HeartRate', unit: 'bpm', aliases: ['Pulse', 'Heart Rate'] },
-  { key: 'Resp.Rate', unit: 'bpm', aliases: [] },
-  { key: 'SpO2', unit: '%', aliases: [] },
-  { key: 'Temp1', unit: '°C', aliases: ['Temp2'] },
   { key: 'Bolus Vol', unit: 'ml', aliases: [] },
   { key: 'Bolus Rate', unit: 'ml/h', aliases: [] },
 ];
@@ -113,6 +128,8 @@ function getHistorySeries(history, param) {
 
 function paramLabel(key) {
   if (key === 'HeartRate') return 'Heart Rate';
+  if (key === 'NIBP Sys' || key === 'NIBP_Sys') return 'BP Sys';
+  if (key === 'NIBP Dia' || key === 'NIBP_Dia') return 'BP Dia';
   return key;
 }
 
@@ -124,6 +141,8 @@ export default function BedDetail() {
   const [vitals, setVitals] = useState({});
   const [history, setHistory] = useState([]);
   const [alarms, setAlarms] = useState([]);
+  const [alarmFeed, setAlarmFeed] = useState([]);
+  const [ackingKey, setAckingKey] = useState('');
   const [deviceStatus, setDeviceStatus] = useState(null);
   const [selectedParams, setSelectedParams] = useState([]);
   const [paramWarning, setParamWarning] = useState(null);
@@ -224,13 +243,14 @@ export default function BedDetail() {
   const load = useCallback(async () => {
     try {
       const range = rangeForPreset(trendPreset, customFrom, customTo);
-      const [patientInfo, vitalsData, historyData, activeAlarms, devices, ctx] = await Promise.all([
+      const [patientInfo, vitalsData, historyData, activeAlarms, feed, devices, ctx] = await Promise.all([
         getPatient(bedId),
         getLatestVitals(bedId),
         getVitalsHistory(bedId, range.live
           ? { minutes: range.minutes ?? 5 }
           : { from: range.from, to: range.to }),
         getActiveAlarms().catch(() => []),
+        getAlarmFeed().catch(() => []),
         getBedDevices(bedId).catch(() => null),
         getClinicalContext(bedId).catch(() => ({ hasPatient: false })),
       ]);
@@ -260,7 +280,8 @@ export default function BedDetail() {
       setHistory(series);
       setHistoryMeta({ from: historyData.from, to: historyData.to, source: historyData.source });
       setClinicalCtx(ctx);
-      setAlarms(activeAlarms.filter((a) => canonicalAlarmBedId(a.bedId) === canonicalAlarmBedId(bedId)));
+      setAlarms((Array.isArray(activeAlarms) ? activeAlarms : []).filter((a) => sameAlarmBed(a.bedId, bedId)));
+      setAlarmFeed((Array.isArray(feed) ? feed : []).filter((a) => sameAlarmBed(a.bedId, bedId)));
       setDeviceStatus(devices);
       setLastUpdate(new Date());
 
@@ -423,63 +444,100 @@ export default function BedDetail() {
   const patientAge = patient?.patientAge ?? patientSummary?.age;
   const patientGender = patient?.patientGender || patientSummary?.gender;
   const showFullSummary = tab === 'overview';
+  // Documentation tabs: focus on the form — hide vitals chrome / demo / alarm strips
+  const isDocumentationTab = tab === 'notes' || tab === 'orders' || tab === 'labs' || tab === 'fluids';
+  const showMonitorChrome = !isDocumentationTab;
+
+  function selectTab(tabId) {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', tabId);
+    setSearchParams(params, { replace: true });
+  }
+
+  const attending = patientSummary?.attendingPhysician || clinicalCtx?.attendingPhysician;
+  const nurse = patientSummary?.primaryNurse || clinicalCtx?.primaryNurse;
 
   return (
     <div className="bed-detail-page">
-      <Link to="/" className="bed-detail-back">
-        ← Back to Dashboard
-      </Link>
-
-      <div className="bed-detail-chrome">
-        {showFullSummary ? (
-          <div className="patient-banner patient-banner--full">
-            <div className="patient-banner-top">
-              <div className="patient-banner-identity">
-                <h2>{patientName}</h2>
-                <div className="meta">
-                  {clinicalCtx?.bedLabel || bedShort}
-                  {patientMrn ? ` · MRN ${patientMrn}` : ' · Unassigned'}
-                  {patientAge != null && ` · ${patientAge} yr`}
-                  {patientGender && ` · ${patientGender}`}
-                </div>
-              </div>
-              <div className="live-dot">Live</div>
-            </div>
-            {patientSummary && (
-              <PatientSummaryPanel summary={patientSummary} variant="header" />
-            )}
-          </div>
-        ) : (
-          patientSummary && (
-            <PatientSummaryPanel
-              summary={patientSummary}
-              variant="context-bar"
-              bedLabel={clinicalCtx?.bedLabel || bedShort}
-            />
-          )
-        )}
-
+      <div className="bed-detail-topbar">
+        <Link to="/overview" className="bed-detail-back">
+          ← Back to Overview
+        </Link>
+        <nav className="pulse-bed-tabs" aria-label="Patient monitor sections">
+          {BED_DETAIL_TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`pulse-bed-tab${tab === t.id ? ' is-active' : ''}`}
+              onClick={() => selectTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </div>
+
+      {showMonitorChrome && (
+        <div className="bed-detail-chrome">
+          {showFullSummary ? (
+            <div className="patient-banner patient-banner--full">
+              <div className="patient-banner-top">
+                <div className="patient-banner-identity">
+                  <h2>{patientName}</h2>
+                  <div className="meta">
+                    {clinicalCtx?.bedLabel || bedShort}
+                    {patientMrn ? ` · MRN ${patientMrn}` : ' · Unassigned'}
+                    {patientAge != null && ` · ${patientAge} yr`}
+                    {patientGender && ` · ${patientGender}`}
+                  </div>
+                  {(attending || nurse) && (
+                    <div className="meta" style={{ marginTop: 4 }}>
+                      {attending ? `Doctor: ${attending}` : null}
+                      {attending && nurse ? ' · ' : null}
+                      {nurse ? `Nurse: ${nurse}` : null}
+                    </div>
+                  )}
+                </div>
+                <div className="live-dot">Live</div>
+              </div>
+              {patientSummary && (
+                <PatientSummaryPanel summary={patientSummary} variant="header" />
+              )}
+            </div>
+          ) : (
+            patientSummary && (
+              <PatientSummaryPanel
+                summary={patientSummary}
+                variant="context-bar"
+                bedLabel={clinicalCtx?.bedLabel || bedShort}
+              />
+            )
+          )}
+        </div>
+      )}
 
       <div className={`detail-layout${tab === 'trends' ? ' detail-layout--with-params' : ' detail-layout--full'}`}>
         <div className="detail-main">
-          {deviceStatus?.virtualSimulatorActive && (
+          {showMonitorChrome && deviceStatus?.virtualSimulatorActive && (
             <div className="message info">
-              Virtual simulation active — unique vitals generated for this bed (no physical device at {deviceStatus.deviceIp || 'virtual IP'}).
+              Demo vitals active for this bed. Hospital live feeds arrive via Connectivity (HL7 / FHIR / adapters).
             </div>
           )}
 
-          {deviceStatus && !deviceStatus.simulatorConnected && !deviceStatus.virtualSimulatorActive && (
+          {showMonitorChrome && deviceStatus && !deviceStatus.simulatorConnected && !deviceStatus.virtualSimulatorActive && (
             <div className="message error">
-              Device simulator not connected on this bed ({deviceStatus.deviceIp || 'no IP'}). Admit patient to enable virtual simulation.
+              No live hospital feed on this bed yet. Approve a connection under Connectivity, or admit a patient for demo mode.
             </div>
           )}
 
-          {alarms.length > 0 && (
+          {showMonitorChrome && alarms.length > 0 && tab !== 'alarms' && (
             <div className="message error">
               {alarms.map((a) => (
                 <div key={`${a.paramName}-${a.threshold}`}>
-                  {a.paramName}: {formatVitalValue(a.paramName, a.currentValue)} ({a.threshold} threshold)
+                  <strong>{String(a.severity || 'ALARM').toUpperCase()}</strong>
+                  {' · '}
+                  {a.paramName}: {formatVitalValue(a.paramName, a.currentValue)}
+                  {' '}({a.threshold}{a.thresholdValue != null ? ` ${a.thresholdValue}` : ''})
                 </div>
               ))}
             </div>
@@ -489,7 +547,7 @@ export default function BedDetail() {
             <div className="vitals-grid-large">
               {overviewParams.length === 0 ? (
                 <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                  <p>No live vitals yet — admit patient and connect devices in Admin.</p>
+                  <p>No live vitals yet — connect hospital data from Connectivity, or admit a patient for demo mode.</p>
                 </div>
               ) : (
                 overviewParams.map((p) => {
@@ -603,13 +661,99 @@ export default function BedDetail() {
             <ClinicalFluidsPanel visitId={visitId} bedLabel={clinicalCtx?.bedLabel} />
           )}
 
-          {tab === 'alarms' && (
+          <div style={{ display: tab === 'alarms' ? 'grid' : 'none' }} className="bed-alarms-tab">
+            <section className="alarm-panel bed-alarm-feed">
+              <header className="bed-alarm-feed-head">
+                <div>
+                  <h3>Alarm feed</h3>
+                  <p className="param-hint">Active and recent breaches for this bed, with criticality.</p>
+                </div>
+                <span className="bed-alarm-feed-count">
+                  {alarms.length} active
+                </span>
+              </header>
+
+              {alarmFeed.length === 0 ? (
+                <p className="pulse-muted" style={{ margin: 0 }}>
+                  No alarms in the last 30 minutes. Armed thresholds will appear here when vitals breach limits.
+                </p>
+              ) : (
+                <ul className="bed-alarm-feed-list">
+                  {alarmFeed.map((a) => {
+                    const key = `${a.paramName}|${a.threshold}|${a.timestamp}`;
+                    const sev = String(a.severity || 'WARNING').toUpperCase();
+                    return (
+                      <li
+                        key={key}
+                        className={`bed-alarm-feed-item is-clickable ${severityClass(sev)}${a.acknowledged ? ' is-acked' : ''}`}
+                        role="link"
+                        tabIndex={0}
+                        title="Open live waveforms"
+                        onClick={() => setSearchParams({ tab: 'waveforms' })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSearchParams({ tab: 'waveforms' });
+                          }
+                        }}
+                      >
+                        <div className="bed-alarm-feed-main">
+                          <span className={`bed-alarm-sev ${severityClass(sev)}`}>{sev}</span>
+                          <div>
+                            <div className="bed-alarm-feed-title">
+                              {a.title || `${a.paramName} ${a.threshold === 'LOW' ? 'below' : 'above'} limit`}
+                            </div>
+                            <div className="bed-alarm-feed-meta">
+                              {a.paramName}: {formatVitalValue(a.paramName, a.currentValue)}
+                              {a.thresholdValue != null ? ` · limit ${a.thresholdValue}` : ''}
+                              {a.timestamp ? ` · ${new Date(a.timestamp).toLocaleTimeString()}` : ''}
+                              <span className="pulse-feed-open-hint"> · Waveforms</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bed-alarm-feed-actions">
+                          {a.acknowledged ? (
+                            <span className="bed-alarm-acked">Acknowledged</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="pulse-ack"
+                              disabled={ackingKey === key}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setAckingKey(key);
+                                try {
+                                  await acknowledgeAlarm({
+                                    bedId: a.bedId || canonicalAlarmBedId(bedId),
+                                    paramName: a.paramName,
+                                    threshold: a.threshold,
+                                    currentValue: a.currentValue,
+                                  });
+                                  await load();
+                                } catch (err) {
+                                  console.error(err);
+                                } finally {
+                                  setAckingKey('');
+                                }
+                              }}
+                            >
+                              {ackingKey === key ? '…' : 'Acknowledge'}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
             <AlarmThresholdPanel
               bedId={bedId}
-              patientName={patient?.patientName}
-              patientMRN={patient?.patientMRN}
+              patientName={patientName !== 'No Patient' ? patientName : undefined}
+              patientMRN={patientMrn}
             />
-          )}
+          </div>
 
           {lastUpdate && (
             <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>

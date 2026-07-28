@@ -424,6 +424,14 @@ public class HubAdmissionService {
         visit.setAdmissionType(stringVal(request.get("admissionType"), "Medical"));
         visit.setAdmissionSource(stringVal(request.get("admissionSource"), null));
         visit.setReferringPhysician(stringVal(request.get("referringPhysician"), null));
+        visit.setAttendingPhysician(firstNonBlank(
+                stringVal(request.get("attendingPhysician"), null),
+                stringVal(request.get("assignedDoctor"), null),
+                stringVal(request.get("doctorName"), null)));
+        visit.setPrimaryNurse(firstNonBlank(
+                stringVal(request.get("primaryNurse"), null),
+                stringVal(request.get("assignedNurse"), null),
+                stringVal(request.get("nurseName"), null)));
         visit.setPrimaryDiagnosis(stringVal(request.get("primaryDiagnosis"), null));
         visit.setIsolationFlags(mapVal(request.get("isolationFlags")));
         visit.setAdmittedAt(parseInstant(request.get("admissionDateTime")));
@@ -637,6 +645,14 @@ public class HubAdmissionService {
     private String stringVal(Object value, String fallback) {
         if (value == null || value.toString().isBlank()) return fallback;
         return value.toString().trim();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v.trim();
+        }
+        return null;
     }
 
     private Double doubleVal(Object value) {

@@ -1,5 +1,6 @@
 package com.rtwo.alarmengine.service;
 
+import com.rtwo.alarmengine.hub.HubCenterIds;
 import com.rtwo.alarmengine.hub.entity.HubBedEntity;
 import com.rtwo.alarmengine.hub.repo.*;
 import org.bson.Document;
@@ -7,6 +8,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -27,6 +29,7 @@ public class CenterAdminService {
     private final HubBedAssignmentRepository hubAssignmentRepository;
     private final HubPatientVisitRepository hubVisitRepository;
     private final HubPatientRepository hubPatientRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public CenterAdminService(MongoTemplate mongoTemplate,
                               ConnectEngineClient connectEngineClient,
@@ -35,7 +38,8 @@ public class CenterAdminService {
                               HubBedRepository hubBedRepository,
                               HubBedAssignmentRepository hubAssignmentRepository,
                               HubPatientVisitRepository hubVisitRepository,
-                              HubPatientRepository hubPatientRepository) {
+                              HubPatientRepository hubPatientRepository,
+                              JdbcTemplate jdbcTemplate) {
         this.mongoTemplate = mongoTemplate;
         this.connectEngineClient = connectEngineClient;
         this.deviceCatalogService = deviceCatalogService;
@@ -44,6 +48,7 @@ public class CenterAdminService {
         this.hubAssignmentRepository = hubAssignmentRepository;
         this.hubVisitRepository = hubVisitRepository;
         this.hubPatientRepository = hubPatientRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public Map<String, Object> getCenterOverview() {
@@ -184,6 +189,90 @@ public class CenterAdminService {
         return result;
     }
 
+    /**
+     * Pull center display name and location from Connect Engine and persist to Postgres + Mongo.
+     * Beds are not imported — add those manually in Admin so device IPs stay aligned.
+     */
+    public Map<String, Object> syncCenterMetadataFromConnectEngine(String centerId) {
+        String cid = resolveCenterId(centerId);
+        Map<String, Object> live = connectEngineClient.retrieve();
+        boolean fromConnect = live != null && !live.isEmpty();
+
+        String centerName;
+        String centerLocation;
+        if (fromConnect) {
+            centerName = stringVal(live.get("name"), stringVal(live.get("centerName"), cid));
+            centerLocation = stringVal(live.get("location"), stringVal(live.get("centerLocation"), DEFAULT_LOCATION));
+        } else {
+            Map<String, String> existing = loadPersistedCenterDisplay(cid);
+            centerName = existing.get("centerName");
+            centerLocation = existing.get("centerLocation");
+        }
+
+        if (fromConnect) {
+            persistCenterMetadata(cid, centerName, centerLocation);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("centerId", cid);
+        result.put("centerName",
+                DEFAULT_CENTER.equalsIgnoreCase(cid) || "RTWO".equalsIgnoreCase(centerName)
+                        ? HubCenterIds.BRAND_DISPLAY
+                        : centerName);
+        result.put("centerLocation", centerLocation);
+        result.put("connectEngineAvailable", fromConnect);
+        result.put("synced", fromConnect);
+        result.put("message", fromConnect
+                ? "Center name synced from Connect Engine — create a unit, then add beds."
+                : "Connect Engine unavailable — using saved center name. Start Connect Engine and sync again.");
+        return result;
+    }
+
+    private void persistCenterMetadata(String centerId, String centerName, String centerLocation) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO hub_centers (id, name, location, status)
+                VALUES (?, ?, ?, 'ACTIVE')
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    location = EXCLUDED.location,
+                    status = 'ACTIVE'
+                """,
+                centerId, centerName, centerLocation);
+
+        mongoTemplate.updateFirst(
+                new Query(Criteria.where("_id").is(centerId)),
+                new Update()
+                        .set("centerName", centerName)
+                        .set("centerLocation", centerLocation),
+                "centerEntity");
+    }
+
+    private Map<String, String> loadPersistedCenterDisplay(String centerId) {
+        Document mongoCenter = mongoTemplate.findOne(
+                new Query(Criteria.where("_id").is(centerId)), Document.class, "centerEntity");
+        Map<String, String> display = resolveCenterDisplay(centerId, mongoCenter, Map.of());
+
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT name, location FROM hub_centers WHERE id = ?", centerId);
+            if (!rows.isEmpty()) {
+                Object name = rows.get(0).get("name");
+                Object location = rows.get(0).get("location");
+                if (name != null && !name.toString().isBlank()) {
+                    display.put("centerName", name.toString().trim());
+                }
+                if (location != null && !location.toString().isBlank()) {
+                    display.put("centerLocation", location.toString().trim());
+                }
+            }
+        } catch (Exception ignored) {
+            // hub_centers may be missing on very old DBs
+        }
+        brandCenterDisplay(centerId, display);
+        return display;
+    }
+
     private String resolveCenterId(String centerId) {
         if (centerId == null || centerId.isBlank()) return DEFAULT_CENTER;
         return centerId.trim().toUpperCase(Locale.ROOT);
@@ -208,7 +297,18 @@ public class CenterAdminService {
         Map<String, String> out = new LinkedHashMap<>();
         out.put("centerName", name);
         out.put("centerLocation", location);
+        brandCenterDisplay(centerId, out);
         return out;
+    }
+
+    /** Technical center id stays RTWO for Connect Engine sync; brand as Sentra ICU in APIs/UI. */
+    private void brandCenterDisplay(String centerId, Map<String, String> display) {
+        String name = display.get("centerName");
+        boolean isOpsCenter = DEFAULT_CENTER.equalsIgnoreCase(centerId);
+        boolean nameHasRtwo = name != null && name.toUpperCase(Locale.ROOT).contains("RTWO");
+        if (isOpsCenter || nameHasRtwo) {
+            display.put("centerName", HubCenterIds.BRAND_DISPLAY);
+        }
     }
 
     private String resolveBedIp(String requestedIp, List<Document> beds, String excludeBedLabel) {
@@ -392,7 +492,13 @@ public class CenterAdminService {
                                             patient.put("mrn", p.getMrn());
                                             patient.put("puid", p.getMrn());
                                             patient.put("gender", p.getSex());
+                                            patient.put("sex", p.getSex());
+                                            patient.put("dateOfBirth", p.getDateOfBirth() != null ? p.getDateOfBirth().toString() : null);
                                             patient.put("weight", p.getBirthWeightKg());
+                                            patient.put("diagnosis", v.getPrimaryDiagnosis() != null ? v.getPrimaryDiagnosis() : v.getProvisionalDiagnosis());
+                                            patient.put("primaryDiagnosis", v.getPrimaryDiagnosis());
+                                            patient.put("attendingPhysician", v.getAttendingPhysician());
+                                            patient.put("primaryNurse", v.getPrimaryNurse());
                                             patient.put("id", v.getId().toString());
                                             patient.put("visitId", v.getId().toString());
                                             return patient;

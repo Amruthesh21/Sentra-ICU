@@ -14,7 +14,7 @@ export function downloadReportCsv(report) {
   const rows = [];
   const push = (...cols) => rows.push(cols.map(csvCell).join(','));
 
-  push('ICU Connect Hub — Patient Report');
+  push('Sentra ICU — Patient Report');
   push('File', report.fileName);
   push('Report type', report.reportType);
   push('Generated', formatIst(report.generatedAt));

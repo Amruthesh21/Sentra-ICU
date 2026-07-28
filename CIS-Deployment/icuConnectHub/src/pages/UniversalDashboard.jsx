@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getHospitalOverview } from '../api/overview';
 import { acknowledgeAlarm } from '../api/hub';
+import { BRAND_NAME, brandCenterLabel } from '../utils/brand';
 
 function timeAgo(iso) {
   if (!iso) return '';
@@ -78,7 +79,7 @@ function UnitCard({ unit, centerName, lastUpdated, readOnly }) {
   }
 
   return (
-    <Link to={`/unit?unitId=${unit.unitId}`} className="ud-unit-card">
+    <Link to={`/overview`} className="ud-unit-card">
       {inner}
     </Link>
   );
@@ -134,12 +135,33 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
   }
 
   if (error && !data) {
-    return <div className="message error">{error}</div>;
+    return (
+      <div className="empty-state glass-card" style={{ maxWidth: 640, margin: '1.5rem auto' }}>
+        <h2>Hospital overview unavailable</h2>
+        <p className="muted" style={{ marginTop: 8, lineHeight: 1.55 }}>
+          {error}
+        </p>
+        <p className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
+          Create ICU units and beds under Administration (when available), or connect hospital live/history
+          data from the <Link to="/connectivity">Connectivity</Link> tab (HL7 / FHIR / adapters).
+          This Hub no longer depends on Connect Engine.
+        </p>
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+          <Link to="/connectivity" className="btn btn-primary">Open Connectivity</Link>
+          <Link to="/overview" className="btn btn-outline">Overview</Link>
+          <button type="button" className="btn btn-outline" onClick={() => { setLoading(true); load(); }}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const totals = data?.totals || {};
   const blocks = data?.blocks || [];
-  const center = data?.center || { displayName: 'RTWO JPN' };
+  const center = data?.center
+    ? { ...data.center, displayName: brandCenterLabel(data.center.displayName, data.center.centerName) }
+    : { displayName: BRAND_NAME };
   const deteriorating = data?.deterioratingPatients || [];
   const alarms = data?.activeAlarms || [];
   const unitCount = data?.unitCount ?? blocks.reduce((n, b) => n + (b.units?.length || 0), 0);
@@ -162,7 +184,7 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
             title="Patients — immediate"
             value={totals.ventilatedCount ?? 0}
             detail="Ventilated patients across all ICUs"
-            linkTo={hospitalAdmin ? '/analytics' : '/unit'}
+            linkTo={hospitalAdmin ? '/analytics' : '/overview'}
             linkLabel={hospitalAdmin ? 'View analytics →' : 'View patients →'}
           />
           <SummaryCard
@@ -170,7 +192,7 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
             title="Active alarms"
             value={totals.activeAlarmCount ?? 0}
             detail={`${totals.physiologicalAlarmCount ?? 0} physiological · ${totals.deviceAlarmCount ?? 0} device`}
-            linkTo="/alarms"
+            linkTo="/alerts"
             linkLabel="Open alarm center →"
           />
         </div>
@@ -184,7 +206,11 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
 
           {visibleBlocks.length === 0 ? (
             <div className="ud-empty-block">
-              <p>No ICU units configured. Create units under <Link to="/admin">Administration</Link>.</p>
+              <p>
+                No ICU units configured yet. Connect hospital live/history from{' '}
+                <Link to="/connectivity">Connectivity</Link>
+                {' '}(HL7 / FHIR / adapters), or create units under Administration when available.
+              </p>
             </div>
           ) : hospitalAdmin ? (
             <div className="ud-ha-unit-grid">
@@ -269,7 +295,7 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
         <section className="ud-ha-alert-strip glass-card">
           <div className="ud-block-head">
             <h3>Live alarm feed</h3>
-            <Link to="/alarms" className="ud-summary-link">Open alarm center →</Link>
+            <Link to="/alerts" className="ud-summary-link">Open alerts →</Link>
           </div>
           <div className="ud-ha-alert-grid">
             {alarms.slice(0, 6).map((a, idx) => (

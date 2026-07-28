@@ -12,3 +12,8 @@ target/
 *.class
 *.jar
 !**/src/**/*.jar
+# Local DB dumps / archives — not for GitHub
+*.archive
+v2-ICU-Connect.archive
+icu_hub.sql
+

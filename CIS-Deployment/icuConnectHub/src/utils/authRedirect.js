@@ -1,9 +1,9 @@
 import { isHospitalAdminUser, isSuperAdminUser } from './userRoles';
 
 export function homePathForUser(user) {
-  if (isSuperAdminUser(user)) return '/';
-  if (isHospitalAdminUser(user)) return '/admin';
-  return '/unit';
+  if (isSuperAdminUser(user)) return '/hospitals';
+  if (isHospitalAdminUser(user)) return '/hospital-config';
+  return '/overview';
 }
 
 export function resolveReturnPath(returnTo) {

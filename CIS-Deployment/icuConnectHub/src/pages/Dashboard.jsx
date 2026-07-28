@@ -4,10 +4,11 @@ import PatientCard from '../components/PatientCard';
 import { getCenter, getLatestVitals, getActiveAlarms, vitalsToMap } from '../api/hub';
 import { canonicalAlarmBedId } from '../api/alarmConfig';
 import { listUnits, getUnit } from '../api/units';
+import { BRAND_NAME, brandCenterLabel } from '../utils/brand';
 
 function unitOptionLabel(unit) {
   const code = unit.code || unit.name;
-  if (unit.blockName && !unit.blockName.toUpperCase().includes('RTWO JPN')) {
+  if (unit.blockName && !unit.blockName.toUpperCase().includes('SENTRA') && !unit.blockName.toUpperCase().includes('RTWO')) {
     return `${code} · ${unit.blockName}`;
   }
   return unit.name && unit.name !== code ? `${code} — ${unit.name}` : code;
@@ -46,11 +47,11 @@ export default function Dashboard() {
         listUnits().catch(() => []),
       ]);
 
-      const centerName = [center.centerName, center.centerLocation].filter(Boolean).join(' ')
-        || center.centerName
-        || center.centerId
-        || 'Center';
-      setCenterLabel(centerName);
+      setCenterLabel(
+        brandCenterLabel(center.centerName, center.centerLocation)
+          || brandCenterLabel(center.centerId)
+          || BRAND_NAME,
+      );
       setCenterId(center.centerId || '');
 
       const filteredUnits = unitList.filter((u) => (u.bedCount ?? 0) > 0);
@@ -252,7 +253,7 @@ export default function Dashboard() {
             </div>
             <div className="kpi-row">
               <span>Data Source</span>
-              <strong>Connect Engine</strong>
+              <strong>Hospital connectivity</strong>
             </div>
           </div>
         </div>

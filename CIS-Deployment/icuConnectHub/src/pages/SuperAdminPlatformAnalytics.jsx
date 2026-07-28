@@ -170,7 +170,7 @@ export default function SuperAdminPlatformAnalytics() {
       <header className="ax-hero pax-hero">
         <div className="ax-hero-text">
           <p className="ax-hero-eyebrow">Super Admin · Platform intelligence</p>
-          <h1>ICU Connect V2 — Multi-tenant operations</h1>
+          <h1>Sentra ICU — Multi-tenant operations</h1>
           <p className="ax-hero-sub">
             Hospital adoption, center footprint, staff provisioning, and governance audit — not bedside clinical analytics.
           </p>

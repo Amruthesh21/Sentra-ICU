@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import RtowLogo from '../components/RtowLogo';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import PulseLogo from '../components/PulseLogo';
 import NavIcon from '../components/NavIcon';
 import { useAuth } from '../context/AuthContext';
 import '../styles/super-admin.css';
 
 const PAGE_TITLES = {
-  '/': { title: 'Hospitals', sub: 'Platform overview — onboard hospitals and monitor staff footprint' },
+  '/hospitals': { title: 'Hospitals', sub: 'Platform overview — onboard hospitals and monitor staff footprint' },
   '/platform-analytics': { title: 'Platform Analytics', sub: 'Cross-hospital adoption, security events, and admin activity' },
   '/audit-logs': { title: 'Audit Logs', sub: 'Immutable trail of platform and hospital administration actions' },
-  '/centers-admins': { title: 'Centers & Admins', sub: 'Link Connect Engine centers and manage hospital admins' },
+  '/centers-admins': { title: 'Centers & Admins', sub: 'Link hospital centers and manage hospital admins' },
 };
 
 function LiveClock() {
@@ -33,7 +33,7 @@ export default function SuperAdminLayout() {
   }, [location.pathname, searchParams.get('hospitalId')]);
 
   useEffect(() => {
-    document.title = 'Platform · ICU Connect V2';
+    document.title = 'Platform · Sentra ICU';
   }, []);
 
   const hospitalId = location.pathname === '/' ? searchParams.get('hospitalId') : null;
@@ -52,12 +52,14 @@ export default function SuperAdminLayout() {
       <aside className="sa-sidebar">
         <div className="sa-sidebar-brand">
           <div className="sa-sidebar-logo-wrap">
-            <RtowLogo blend />
+            <Link to="/" aria-label="Sentra ICU home">
+              <PulseLogo size="sm" />
+            </Link>
           </div>
           <span className="sa-role-badge">Super Admin</span>
         </div>
         <nav className="sa-sidebar-nav">
-          <NavLink end to="/" className={({ isActive }) => `sa-nav-item${isActive ? ' is-active' : ''}`}>
+          <NavLink end to="/hospitals" className={({ isActive }) => `sa-nav-item${isActive ? ' is-active' : ''}`}>
             <NavIcon name="domain" />
             <span>Hospitals</span>
           </NavLink>
@@ -75,7 +77,7 @@ export default function SuperAdminLayout() {
           </NavLink>
         </nav>
         <div className="sa-sidebar-foot">
-          <p className="sa-sidebar-foot-text">ICU Connect V2</p>
+          <p className="sa-sidebar-foot-text">Sentra ICU</p>
           <p className="sa-sidebar-foot-sub">Platform control only</p>
         </div>
       </aside>
@@ -116,7 +118,7 @@ export default function SuperAdminLayout() {
         </main>
         <footer className="sa-footer">
           <span>V2.0</span>
-          <span>© Rtwo Healthcare Technologies</span>
+          <span>© Sentra ICU</span>
         </footer>
       </div>
     </div>

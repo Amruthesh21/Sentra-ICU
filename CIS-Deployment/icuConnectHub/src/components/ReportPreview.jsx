@@ -353,7 +353,7 @@ export default function ReportPreview({ report, reportType }) {
         <DayReport key={day.date} day={day} showFull={isComplete || reportType !== 'OPERATIONAL_REPORT'} />
       ))}
       <footer className="report-footer">
-        <p>Rtwo Global Healthcare — ICU Connect Hub — Confidential patient record</p>
+        <p>Sentra ICU — Confidential patient record</p>
         <p>Timezone: Asia/Kolkata (IST) · Indian date format dd/MM/yyyy</p>
       </footer>
     </div>

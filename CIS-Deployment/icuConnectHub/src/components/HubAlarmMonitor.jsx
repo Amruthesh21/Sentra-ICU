@@ -116,8 +116,11 @@ export default function HubAlarmMonitor() {
         </div>
       </div>
       <div className="hub-alarm-banner-actions">
-        <Link to={`/bed/${encodeURIComponent(topAlarm.bedId)}`} className="btn btn-outline btn-sm">
-          Open bed
+        <Link
+          to={`/bed/${encodeURIComponent(topAlarm.bedId)}?tab=waveforms`}
+          className="btn btn-outline btn-sm"
+        >
+          Waveforms
         </Link>
         <button type="button" className="btn btn-primary btn-sm" onClick={dismiss} disabled={dismissing}>
           {dismissing ? 'Ack…' : 'Acknowledge'}

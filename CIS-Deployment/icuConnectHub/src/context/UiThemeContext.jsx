@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export const UI_THEMES = [
-  { id: 'classic', label: 'Classic', hint: 'Original RTWO layout' },
+  { id: 'classic', label: 'Classic', hint: 'Original clinical layout' },
   { id: 'glass', label: 'Glass iOS', hint: 'Frosted panels & depth' },
   { id: 'clinical', label: 'Clinical', hint: 'Structured EMR style' },
   { id: 'soft', label: 'Soft', hint: 'Rounded & calm spacing' },

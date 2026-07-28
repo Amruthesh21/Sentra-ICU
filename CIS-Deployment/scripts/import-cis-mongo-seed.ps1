@@ -52,7 +52,7 @@ db.centerEntity.updateOne(
   { _id: 'RTWO' },
   {
     `$set: {
-      centerName: 'RTWO',
+      centerName: 'Sentra ICU',
       centerLocation: 'JPN',
       beds: [{
         _id: '$bedIdentity',

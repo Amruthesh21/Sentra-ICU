@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import NavIcon from './NavIcon';
-import RtowLogo from './RtowLogo';
+import PulseLogo from './PulseLogo';
 import HubAlarmMonitor from './HubAlarmMonitor';
 import UiThemeSwitcher from './UiThemeSwitcher';
 import { BED_DETAIL_TABS, resolveBedTab } from '../constants/bedDetailTabs';
@@ -55,7 +55,11 @@ const PAGE_META = {
   },
   '/admin': {
     title: 'Administration',
-    subtitle: 'Create ICU units, add beds, and sync Connect Engine',
+    subtitle: 'Create ICU units and beds (hospital feed via Connectivity)',
+  },
+  '/connectivity': {
+    title: 'Connectivity',
+    subtitle: 'Hospital HL7 · FHIR · adapters — ready when they approve a path',
   },
   '/hospital-admin': {
     title: 'Hospital Administration',
@@ -101,7 +105,7 @@ export default function Layout() {
   const title = pageMeta.title;
 
   useEffect(() => {
-    document.title = `${title} · ICU Connect Hub`;
+    document.title = `${title} · Sentra ICU`;
   }, [title]);
 
   return (
@@ -115,7 +119,9 @@ export default function Layout() {
       />
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <RtowLogo blend />
+          <Link to="/" className="sidebar-brand-link" aria-label="Sentra ICU home">
+            <PulseLogo size="sm" />
+          </Link>
         </div>
         <nav className="sidebar-nav">
           {showNav('/unit') && (
@@ -172,6 +178,14 @@ export default function Layout() {
                 <NavIcon name="description" />
               </span>
               <span className="nav-label">Reports</span>
+            </NavLink>
+          )}
+          {showNav('/connectivity') && (
+            <NavLink to="/connectivity" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title="Hospital Connectivity">
+              <span className="nav-icon-wrap">
+                <NavIcon name="hub" />
+              </span>
+              <span className="nav-label">Connectivity</span>
             </NavLink>
           )}
           <a href="http://127.0.0.1:7031" className="nav-item" title="Mobile PWA" target="_blank" rel="noreferrer">

@@ -20,9 +20,11 @@ if ($LASTEXITCODE -ne 0) {
 
 # --- Step 1: Ensure docker network exists ---
 Write-Host "[1/6] Ensuring docker network..." -ForegroundColor Yellow
+$networkSubnet = if ($env:POC_NETWORK_SUBNET -and $env:POC_NETWORK_SUBNET.Trim().Length -gt 0) { $env:POC_NETWORK_SUBNET } else { "172.31.0.0/16" }
 & $docker network inspect alarampoc_docker_compose_network 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    & $docker network create --subnet=172.25.0.0/16 alarampoc_docker_compose_network
+    Write-Host "  Creating network alarampoc_docker_compose_network ($networkSubnet)" -ForegroundColor Gray
+    & $docker network create --subnet=$networkSubnet alarampoc_docker_compose_network
 }
 
 # --- Step 2: Free port 7000 if wrong service (postgres) is blocking MongoDB ---
