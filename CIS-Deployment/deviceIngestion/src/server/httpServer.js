@@ -6,13 +6,14 @@
 
 const express = require('express');
 const env = require('../env');
-const { getBedMap } = require('../bedMapping/bedMap');
+const { getBedMap, setMapping, removeMapping } = require('../bedMapping/bedMap');
 const quarantine = require('../bedMapping/quarantine');
 const waveformBuffer = require('../waveform/waveformBuffer');
 const { getBedStatus } = require('./tcpServer');
 
 function startHttpServer() {
   const app = express();
+  app.use(express.json());
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'device-ingestion' });
@@ -35,6 +36,26 @@ function startHttpServer() {
 
   app.get('/api/bed-map', (_req, res) => {
     res.json(getBedMap());
+  });
+
+  // Lets an admin map a device IP to a bed from the Hub UI instead of
+  // hand-editing bed-map.json on the server. Also clears the IP from
+  // quarantine, if it was there, since it's no longer "unmapped".
+  app.post('/api/bed-map', (req, res) => {
+    const { ip, bedId } = req.body || {};
+    if (!ip || typeof ip !== 'string' || !bedId || typeof bedId !== 'string') {
+      return res.status(400).json({ error: 'ip and bedId are required' });
+    }
+    const map = setMapping(ip.trim(), bedId.trim());
+    quarantine.clear(ip.trim());
+    console.log(`[bedMap] mapped ${ip.trim()} -> ${bedId.trim()}`);
+    res.status(201).json({ ip: ip.trim(), bedId: bedId.trim(), bedMap: map });
+  });
+
+  app.delete('/api/bed-map/:ip', (req, res) => {
+    const map = removeMapping(req.params.ip);
+    console.log(`[bedMap] removed mapping for ${req.params.ip}`);
+    res.json({ removed: req.params.ip, bedMap: map });
   });
 
   // "Reload" doubles as a validation check — bed-map.json is already read

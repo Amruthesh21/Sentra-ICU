@@ -43,4 +43,24 @@ function getBedMap() {
   return loadRawMap();
 }
 
-module.exports = { resolveBedId, getBedMap, normalizeIp };
+function saveRawMap(map) {
+  fs.writeFileSync(env.BED_MAP_PATH, `${JSON.stringify(map, null, 2)}\n`, 'utf8');
+}
+
+/** Adds or overwrites one IP -> bedId entry. Used by the "Connect a device"
+ * admin UI so this never has to be hand-edited on the server again. */
+function setMapping(ip, bedId) {
+  const map = loadRawMap();
+  map[normalizeIp(ip)] = bedId;
+  saveRawMap(map);
+  return map;
+}
+
+function removeMapping(ip) {
+  const map = loadRawMap();
+  delete map[normalizeIp(ip)];
+  saveRawMap(map);
+  return map;
+}
+
+module.exports = { resolveBedId, getBedMap, normalizeIp, setMapping, removeMapping };

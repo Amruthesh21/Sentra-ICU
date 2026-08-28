@@ -33,7 +33,13 @@ Env vars (all optional, defaults shown — see [src/env.js](src/env.js)):
 - `GET /api/status` — per-bed last-message time, message count, last device alerts, latest waveform samples
 - `GET /api/quarantine` — sources that sent data but have no bed-map entry (never silently dropped or guessed)
 - `GET /api/bed-map` — current mapping
+- `POST /api/bed-map` — `{ip, bedId}`, adds/updates one mapping (writes `bed-map.json`), clears that IP from quarantine
+- `DELETE /api/bed-map/:ip` — removes one mapping
 - `POST /api/bed-map/reload` — re-reads and validates `bed-map.json` from disk
+
+These are also exposed through the Hub UI — see "Connect a device" on the Hospital Admin
+page (`icuConnectHub`, proxied at `/device-ingestion/*`) so staff never have to hand-edit
+`bed-map.json` on the server.
 
 ## Testing
 

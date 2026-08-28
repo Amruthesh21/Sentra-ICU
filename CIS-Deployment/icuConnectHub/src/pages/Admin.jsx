@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { addBedToUnit, createUnit, listUnits, getUnit } from '../api/units';
+import DeviceConnectivityPanel from '../components/DeviceConnectivityPanel';
 
 export default function Admin({ hospitalAdmin = false }) {
   const { user } = useAuth();
@@ -248,6 +249,8 @@ export default function Admin({ hospitalAdmin = false }) {
           </div>
         )}
       </div>
+
+      <DeviceConnectivityPanel />
     </div>
   );
 }

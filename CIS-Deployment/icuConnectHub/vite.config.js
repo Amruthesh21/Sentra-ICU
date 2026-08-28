@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/integration/, ''),
       },
+      '/device-ingestion': {
+        target: 'http://localhost:7050',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/device-ingestion/, ''),
+      },
     },
   },
 });

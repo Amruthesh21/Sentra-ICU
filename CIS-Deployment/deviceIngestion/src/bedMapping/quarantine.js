@@ -39,4 +39,10 @@ function list() {
   return Array.from(entries.values()).sort((a, b) => (a.lastSeenAt < b.lastSeenAt ? 1 : -1));
 }
 
-module.exports = { record, list };
+/** Drops an IP from the quarantine list — called right after it's mapped to
+ * a bed, so it stops showing as "unmapped" without waiting for TTL/restart. */
+function clear(ip) {
+  entries.delete(ip);
+}
+
+module.exports = { record, list, clear };
