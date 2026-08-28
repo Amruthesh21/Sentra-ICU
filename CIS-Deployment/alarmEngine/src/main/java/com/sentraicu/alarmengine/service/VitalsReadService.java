@@ -14,7 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -31,20 +30,17 @@ public class VitalsReadService {
     private final LatestVitalsStore latestVitalsStore;
     private final CisCenterService cisCenterService;
     private final BedDeviceService bedDeviceService;
-    private final BedVirtualVitalsService bedVirtualVitalsService;
     private final OccupiedBedService occupiedBedService;
 
     public VitalsReadService(MongoTemplate mongoTemplate,
                              LatestVitalsStore latestVitalsStore,
                              CisCenterService cisCenterService,
                              BedDeviceService bedDeviceService,
-                             BedVirtualVitalsService bedVirtualVitalsService,
                              OccupiedBedService occupiedBedService) {
         this.mongoTemplate = mongoTemplate;
         this.latestVitalsStore = latestVitalsStore;
         this.cisCenterService = cisCenterService;
         this.bedDeviceService = bedDeviceService;
-        this.bedVirtualVitalsService = bedVirtualVitalsService;
         this.occupiedBedService = occupiedBedService;
     }
 
@@ -65,130 +61,20 @@ public class VitalsReadService {
 
         if (cached != null && hasAttributes(cached)) {
             String source = "CIS-merged".equals(cached.getDeviceType()) ? "cis-live" : "rabbitmq";
-            return ensureBloodPressure(toResponse(bedId, cached, source), bedId);
+            return toResponse(bedId, cached, source);
         }
 
         Map<String, Object> merged = loadMergedVitalsFromMongo(bedId);
         if (merged != null && !merged.isEmpty()) {
-            return ensureBloodPressure(merged, bedId);
+            return merged;
         }
 
         merged = loadVitalsByBedDevices(bedId);
         if (merged != null && !merged.isEmpty()) {
-            return ensureBloodPressure(merged, bedId);
+            return merged;
         }
 
-        Map<String, Object> virtual = bedVirtualVitalsService.generateForBed(bedId);
-        if (virtual != null && !virtual.isEmpty()) {
-            return ensureBloodPressure(virtual, bedId);
-        }
-
-        Map<String, Object> empty = emptyVitals(bedId);
-        return empty;
-    }
-
-    /**
-     * BPL Ultima / many POC device streams omit NIBP. When systolic/diastolic are missing,
-     * attach stable per-bed synthetic NIBP so Overview BP cards are populated.
-     */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> ensureBloodPressure(Map<String, Object> response, String bedId) {
-        if (response == null || response.isEmpty()) {
-            return response;
-        }
-        List<Map<String, Object>> primary = castAttrList(response.get("primaryAttributes"));
-        List<Map<String, Object>> secondary = castAttrList(response.get("secondaryAttributes"));
-        if (hasBpValue(primary) || hasBpValue(secondary)) {
-            return response;
-        }
-
-        String label = bedDeviceService.resolveBedLabel(bedId);
-        String visitId = cisCenterService.resolvePatientVisitId(bedId);
-        int seed = Objects.hash(label != null ? label : bedId, visitId != null ? visitId : bedId);
-        double t = System.currentTimeMillis() / 1000.0;
-        double phase = (seed % 360) * Math.PI / 180.0;
-        double slow = t / 50.0 + phase;
-
-        double sys = Math.round(clamp(112 + ((seed >> 2) % 21) - 8 + Math.sin(slow) * 4, 88, 160));
-        double dia = Math.round(clamp(70 + ((seed >> 4) % 13) - 5 + Math.sin(slow * 1.15) * 2.5, 50, 98));
-        if (dia >= sys - 20) {
-            dia = Math.max(50, sys - 32 - (seed % 6));
-        }
-
-        primary.add(bpAttr("NIBP Sys", sys));
-        primary.add(bpAttr("NIBP Dia", dia));
-        // Aliases used by scoring / older UI parsers
-        if (!paramPresent(primary, secondary, "NIBP_Sys")) {
-            secondary.add(bpAttr("NIBP_Sys", sys));
-        }
-        if (!paramPresent(primary, secondary, "NIBP_Dia")) {
-            secondary.add(bpAttr("NIBP_Dia", dia));
-        }
-
-        response.put("primaryAttributes", primary);
-        response.put("secondaryAttributes", secondary);
-        return response;
-    }
-
-    private static Map<String, Object> bpAttr(String name, double value) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("paramName", name);
-        row.put("value", value);
-        row.put("unit", "mmHg");
-        return row;
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> castAttrList(Object raw) {
-        List<Map<String, Object>> out = new ArrayList<>();
-        if (!(raw instanceof List<?> list)) {
-            return out;
-        }
-        for (Object item : list) {
-            if (item instanceof Map<?, ?> map) {
-                out.add(new LinkedHashMap<>((Map<String, Object>) map));
-            }
-        }
-        return out;
-    }
-
-    private boolean hasBpValue(List<Map<String, Object>> attrs) {
-        Double sys = null;
-        Double dia = null;
-        for (Map<String, Object> attr : attrs) {
-            String name = attr.get("paramName") != null ? attr.get("paramName").toString() : "";
-            Double value = toDouble(attr.get("value"));
-            if (value == null) continue;
-            String key = name.trim().toLowerCase();
-            if (key.contains("sys") && (key.contains("nibp") || key.contains("abp") || key.equals("systolic")
-                    || key.equals("sbp") || key.equals("bp sys") || key.equals("bp_sys"))) {
-                sys = value;
-            } else if (key.contains("dia") && (key.contains("nibp") || key.contains("abp") || key.equals("diastolic")
-                    || key.equals("dbp") || key.equals("bp dia") || key.equals("bp_dia"))) {
-                dia = value;
-            } else if (key.equals("bp") || key.equals("nibp") || key.equals("blood pressure")) {
-                // Combined value like 120/80 stored as string elsewhere — skip numeric-only here
-                String text = String.valueOf(attr.get("value"));
-                if (text.contains("/")) return true;
-            }
-        }
-        return sys != null && dia != null;
-    }
-
-    private boolean paramPresent(List<Map<String, Object>> primary,
-                                 List<Map<String, Object>> secondary,
-                                 String name) {
-        for (Map<String, Object> attr : primary) {
-            if (name.equalsIgnoreCase(String.valueOf(attr.get("paramName")))) return true;
-        }
-        for (Map<String, Object> attr : secondary) {
-            if (name.equalsIgnoreCase(String.valueOf(attr.get("paramName")))) return true;
-        }
-        return false;
-    }
-
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
+        return emptyVitals(bedId);
     }
 
     private Map<String, Object> emptyVitals(String bedId) {

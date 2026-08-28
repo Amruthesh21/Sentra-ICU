@@ -44,7 +44,6 @@ services:
       SPRING_RABBITMQ_PASSWORD: admin@123
       SPRING_DATA_MONGODB_URI: mongodb://monish:admin%40123@CIS-mongodb:27017/?authSource=admin
       ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
-      ALARM_DEMO_VITALS_ENABLED: "false"
       CONNECT_ENGINE_URL: ${CONNECT_ENGINE_URL:-http://CIS-Deployment-connect-engine:9010}
       CONNECT_ENGINE_AUTO_RESTART: "true"
       CONNECT_ENGINE_RESTART_DEBOUNCE_MS: "15000"
@@ -56,8 +55,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: hub@123
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-monish.reddy@invensis.net}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
-      HUB_AUTH_DEV_EXPOSE_OTP: ${HUB_AUTH_DEV_EXPOSE_OTP:-true}
+      HUB_AUTH_DEV_EXPOSE_OTP: ${HUB_AUTH_DEV_EXPOSE_OTP:-false}
       HUB_AUTH_ENFORCED: ${HUB_AUTH_ENFORCED:-false}
+      HUB_CORS_ALLOWED_ORIGINS: ${HUB_CORS_ALLOWED_ORIGINS:-http://localhost:7040,http://localhost:5174}
       SMTP_ENABLED: ${SMTP_ENABLED:-false}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

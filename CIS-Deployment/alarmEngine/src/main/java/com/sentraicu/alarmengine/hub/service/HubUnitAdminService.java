@@ -103,7 +103,7 @@ public class HubUnitAdminService {
         bed.setBedLabel(bedLabel);
         bed.setMongoBedId(stringVal(mongoResult.get("bedId"), null));
         bed.setDeviceIp(stringVal(mongoResult.get("ip"), null));
-        bed.setSimulationMode(Boolean.TRUE.equals(mongoResult.get("simulatorConnected")) ? "live" : "virtual");
+        bed.setSimulationMode(Boolean.TRUE.equals(mongoResult.get("simulatorConnected")) ? "live" : null);
         bed.setActive(true);
         bedRepository.save(bed);
 

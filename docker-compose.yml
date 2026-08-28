@@ -19,7 +19,6 @@ services:
       SPRING_RABBITMQ_PASSWORD: admin@123
       SPRING_DATA_MONGODB_URI: mongodb://monish:admin%40123@host.docker.internal:7000/?authSource=admin
       ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
-      ALARM_DEMO_VITALS_ENABLED: "false"
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_ALARM_ENGINE:-172.31.0.10}

@@ -52,7 +52,7 @@ docker compose up --build -d alarm-engine notification-service icu-watch-pwa
 ### 4. Demo URLs
 
 - **PWA (doctor app):** http://localhost:7031
-- **Alarm UI (manager view):** http://localhost:7020/alarm-ui
+- **Sentra ICU Hub (Alarm Center):** http://localhost:7040/alarms
 - **Alarm config API:** http://localhost:7020/api/alarm-config/doctor-001
 - **Push subscriptions (debug):** http://localhost:7030/api/subscriptions
 
@@ -63,13 +63,17 @@ docker compose up --build -d alarm-engine notification-service icu-watch-pwa
 - Doctor Name: `Dr. Demo`
 - Doctor ID: `doctor-001`
 
-### Preset thresholds (auto-seeded on first startup)
+### Preset thresholds
 
-| Parameter | High | Low | Enabled |
-|-----------|------|-----|---------|
-| SpO2 | — | 90% | ✓ |
-| HeartRate | 120 bpm | 50 bpm | ✓ |
-| Temp1 | 38.5°C | — | ✓ |
+Not auto-seeded — set thresholds for a bed via the Hub's Alarm Center UI or
+`POST /api/alarm-config` (see API Reference below). A reasonable starting
+point:
+
+| Parameter | High | Low |
+|-----------|------|-----|
+| SpO2 | — | 90% |
+| HeartRate | 120 bpm | 50 bpm |
+| Temp1 | 38.5°C | — |
 
 ### Enable watch notifications
 
@@ -89,7 +93,7 @@ Temporarily modify device simulation to send SpO2 = 85% for ~5 seconds:
 
 Expected result:
 
-1. Alarm appears on http://localhost:7020/alarm-ui
+1. Alarm appears in the Hub's Alarm Center (http://localhost:7040/alarms)
 2. Phone shows push notification: "⚠ ICU Alarm — BED-01 / SpO2 dropped to 85%"
 3. Paired watch vibrates (CRITICAL pattern: 200-100-200-100-200 ms)
 
@@ -101,7 +105,6 @@ Expected result:
 POST   /api/alarm-config              Create/update thresholds
 GET    /api/alarm-config/{doctorId}   List configs for doctor
 DELETE /api/alarm-config/{doctorId}/{bedId}
-GET    /alarm-ui                      Manager demo dashboard
 ```
 
 ### Notification Service (port 7030)

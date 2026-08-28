@@ -24,7 +24,6 @@ public class MongoVitalsSyncScheduler {
     private final VitalTrendBufferService trendBufferService;
     private final OccupiedBedService occupiedBedService;
     private final BedDeviceService bedDeviceService;
-    private final BedVirtualVitalsService bedVirtualVitalsService;
     private final VitalsArchiveService vitalsArchiveService;
 
     public MongoVitalsSyncScheduler(VitalsReadService vitalsReadService,
@@ -33,7 +32,6 @@ public class MongoVitalsSyncScheduler {
                                     VitalTrendBufferService trendBufferService,
                                     OccupiedBedService occupiedBedService,
                                     BedDeviceService bedDeviceService,
-                                    BedVirtualVitalsService bedVirtualVitalsService,
                                     VitalsArchiveService vitalsArchiveService) {
         this.vitalsReadService = vitalsReadService;
         this.latestVitalsStore = latestVitalsStore;
@@ -41,7 +39,6 @@ public class MongoVitalsSyncScheduler {
         this.trendBufferService = trendBufferService;
         this.occupiedBedService = occupiedBedService;
         this.bedDeviceService = bedDeviceService;
-        this.bedVirtualVitalsService = bedVirtualVitalsService;
         this.vitalsArchiveService = vitalsArchiveService;
     }
 
@@ -71,8 +68,6 @@ public class MongoVitalsSyncScheduler {
             String bedLabel = bedDeviceService.resolveBedLabel(bedId);
             if (bedDeviceService.isLiveSimulatorBed(bedLabel)) {
                 merged = vitalsReadService.loadVitalsByBedDevices(bedId);
-            } else if (bedDeviceService.isVirtualSimulatorBed(bedLabel)) {
-                merged = bedVirtualVitalsService.generateForBed(bedId);
             }
         }
         if (merged == null || merged.isEmpty()) {

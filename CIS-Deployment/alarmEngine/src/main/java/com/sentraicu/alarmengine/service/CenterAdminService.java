@@ -311,30 +311,23 @@ public class CenterAdminService {
         }
     }
 
+    /**
+     * A new bed starts with NO device IP unless one is explicitly given —
+     * it used to silently auto-assign the shared device-simulator's IP (or
+     * the next one in a fake 172.25.0.x range) to every bed on creation,
+     * which made brand-new, nothing-plugged-in beds show as "LIVE CE" /
+     * connected. Real device association happens explicitly (e.g. via the
+     * "Connect a device" flow), never invented here.
+     */
     private String resolveBedIp(String requestedIp, List<Document> beds, String excludeBedLabel) {
-        if (requestedIp != null && !requestedIp.isBlank() && !"auto".equalsIgnoreCase(requestedIp.trim())) {
-            String ip = requestedIp.trim();
-            if (DeviceCatalogService.SIMULATOR_IP.equals(ip)
-                    && isSimulatorIpInUse(ip, beds, excludeBedLabel)) {
-                return nextAvailableIp(beds);
-            }
-            return ip;
+        if (requestedIp == null || requestedIp.isBlank() || "auto".equalsIgnoreCase(requestedIp.trim())) {
+            return null;
         }
-        if (!isSimulatorIpInUse(DeviceCatalogService.SIMULATOR_IP, beds, excludeBedLabel)) {
-            return DeviceCatalogService.SIMULATOR_IP;
+        String ip = requestedIp.trim();
+        if (isSimulatorIpInUse(ip, beds, excludeBedLabel)) {
+            throw new IllegalArgumentException("Device IP " + ip + " is already assigned to another bed");
         }
-        return nextAvailableIp(beds);
-    }
-
-    private static final Set<Integer> RESERVED_DOCKER_OCTETS = Set.of(10, 11, 12, 13, 14, 15);
-
-    private String nextAvailableIp(List<Document> beds) {
-        for (int i = 9; i <= 254; i++) {
-            if (RESERVED_DOCKER_OCTETS.contains(i)) continue;
-            String candidate = "172.25.0." + i;
-            if (!isSimulatorIpInUse(candidate, beds, null)) return candidate;
-        }
-        return "172.25.0.254";
+        return ip;
     }
 
     private boolean isSimulatorIpInUse(String ip, List<Document> beds, String excludeBedLabel) {

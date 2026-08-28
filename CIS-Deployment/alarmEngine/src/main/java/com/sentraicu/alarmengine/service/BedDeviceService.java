@@ -73,24 +73,11 @@ public class BedDeviceService {
         return bed != null && hasSimulatorIp(bed);
     }
 
-    /** Occupied beds without the physical simulator use derived per-bed vitals. */
-    public boolean isVirtualSimulatorBed(String bedLabel) {
-        Document bed = findBedByLabel(bedLabel);
-        if (bed == null || hasSimulatorIp(bed)) {
-            return false;
-        }
-        if (bed.get("patient") == null) {
-            return false;
-        }
-        return "virtual".equals(bed.getString("simulationMode")) || !hasSimulatorIp(bed);
-    }
-
     public Map<String, Object> getBedDeviceStatus(String bedId) {
         String bedLabel = resolveBedLabel(bedId);
         Document bed = findBedByLabel(bedLabel);
         List<String> configured = bed != null ? extractDeviceIds(bed) : List.of();
         boolean simConnected = bed != null && hasSimulatorIp(bed);
-        boolean virtualSim = isVirtualSimulatorBed(bedLabel);
 
         Map<String, Map<String, Object>> paramToDevice = buildParamDeviceMap();
         Set<String> availableParams = configured.stream()
@@ -103,7 +90,6 @@ public class BedDeviceService {
                     String id = String.valueOf(d.get("deviceId"));
                     copy.put("connected", configured.contains(id));
                     copy.put("liveCapable", simConnected && configured.contains(id));
-                    copy.put("virtualCapable", virtualSim && configured.contains(id));
                     return copy;
                 })
                 .toList();
@@ -136,7 +122,6 @@ public class BedDeviceService {
         result.put("bedLabel", bedLabel);
         result.put("bedId", bedId);
         result.put("simulatorConnected", simConnected);
-        result.put("virtualSimulatorActive", virtualSim);
         result.put("liveVitalsCapable", simConnected);
         result.put("deviceIp", bed != null ? CenterAdminService.decryptIp(bed.getString("ip")) : null);
         result.put("configuredDevices", configured);
