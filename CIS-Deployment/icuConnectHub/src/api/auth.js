@@ -109,6 +109,14 @@ export async function login(username, password) {
     });
     if (res.ok) {
       const data = await res.json();
+      if (data.setupRequired && data.setupToken) {
+        return {
+          setupRequired: true,
+          setupToken: data.setupToken,
+          maskedEmail: data.maskedEmail || null,
+          source: 'api',
+        };
+      }
       if (data.mfaRequired !== false && data.mfaToken) {
         return {
           mfaRequired: true,
@@ -152,6 +160,21 @@ export async function login(username, password) {
     devOtp: '123456',
     source: 'demo',
   };
+}
+
+/** Completes first-time account setup for a user with a temporary password
+ * (e.g. a newly-created hospital admin), using the setupToken from login(). */
+export async function completeAccountSetup({ setupToken, username, displayName, specialty, password, confirmPassword }) {
+  const res = await fetch('/api/auth/setup/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setupToken, username, displayName, specialty, password, confirmPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Could not complete setup');
+  }
+  return data;
 }
 
 export async function verifyMfa(mfaToken, code) {

@@ -18,6 +18,14 @@ export default function Login() {
     setLoading(true);
     try {
       const result = await login(email.trim(), password);
+      if (result.setupRequired) {
+        sessionStorage.setItem('icu_setup_pending', JSON.stringify({
+          setupToken: result.setupToken,
+          maskedEmail: result.maskedEmail,
+        }));
+        navigate('/account-setup');
+        return;
+      }
       sessionStorage.setItem('icu_mfa_pending', JSON.stringify({
         mfaToken: result.mfaToken,
         email: result.email || email.trim(),

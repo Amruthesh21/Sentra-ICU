@@ -27,6 +27,7 @@ import Connectivity from './pages/Connectivity';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import MfaVerify from './pages/MfaVerify';
+import AccountSetup from './pages/AccountSetup';
 import PulseAdmin, { AdminHome, AdminStaffPage } from './pages/PulseAdmin';
 import {
   HospitalAdminAlarmsPage,
@@ -87,7 +88,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/mfa" element={<PublicOnly><MfaVerify /></PublicOnly>} />
-            <Route path="/account-setup" element={<Navigate to="/login" replace />} />
+            <Route path="/account-setup" element={<PublicOnly><AccountSetup /></PublicOnly>} />
             <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
             <Route path="/reset-password" element={<Navigate to="/login" replace />} />
 
