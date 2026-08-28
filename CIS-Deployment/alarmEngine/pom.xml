@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.rtwo</groupId>
+    <groupId>com.sentraicu</groupId>
     <artifactId>alarm-engine</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>alarm-engine</name>
