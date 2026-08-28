@@ -1,0 +1,39 @@
+/**
+ * Environment configuration for the device-ingestion service.
+ *
+ * Mirrors the pattern already used by notificationService (env vars supplied
+ * by docker-compose, no .env parsing needed inside the container).
+ */
+
+const env = {
+  // RabbitMQ — same vhost/credentials as alarm-engine and notification-service.
+  // Must resolve to the exact queue alarm-engine's
+  // `alarm.rabbitmq.device-data-queue` property resolves to
+  // (alarmEngine/src/main/resources/application.properties), currently
+  // "alarm-engine.device.data.queue". Publishing here bypasses
+  // device.data.queue / the RabbitMQ shovel entirely — that path belongs to
+  // Connect Engine / the device simulator, not this service.
+  RABBITMQ_URL: process.env.RABBITMQ_URL || 'amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting',
+  DEVICE_DATA_QUEUE: process.env.DEVICE_DATA_QUEUE || 'alarm-engine.device.data.queue',
+
+  // HTTP admin/health API.
+  HTTP_PORT: Number(process.env.HTTP_PORT || 9050),
+
+  // TCP HL7/MLLP listener that patient monitors (or the replay/simulator
+  // scripts) connect to.
+  HL7_PORT: Number(process.env.HL7_PORT || 6661),
+
+  // Admin-maintained IP -> bedId mapping. Never trust bed identity from the
+  // HL7 message itself — see src/bedMapping/bedMap.js.
+  BED_MAP_PATH: process.env.BED_MAP_PATH || require('path').join(__dirname, '..', 'config', 'bed-map.json'),
+
+  // Phase 2 / best-effort: waveform samples are always parsed (the CD+NA
+  // decoding logic is cheap and already solved), but are only published
+  // anywhere downstream if explicitly enabled — there is no existing
+  // RabbitMQ contract for waveform data today, so publishing one by default
+  // would be inventing scope. When disabled, decoded waveforms are still
+  // visible on GET /api/status for debugging.
+  WAVEFORM_PUBLISH_ENABLED: /^true$/i.test(process.env.WAVEFORM_PUBLISH_ENABLED || 'false'),
+};
+
+module.exports = env;

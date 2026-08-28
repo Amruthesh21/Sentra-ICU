@@ -1,0 +1,14 @@
+{
+  "name": "device-ingestion",
+  "version": "1.0.0",
+  "description": "SentraICU device-vitals ingestion service — HL7 v2 bedside monitor bridge, publishes to RabbitMQ in the DeviceDataMessage contract consumed by alarm-engine",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/parser.test.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "express": "^4.19.2"
+  }
+}
