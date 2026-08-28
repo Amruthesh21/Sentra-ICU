@@ -80,9 +80,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublic(String path) {
-        if (path.startsWith("/api/auth")) return true;
-        if (path.startsWith("/alarm-ui")) return true;
-        return false;
+        return path.startsWith("/api/auth");
     }
 
     @Override

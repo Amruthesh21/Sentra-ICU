@@ -54,12 +54,6 @@ export function PulseAuthShell({ children, eyebrowRight = 'V2.4 — HL7 READY' }
           </Link>
         </div>
         <div className="pulse-auth-form-wrap">{children}</div>
-        <div className="pulse-auth-demo">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3Z" />
-          </svg>
-          <span>Demo access: admin@icu.med / admin123</span>
-        </div>
       </section>
 
       <aside className="pulse-auth-right">
@@ -69,7 +63,6 @@ export function PulseAuthShell({ children, eyebrowRight = 'V2.4 — HL7 READY' }
         </div>
         <NetworkMesh />
         <div className="pulse-auth-right-bottom">
-          <p className="pulse-auth-vitals">HR 67.2 — SpO2 98.4 — BP 118/76 — TEMP 36.8</p>
           <p className="pulse-auth-tagline">Every second monitored. Every anomaly surfaced.</p>
         </div>
       </aside>

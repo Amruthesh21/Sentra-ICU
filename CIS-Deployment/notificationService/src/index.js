@@ -54,22 +54,6 @@ app.get('/api/config', async (req, res) => {
   });
 });
 
-const TEST_ALARM_PAYLOAD = {
-  title: '⚠ ICU Alarm — BED-01',
-  body: 'SpO2 dropped to 85% (threshold: low 90%)',
-  badge: '/icon-192.png',
-  silent: false,
-  requireInteraction: true,
-  data: {
-    bedId: 'ICU-1-BED-01',
-    severity: 'CRITICAL',
-    paramName: 'SpO2',
-    value: 85,
-    threshold: 90,
-  },
-  vibrate: [200, 100, 200, 100, 200],
-};
-
 app.get('/api/subscription-status/:doctorId', async (req, res) => {
   try {
     const sub = await subscriptionModel.findByDoctorId(req.params.doctorId);
@@ -108,30 +92,26 @@ app.post('/api/verify-subscription', async (req, res) => {
   }
 });
 
+// Lets a doctor confirm their device is actually receiving push notifications
+// after enabling them. Honest, clearly-labeled test content only — never a
+// fabricated clinical reading, so it can't be mistaken for a real alarm.
 app.post('/api/test-push', async (req, res) => {
-  const { doctorId = 'doctor-001', async = true } = req.body;
-  const payload = TEST_ALARM_PAYLOAD;
+  const { doctorId = 'doctor-001' } = req.body || {};
+  const payload = {
+    title: '✅ Test notification',
+    body: 'Your Sentra ICU notifications are working.',
+    badge: '/icon-192.png',
+    silent: false,
+    requireInteraction: false,
+    data: { type: 'test' },
+  };
 
-  if (async !== false) {
-    const sub = await subscriptionModel.findByDoctorId(doctorId);
-    if (!sub?.subscription?.endpoint) {
-      return res.status(400).json({
-        sent: false,
-        error: 'No push subscription found — tap Enable Notifications first',
-      });
-    }
-
-    res.json({
-      sent: true,
-      queued: true,
-      doctorId,
-      message: 'Alarm queued — lock iPhone now. Apple Watch should buzz within 3 seconds.',
+  const sub = await subscriptionModel.findByDoctorId(doctorId);
+  if (!sub?.subscription?.endpoint) {
+    return res.status(400).json({
+      sent: false,
+      error: 'No push subscription found — tap Enable Notifications first',
     });
-
-    sendPushToDoctor(doctorId, payload)
-      .then((result) => console.log(`Test push for ${doctorId}:`, result))
-      .catch((err) => console.error(`Test push failed for ${doctorId}:`, err.message));
-    return;
   }
 
   try {

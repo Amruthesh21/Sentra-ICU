@@ -88,10 +88,10 @@ export default function ResetPassword() {
       title="Reset Password"
       subtitle={`Enter the code sent to ${pending.maskedEmail || 'your email'} and choose a new password.`}
     >
-      {pending.devMode && (
+      {pending.devMode && pending.devOtp && (
         <div className="auth-dev-otp-banner">
           <p className="auth-dev-otp-label">Development mode — reset code:</p>
-          <p className="auth-dev-otp-code">{pending.devOtp || '123456'}</p>
+          <p className="auth-dev-otp-code">{pending.devOtp}</p>
         </div>
       )}
 

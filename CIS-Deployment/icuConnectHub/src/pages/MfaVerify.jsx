@@ -81,7 +81,7 @@ export default function MfaVerify() {
   async function handleResend() {
     try {
       const result = await resendMfa(pending.mfaToken);
-      const updated = { ...pending, devOtp: result.devOtp || '123456' };
+      const updated = { ...pending, devOtp: result.devOtp || null };
       setPending(updated);
       sessionStorage.setItem('icu_mfa_pending', JSON.stringify(updated));
       setResendIn(30);
@@ -101,9 +101,9 @@ export default function MfaVerify() {
         Enter the 6-digit code sent to <strong>{pending.email}</strong>
       </p>
 
-      {(pending.devOtp || pending.source !== 'api') && (
+      {pending.devOtp && (
         <div className="pulse-auth-dev-code">
-          Demo verification code: <strong>{pending.devOtp || '123456'}</strong>
+          Dev-mode verification code: <strong>{pending.devOtp}</strong>
         </div>
       )}
 

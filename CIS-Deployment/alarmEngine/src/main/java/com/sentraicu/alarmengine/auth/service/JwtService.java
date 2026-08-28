@@ -5,6 +5,8 @@ import com.sentraicu.alarmengine.auth.entity.HubAuthUserEntity;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -19,12 +21,22 @@ import java.util.UUID;
 @Service
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+    private static final String INSECURE_DEFAULT_SECRET =
+            "icu-connect-v2-change-this-secret-in-production-rtwo-2026";
+
     private final AuthProperties properties;
     private final SecretKey key;
 
     public JwtService(AuthProperties properties) {
         this.properties = properties;
-        byte[] bytes = properties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8);
+        String secret = properties.getJwt().getSecret();
+        if (INSECURE_DEFAULT_SECRET.equals(secret)) {
+            log.warn("hub.auth.jwt.secret is using the built-in placeholder value — anyone with this "
+                    + "source code can forge login sessions. Set HUB_AUTH_JWT_SECRET to a real, "
+                    + "random secret before running against real users.");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             byte[] padded = new byte[32];
             System.arraycopy(bytes, 0, padded, 0, bytes.length);

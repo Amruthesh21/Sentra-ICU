@@ -1,46 +1,6 @@
 const STORAGE_KEY = 'icu_hub_auth';
 const MFA_KEY = 'icu_mfa_pending';
 
-/** Demo accounts for local / hospital pitch (works without alarm-engine) */
-export const DEMO_USERS = [
-  {
-    email: 'admin@icu.med',
-    password: 'admin123',
-    user: {
-      id: 'demo-clinician',
-      email: 'admin@icu.med',
-      displayName: 'Dr. Admin',
-      role: 'CLINICIAN',
-      userType: 'CLINICAL',
-      hospitalId: null,
-    },
-  },
-  {
-    email: 'hospital.admin@icu.med',
-    password: 'admin123',
-    user: {
-      id: 'demo-ha',
-      email: 'hospital.admin@icu.med',
-      displayName: 'Hospital Admin',
-      role: 'HOSPITAL_ADMIN',
-      userType: 'HOSPITAL',
-      hospitalId: 'demo-hospital',
-    },
-  },
-  {
-    email: 'superadmin@icu.med',
-    password: 'admin123',
-    user: {
-      id: 'demo-sa',
-      email: 'superadmin@icu.med',
-      displayName: 'Super Admin',
-      role: 'SUPER_ADMIN',
-      userType: 'SUPER_ADMIN',
-      hospitalId: null,
-    },
-  },
-];
-
 export function getStoredAuth() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -83,83 +43,50 @@ export async function authFetch(url, options = {}) {
   return res;
 }
 
-function makeSession(user) {
-  return {
-    accessToken: `pulse-demo-${user.id}-${Date.now()}`,
-    refreshToken: `pulse-refresh-${user.id}`,
-    sessionId: `sess-${user.id}`,
-    user,
-  };
+async function readAuthJson(res) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
 }
 
 /**
- * Login — tries alarm-engine first; falls back to demo accounts.
- * Always returns MFA challenge for the Sentra ICU flow.
+ * Login against alarm-engine's real auth API. No demo/offline fallback —
+ * a failed or unreachable backend is a real error, not a silent bypass.
  */
 export async function login(username, password) {
   const email = String(username || '').trim().toLowerCase();
   const pass = String(password || '');
 
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password: pass }),
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.setupRequired && data.setupToken) {
-        return {
-          setupRequired: true,
-          setupToken: data.setupToken,
-          maskedEmail: data.maskedEmail || null,
-          source: 'api',
-        };
-      }
-      if (data.mfaRequired !== false && data.mfaToken) {
-        return {
-          mfaRequired: true,
-          mfaToken: data.mfaToken,
-          method: data.method || 'email',
-          email: data.email || email,
-          devOtp: data.devOtp || data.otp || null,
-          source: 'api',
-        };
-      }
-      if (data.accessToken) {
-        return {
-          mfaRequired: true,
-          mfaToken: `bridge-${data.sessionId || Date.now()}`,
-          method: 'email',
-          email,
-          pendingSession: data,
-          devOtp: '123456',
-          source: 'api-bridge',
-        };
-      }
-    }
-  } catch {
-    /* demo fallback */
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: email, password: pass }),
+  });
+  const data = await readAuthJson(res);
+
+  if (data.setupRequired && data.setupToken) {
+    return {
+      setupRequired: true,
+      setupToken: data.setupToken,
+      maskedEmail: data.maskedEmail || null,
+    };
   }
 
-  const demo = DEMO_USERS.find((u) => u.email === email && u.password === pass);
-  if (!demo) {
-    throw new Error('Invalid email or password');
+  if (data.mfaRequired !== false && data.mfaToken) {
+    return {
+      mfaRequired: true,
+      mfaToken: data.mfaToken,
+      method: data.method || 'email',
+      email: data.email || email,
+      // Only present when the server's own dev-mode flag exposes it —
+      // never fabricated client-side.
+      devOtp: data.devOtp || null,
+    };
   }
 
-  const mfaToken = `demo-mfa-${demo.user.id}-${Date.now()}`;
-  sessionStorage.setItem(`pulse_mfa_user_${mfaToken}`, JSON.stringify(demo.user));
-
-  return {
-    mfaRequired: true,
-    mfaToken,
-    method: 'email',
-    email: demo.user.email,
-    displayName: demo.user.displayName,
-    devOtp: '123456',
-    source: 'demo',
-  };
+  throw new Error('Unexpected login response');
 }
 
 /** Completes first-time account setup for a user with a temporary password
@@ -170,11 +97,7 @@ export async function completeAccountSetup({ setupToken, username, displayName, 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ setupToken, username, displayName, specialty, password, confirmPassword }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || 'Could not complete setup');
-  }
-  return data;
+  return readAuthJson(res);
 }
 
 export async function verifyMfa(mfaToken, code) {
@@ -183,59 +106,45 @@ export async function verifyMfa(mfaToken, code) {
     throw new Error('Enter the 6-digit verification code');
   }
 
-  try {
-    const res = await fetch('/api/auth/mfa/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mfaToken, code: otp, method: 'email' }),
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch {
-    /* demo fallback */
-  }
-
-  // Demo / bridge path
-  if (otp !== '123456') {
-    throw new Error('Invalid verification code');
-  }
-
-  const pendingRaw = sessionStorage.getItem('icu_mfa_pending');
-  let pending = null;
-  try {
-    pending = pendingRaw ? JSON.parse(pendingRaw) : null;
-  } catch {
-    pending = null;
-  }
-
-  if (pending?.pendingSession?.accessToken) {
-    return pending.pendingSession;
-  }
-
-  const userRaw = sessionStorage.getItem(`pulse_mfa_user_${mfaToken}`);
-  if (userRaw) {
-    const user = JSON.parse(userRaw);
-    sessionStorage.removeItem(`pulse_mfa_user_${mfaToken}`);
-    return makeSession(user);
-  }
-
-  // Recover from pending email
-  const demo = DEMO_USERS.find((u) => u.email === String(pending?.email || '').toLowerCase());
-  if (demo) return makeSession(demo.user);
-
-  throw new Error('MFA session expired — sign in again');
+  const res = await fetch('/api/auth/mfa/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mfaToken, code: otp, method: 'email' }),
+  });
+  return readAuthJson(res);
 }
 
-export async function resendMfa() {
-  return { ok: true, message: 'Code resent', devOtp: '123456' };
+export async function forgotPassword(email) {
+  const res = await fetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  return readAuthJson(res);
+}
+
+export async function resetPassword({ resetToken, code, password, confirmPassword }) {
+  const res = await fetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resetToken, code, password, confirmPassword }),
+  });
+  return readAuthJson(res);
+}
+
+export async function resendMfa(mfaToken) {
+  const res = await fetch('/api/auth/mfa/resend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mfaToken }),
+  });
+  return readAuthJson(res);
 }
 
 export async function logout() {
   const auth = getStoredAuth();
   try {
-    if (auth?.sessionId && !String(auth.accessToken || '').startsWith('pulse-demo-')) {
+    if (auth?.sessionId) {
       await fetch('/api/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

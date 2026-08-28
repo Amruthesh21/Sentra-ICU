@@ -7,8 +7,8 @@ import '../styles/pulse-auth.css';
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState('admin@icu.med');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -30,9 +30,7 @@ export default function Login() {
         mfaToken: result.mfaToken,
         email: result.email || email.trim(),
         method: result.method || 'email',
-        displayName: result.displayName,
-        devOtp: result.devOtp || '123456',
-        pendingSession: result.pendingSession || null,
+        devOtp: result.devOtp || null,
         returnTo: searchParams.get('returnTo') || '',
       }));
       const qs = searchParams.toString();
