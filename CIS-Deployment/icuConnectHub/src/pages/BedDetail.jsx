@@ -518,15 +518,9 @@ export default function BedDetail() {
 
       <div className={`detail-layout${tab === 'trends' ? ' detail-layout--with-params' : ' detail-layout--full'}`}>
         <div className="detail-main">
-          {showMonitorChrome && deviceStatus?.virtualSimulatorActive && (
-            <div className="message info">
-              Demo vitals active for this bed. Hospital live feeds arrive via Connectivity (HL7 / FHIR / adapters).
-            </div>
-          )}
-
-          {showMonitorChrome && deviceStatus && !deviceStatus.simulatorConnected && !deviceStatus.virtualSimulatorActive && (
+          {showMonitorChrome && deviceStatus && !deviceStatus.simulatorConnected && (
             <div className="message error">
-              No live hospital feed on this bed yet. Approve a connection under Connectivity, or admit a patient for demo mode.
+              No live device feed on this bed yet. Map its monitor under Admin → &quot;Connect a device&quot;.
             </div>
           )}
 

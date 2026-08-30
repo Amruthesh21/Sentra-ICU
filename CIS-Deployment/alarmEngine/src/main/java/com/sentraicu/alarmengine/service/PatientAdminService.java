@@ -141,12 +141,11 @@ public class PatientAdminService {
         result.put("visitId", visitId);
         result.put("devices", deviceIds);
         result.put("simulatorConnected", simBed);
-        result.put("virtualSimulatorActive", !simBed);
-        result.put("connectEngineSynced", true);
+        result.put("connectEngineSynced", synced);
         result.put("status", "admitted");
         result.put("message", simBed
                 ? "Patient admitted — Hub updated. Live vitals on simulator bed " + bedLabel + "."
-                : "Patient admitted — virtual simulation active with unique vitals for " + bedLabel + ".");
+                : "Patient admitted — Hub updated for " + bedLabel + ". Connect a device to start live vitals.");
         return result;
     }
 

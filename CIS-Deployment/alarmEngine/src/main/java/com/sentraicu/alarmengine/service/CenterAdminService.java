@@ -93,38 +93,36 @@ public class CenterAdminService {
         String resolvedIp = resolveBedIp(ip, beds, null);
         boolean simIp = DeviceCatalogService.SIMULATOR_IP.equals(resolvedIp);
         boolean simIpTaken = simIp && isSimulatorIpInUse(resolvedIp, beds, null);
+        boolean live = simIp && !simIpTaken;
 
         Document newBed = new Document();
         newBed.put("_id", UUID.randomUUID().toString());
         newBed.put("bedLabel", bedLabel);
         newBed.put("ip", encryptIp(resolvedIp));
         newBed.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.BedEntity");
-        if (simIp && !simIpTaken) {
+        if (live) {
             newBed.put("devices", deviceCatalogService.defaultDevicesForSimulatorBed());
             newBed.put("simulationMode", "live");
-        } else {
-            newBed.put("simulationMode", "virtual");
         }
         beds.add(newBed);
 
         saveBeds(cid, beds, center);
-        syncConnectEngine(cid, beds, center);
+        boolean synced = syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
         result.put("bedId", newBed.getString("_id"));
         result.put("ip", resolvedIp);
         result.put("status", "created");
-        result.put("connectEngineSynced", true);
-        result.put("simulatorConnected", simIp && !simIpTaken);
-        result.put("liveVitalsCapable", simIp && !simIpTaken);
-        result.put("virtualSimulatorActive", !simIp || simIpTaken);
-        if (simIpTaken) {
-            result.put("message", "Bed created with virtual simulation — unique vitals per bed. Physical simulator is on another bed.");
-        } else if (simIp) {
+        result.put("connectEngineSynced", synced);
+        result.put("simulatorConnected", live);
+        result.put("liveVitalsCapable", live);
+        if (live) {
             result.put("message", "Bed created with live simulator. Admit a patient to start live vitals.");
+        } else if (resolvedIp != null) {
+            result.put("message", "Bed created with device IP " + resolvedIp + ".");
         } else {
-            result.put("message", "Bed created with virtual simulation — admit a patient for unique simulated vitals.");
+            result.put("message", "Bed created — not connected to a device yet. Use \"Connect a device\" once one sends data.");
         }
         return result;
     }
@@ -157,7 +155,7 @@ public class CenterAdminService {
                         bed.put("devices", deviceCatalogService.defaultDevicesForSimulatorBed());
                     }
                 } else {
-                    bed.put("simulationMode", "virtual");
+                    bed.remove("simulationMode");
                 }
                 found = true;
                 break;
@@ -168,13 +166,13 @@ public class CenterAdminService {
         }
 
         saveBeds(cid, beds, center);
-        syncConnectEngine(cid, beds, center);
+        boolean synced = syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
         result.put("ip", ip.trim());
         result.put("status", "updated");
-        result.put("connectEngineSynced", true);
+        result.put("connectEngineSynced", synced);
         result.put("message", "Bed IP updated — Hub synced instantly.");
         return result;
     }
@@ -457,12 +455,9 @@ public class CenterAdminService {
         if (mongoBed != null) {
             String ip = decryptIp(mongoBed.getString("ip"));
             boolean liveSim = DeviceCatalogService.SIMULATOR_IP.equals(ip);
-            boolean virtualSim = "virtual".equals(mongoBed.getString("simulationMode"))
-                    || (!liveSim && postgresPatient != null);
             bed.put("deviceIp", ip);
             bed.put("simulatorConnected", liveSim);
             bed.put("liveVitalsCapable", liveSim);
-            bed.put("virtualSimulatorActive", virtualSim);
             bed.put("simulationMode", mongoBed.getString("simulationMode"));
             bed.put("ipConflict", liveSim && isSimulatorIpInUse(ip, allBeds, label));
         } else {
@@ -505,6 +500,7 @@ public class CenterAdminService {
     }
 
     public static String encryptIp(String ip) {
+        if (ip == null || ip.isBlank()) return null;
         String b64 = Base64.getEncoder().encodeToString(ip.getBytes(StandardCharsets.UTF_8));
         return new StringBuilder(b64).reverse().toString();
     }
