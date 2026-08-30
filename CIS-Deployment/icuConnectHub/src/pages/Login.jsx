@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
+import { redirectAfterLogin } from '../utils/authRedirect';
 import { PulseAuthShell } from '../components/PulseAuthShell';
 import '../styles/pulse-auth.css';
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { applySession } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +27,12 @@ export default function Login() {
           maskedEmail: result.maskedEmail,
         }));
         navigate('/account-setup');
+        return;
+      }
+      if (result.authenticated) {
+        // MFA already trusted — straight to the dashboard, no code needed.
+        applySession(result.session);
+        redirectAfterLogin(navigate, result.session.user, searchParams);
         return;
       }
       sessionStorage.setItem('icu_mfa_pending', JSON.stringify({

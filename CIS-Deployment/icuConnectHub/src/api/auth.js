@@ -86,6 +86,12 @@ export async function login(username, password) {
     };
   }
 
+  // MFA already trusted for this device/session window — the server
+  // skipped straight to a real, full session (accessToken + user).
+  if (data.accessToken) {
+    return { authenticated: true, session: data };
+  }
+
   throw new Error('Unexpected login response');
 }
 

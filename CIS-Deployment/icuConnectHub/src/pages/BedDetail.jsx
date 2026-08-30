@@ -541,7 +541,7 @@ export default function BedDetail() {
             <div className="vitals-grid-large">
               {overviewParams.length === 0 ? (
                 <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                  <p>No live vitals yet — connect hospital data from Connectivity, or admit a patient for demo mode.</p>
+                  <p>No live vitals yet — admit a patient to this bed and connect its monitor under Admin → &quot;Connect a device&quot;.</p>
                 </div>
               ) : (
                 overviewParams.map((p) => {
