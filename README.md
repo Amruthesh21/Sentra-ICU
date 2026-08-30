@@ -19,7 +19,7 @@ PWA → Notification Service REST (push subscribe)
 | Service | Container | Host Port | Description |
 |---------|-----------|-----------|-------------|
 | alarm-engine | CIS-alarm-engine | 7020 | Threshold checking, alarm publishing |
-| notification-service | CIS-notification-service | 7030 | Web Push delivery |
+| notification-service | CIS-notification-service | *(internal only)* | Web Push delivery — reached via the PWA's `/api/notification/*` proxy, not published directly (see SECURITY-REPORT.md) |
 | icu-watch-pwa | CIS-icu-watch-pwa | 7031 | Doctor mobile PWA |
 
 ## Quick Start
@@ -54,7 +54,6 @@ docker compose up --build -d alarm-engine notification-service icu-watch-pwa
 - **PWA (doctor app):** http://localhost:7031
 - **Sentra ICU Hub (Alarm Center):** http://localhost:7040/alarms
 - **Alarm config API:** http://localhost:7020/api/alarm-config/doctor-001
-- **Push subscriptions (debug):** http://localhost:7030/api/subscriptions
 
 ## Demo Scenario
 
