@@ -1,0 +1,26 @@
+{
+  "_comment": "Settings for the simulation tool only — nothing here is read by the application itself. Edit freely.",
+
+  "hubApiUrl": "http://localhost:7020",
+  "deviceIngestionProxyUrl": "http://localhost:7040/device-ingestion",
+  "hl7Host": "localhost",
+  "hl7Port": 7061,
+
+  "hospitalAdminEmail": "hospitaladmin@sentraicu.local",
+  "hospitalAdminPassword": "HospitalAdmin@2026",
+
+  "targetBedLabel": "BED-01",
+
+  "simulationPatient": {
+    "fullName": "Simulation Patient",
+    "mrn": "SIM-001",
+    "gender": "M",
+    "admissionType": "Medical",
+    "admissionSource": "Simulation",
+    "assignedDoctor": "Simulation Run",
+    "assignedNurse": "Simulation Run",
+    "primaryDiagnosis": "Device-ingestion pipeline test (not a real admission)"
+  },
+
+  "fixtureFile": "../CIS-Deployment/deviceIngestion/test/fixtures/sample-real-device.hl7"
+}
