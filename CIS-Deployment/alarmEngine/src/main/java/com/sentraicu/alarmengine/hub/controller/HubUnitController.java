@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.hub.controller;
 
+import com.sentraicu.alarmengine.auth.security.AuthSecurity;
 import com.sentraicu.alarmengine.auth.service.HospitalContextService;
 import com.sentraicu.alarmengine.hub.service.HubUnitAdminService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,11 +17,14 @@ public class HubUnitController {
 
     private final HubUnitAdminService unitAdminService;
     private final HospitalContextService hospitalContextService;
+    private final AuthSecurity authSecurity;
 
     public HubUnitController(HubUnitAdminService unitAdminService,
-                             HospitalContextService hospitalContextService) {
+                             HospitalContextService hospitalContextService,
+                             AuthSecurity authSecurity) {
         this.unitAdminService = unitAdminService;
         this.hospitalContextService = hospitalContextService;
+        this.authSecurity = authSecurity;
     }
 
     @GetMapping
@@ -33,9 +37,12 @@ public class HubUnitController {
         return unitAdminService.getUnitDetail(unitId, hospitalContextService.resolveCenterId(request));
     }
 
+    // Creating units/beds is hospital-infrastructure setup — hospital-admin
+    // only. Was previously reachable by any authenticated clinical account.
     @PostMapping
     public ResponseEntity<Map<String, Object>> createUnit(@RequestBody Map<String, Object> request,
                                                           HttpServletRequest httpRequest) {
+        authSecurity.requireHospitalAdmin(httpRequest);
         String centerId = hospitalContextService.resolveCenterId(httpRequest);
         return ResponseEntity.ok(unitAdminService.createUnit(request, centerId));
     }
@@ -44,6 +51,7 @@ public class HubUnitController {
     public ResponseEntity<Map<String, Object>> addBed(@PathVariable UUID unitId,
                                                       @RequestBody Map<String, Object> request,
                                                       HttpServletRequest httpRequest) {
+        authSecurity.requireHospitalAdmin(httpRequest);
         String centerId = hospitalContextService.resolveCenterId(httpRequest);
         return ResponseEntity.ok(unitAdminService.addBedToUnit(unitId, request, centerId));
     }

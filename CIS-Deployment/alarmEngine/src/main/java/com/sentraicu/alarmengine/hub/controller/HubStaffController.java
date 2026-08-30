@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.hub.controller;
 
+import com.sentraicu.alarmengine.auth.security.AuthSecurity;
 import com.sentraicu.alarmengine.auth.service.HospitalContextService;
 import com.sentraicu.alarmengine.hub.service.HubStaffService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,10 +17,13 @@ public class HubStaffController {
 
     private final HubStaffService staffService;
     private final HospitalContextService hospitalContextService;
+    private final AuthSecurity authSecurity;
 
-    public HubStaffController(HubStaffService staffService, HospitalContextService hospitalContextService) {
+    public HubStaffController(HubStaffService staffService, HospitalContextService hospitalContextService,
+                              AuthSecurity authSecurity) {
         this.staffService = staffService;
         this.hospitalContextService = hospitalContextService;
+        this.authSecurity = authSecurity;
     }
 
     @GetMapping
@@ -29,22 +33,29 @@ public class HubStaffController {
         return staffService.list(hospitalContextService.resolveCenterId(request), role);
     }
 
+    // Creating/editing/deactivating staff accounts is hospital-admin-only —
+    // otherwise any authenticated clinical user could create or remove
+    // other staff members' accounts.
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
+        authSecurity.requireHospitalAdmin(request);
         return ResponseEntity.ok(staffService.create(body, hospitalContextService.resolveCenterId(request)));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable UUID id,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        authSecurity.requireHospitalAdmin(request);
         return ResponseEntity.ok(staffService.update(id, body));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deactivate(@PathVariable UUID id) {
+    public ResponseEntity<Map<String, Object>> deactivate(@PathVariable UUID id, HttpServletRequest request) {
+        authSecurity.requireHospitalAdmin(request);
         return ResponseEntity.ok(staffService.deactivate(id));
     }
 }
