@@ -45,6 +45,6 @@ throughout as raw protocol data, not as anything derived from Connect
 Engine's implementation. Connect Engine's own internal Mongo `_class`
 discriminator strings (e.g. `com.rtwo.med.device.connect.mongo.dal.entities.*`,
 still present in `alarm-engine`'s `ConnectEngineSyncBridge.java` /
-`CenterAdminService.java` / `PatientAdminService.java` for writing documents
-Connect-Engine-based readers can deserialize) were left untouched and were
-never referenced while building this service.
+`CenterAdminService.java` for writing documents Connect-Engine-based readers
+can deserialize) were left untouched and were never referenced while
+building this service.

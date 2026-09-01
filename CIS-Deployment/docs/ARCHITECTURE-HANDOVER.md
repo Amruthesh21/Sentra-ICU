@@ -682,11 +682,7 @@ Steps:
 | DELETE | `/api/alarm-config/{doctorId}/{bedId}` | Delete bed threshold config |
 | GET | `/api/patients/bed/{bedId}` | Patient currently on bed |
 | GET | `/api/patients` | List all patients |
-| POST | `/api/patients/admit` | Legacy admit endpoint |
-| POST | `/api/patients/discharge` | Legacy discharge endpoint |
 | GET | `/api/devices` | All configured devices |
-| GET | `/alarm-ui` | Built-in alarm dashboard (HTML) |
-| GET | `/alarm-ui/api/active` | Alarm UI JSON API |
 
 ### 10.11 Notification Service — port 7030
 

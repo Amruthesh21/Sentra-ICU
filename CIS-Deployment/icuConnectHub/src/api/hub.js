@@ -91,19 +91,10 @@ export async function getBedDevices(bedId) {
   return readJson(await apiFetch(`/api/center/beds/${encodeURIComponent(label)}/devices`));
 }
 
-export async function admitPatient(payload) {
-  return readJson(await apiFetch('/api/patients/admit', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }));
-}
-
-export async function dischargePatient(bedLabel) {
-  return readJson(await apiFetch('/api/patients/discharge', {
-    method: 'POST',
-    body: JSON.stringify({ bedLabel }),
-  }));
-}
+// Admission/discharge live in api/admissions.js (the real, Postgres-backed
+// HubAdmissionService path — the beds/ward views in this file's getCenter()
+// only ever reflect that data). The old /api/patients/admit|discharge pair
+// wrote to a Mongo field nothing reads and has been removed.
 
 export async function getPatient(bedId) {
   return readJson(await apiFetch(`/api/patients/bed/${encodeURIComponent(bedId)}`));
