@@ -119,8 +119,10 @@ function sendHl7(messages) {
   });
 }
 
-async function findQuarantinedIp(before) {
-  const res = await apiCall(`${config.deviceIngestionProxyUrl}/api/quarantine`);
+async function findQuarantinedIp(token, before) {
+  const res = await apiCall(`${config.deviceIngestionProxyUrl}/api/quarantine`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) return null;
   const sources = res.data.unmappedSources || [];
   const beforeIps = new Set((before || []).map((s) => s.ip));
@@ -128,11 +130,13 @@ async function findQuarantinedIp(before) {
   return fresh ? fresh.ip : null;
 }
 
-async function ensureDeviceMapped() {
-  const beforeRes = await apiCall(`${config.deviceIngestionProxyUrl}/api/quarantine`);
+async function ensureDeviceMapped(token) {
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  const beforeRes = await apiCall(`${config.deviceIngestionProxyUrl}/api/quarantine`, { headers: authHeaders });
   const before = beforeRes.ok ? beforeRes.data.unmappedSources : [];
 
-  const bedMapRes = await apiCall(`${config.deviceIngestionProxyUrl}/api/bed-map`);
+  const bedMapRes = await apiCall(`${config.deviceIngestionProxyUrl}/api/bed-map`, { headers: authHeaders });
   const alreadyMapped = bedMapRes.ok
     && Object.values(bedMapRes.data || {}).some((v) => v === config.targetBedLabel);
   if (alreadyMapped) {
@@ -145,7 +149,7 @@ async function ensureDeviceMapped() {
   await sendHl7([messages[0]]); // one message is enough to register in quarantine
 
   await new Promise((r) => setTimeout(r, 500));
-  const ip = await findQuarantinedIp(before);
+  const ip = await findQuarantinedIp(token, before);
   if (!ip) {
     fail(
       'Could not auto-detect the source IP to map. Map it manually once via ' +
@@ -156,7 +160,7 @@ async function ensureDeviceMapped() {
   log(`  Connecting ${ip} -> ${config.targetBedLabel} ...`);
   const map = await apiCall(`${config.deviceIngestionProxyUrl}/api/bed-map`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
     body: JSON.stringify({ ip, bedId: config.targetBedLabel }),
   });
   if (!map.ok) fail(`Failed to map device: ${map.data.error || map.status}`);
@@ -241,7 +245,7 @@ async function runSimulation() {
   await admitSimulationPatient(token);
 
   log('Connecting the simulated device...');
-  await ensureDeviceMapped();
+  await ensureDeviceMapped(token);
 
   log('Replaying real captured device data (BPL VividVue M10 export)...');
   const messages = loadHl7Messages();

@@ -1,3 +1,5 @@
+import { authFetch } from './auth';
+
 const BASE = '/device-ingestion';
 
 async function readJson(res) {
@@ -16,24 +18,23 @@ async function readJson(res) {
 
 /** { "<ip>": "<bedId>" } */
 export async function getBedMap() {
-  return readJson(await fetch(`${BASE}/api/bed-map`, { cache: 'no-store' }));
+  return readJson(await authFetch(`${BASE}/api/bed-map`, { cache: 'no-store' }));
 }
 
 /** Sources that have sent device data but have no bed-map entry yet —
  * never silently dropped, always surfaced here until mapped. */
 export async function getQuarantine() {
-  const data = await readJson(await fetch(`${BASE}/api/quarantine`, { cache: 'no-store' }));
+  const data = await readJson(await authFetch(`${BASE}/api/quarantine`, { cache: 'no-store' }));
   return data.unmappedSources || [];
 }
 
 export async function mapDevice(ip, bedId) {
-  return readJson(await fetch(`${BASE}/api/bed-map`, {
+  return readJson(await authFetch(`${BASE}/api/bed-map`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ip, bedId }),
   }));
 }
 
 export async function unmapDevice(ip) {
-  return readJson(await fetch(`${BASE}/api/bed-map/${encodeURIComponent(ip)}`, { method: 'DELETE' }));
+  return readJson(await authFetch(`${BASE}/api/bed-map/${encodeURIComponent(ip)}`, { method: 'DELETE' }));
 }

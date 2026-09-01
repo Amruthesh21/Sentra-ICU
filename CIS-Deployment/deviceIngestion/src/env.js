@@ -27,6 +27,15 @@ const env = {
   // HL7 message itself — see src/bedMapping/bedMap.js.
   BED_MAP_PATH: process.env.BED_MAP_PATH || require('path').join(__dirname, '..', 'config', 'bed-map.json'),
 
+  // Shared with alarm-engine's hub.auth.jwt.secret (HUB_AUTH_JWT_SECRET) —
+  // the admin API verifies the same Hub login tokens rather than trusting
+  // anyone who can reach this service on the docker network. Must be set
+  // to the real value in any environment where auth actually matters;
+  // falling back to alarm-engine's own documented placeholder here (rather
+  // than inventing a different one) so the two stay in sync by default.
+  HUB_AUTH_JWT_SECRET: process.env.HUB_AUTH_JWT_SECRET
+    || 'icu-connect-v2-change-this-secret-in-production-rtwo-2026',
+
   // Phase 2 / best-effort: waveform samples are always parsed (the CD+NA
   // decoding logic is cheap and already solved), but are only published
   // anywhere downstream if explicitly enabled — there is no existing

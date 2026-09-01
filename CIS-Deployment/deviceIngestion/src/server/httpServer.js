@@ -10,6 +10,7 @@ const { getBedMap, setMapping, removeMapping } = require('../bedMapping/bedMap')
 const quarantine = require('../bedMapping/quarantine');
 const waveformBuffer = require('../waveform/waveformBuffer');
 const { getBedStatus } = require('./tcpServer');
+const { requireHubAuth } = require('./requireHubAuth');
 
 function startHttpServer() {
   const app = express();
@@ -18,6 +19,10 @@ function startHttpServer() {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'device-ingestion' });
   });
+
+  // Everything below is only ever meant to be called by a logged-in Hub
+  // user via the /device-ingestion proxy — require the same Hub session.
+  app.use('/api', requireHubAuth);
 
   app.get('/api/status', (_req, res) => {
     const beds = getBedStatus();
