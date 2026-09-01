@@ -1,0 +1,9 @@
+# Shell scripts must keep LF line endings regardless of the checking-out
+# machine's git config. core.autocrlf=true (the common Windows default)
+# would otherwise convert them to CRLF on checkout - harmless for scripts
+# only ever opened in an editor, but silently broken for any script that
+# gets run directly (bash/sh) or mounted into a Linux container: a CRLF
+# shebang line fails outright, and CRLF elsewhere leaves a stray \r on the
+# end of shell variables (e.g. a password), so equality/auth checks that
+# depend on it fail with no obvious cause.
+*.sh text eol=lf

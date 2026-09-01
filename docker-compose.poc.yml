@@ -16,7 +16,7 @@ services:
     environment:
       POSTGRES_DB: icu_hub
       POSTGRES_USER: icu_hub
-      POSTGRES_PASSWORD: hub@123
+      POSTGRES_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-hub@123}
     volumes:
       - cis_postgres_data:/var/lib/postgresql/data
     networks:
@@ -40,9 +40,12 @@ services:
       SPRING_RABBITMQ_HOST: CIS-rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_VIRTUAL_HOST: ICUcharting
-      SPRING_RABBITMQ_USERNAME: ICUcharting
-      SPRING_RABBITMQ_PASSWORD: admin@123
-      SPRING_DATA_MONGODB_URI: mongodb://monish:admin%40123@CIS-mongodb:27017/?authSource=admin
+      SPRING_RABBITMQ_USERNAME: ${INFRA_RABBITMQ_USER:-ICUcharting}
+      SPRING_RABBITMQ_PASSWORD: ${INFRA_RABBITMQ_PASSWORD:-admin@123}
+      # URL-encoded copy of INFRA_MONGO_PASSWORD above (the connection string
+      # needs %-encoding; Compose can't do that substitution for you) — if you
+      # change INFRA_MONGO_PASSWORD, update this URI to match.
+      SPRING_DATA_MONGODB_URI: mongodb://${INFRA_MONGO_USER:-monish}:${INFRA_MONGO_PASSWORD_URLENC:-admin%40123}@CIS-mongodb:27017/?authSource=admin
       ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
       CONNECT_ENGINE_URL: ${CONNECT_ENGINE_URL:-http://CIS-Deployment-connect-engine:9010}
       # Off by default and no docker.sock mount below — see application.properties
@@ -54,7 +57,7 @@ services:
       CONNECT_ENGINE_CONTAINER: CIS-Deployment-connect-engine
       SPRING_DATASOURCE_URL: jdbc:postgresql://CIS-postgres:5432/icu_hub
       SPRING_DATASOURCE_USERNAME: icu_hub
-      SPRING_DATASOURCE_PASSWORD: hub@123
+      SPRING_DATASOURCE_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-hub@123}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-monish.reddy@invensis.net}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
       HUB_AUTH_DEV_EXPOSE_OTP: ${HUB_AUTH_DEV_EXPOSE_OTP:-false}
@@ -81,7 +84,7 @@ services:
     # Not published to the host — it has no authentication of its own
     # (subscription list/create/delete are all open), so it stays reachable
     # only inside the docker network, via the PWA's nginx proxy at
-    # /api/notification/*. See SECURITY-REPORT.md.
+    # /api/notification/*.
     expose:
       - "9030"
     dns:
@@ -90,11 +93,16 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      RABBITMQ_URL: amqp://ICUcharting:admin%40123@CIS-rabbitmq:5672/ICUcharting
-      MONGODB_URI: mongodb://monish:admin%40123@CIS-mongodb:27017/?authSource=admin
-      VAPID_PUBLIC_KEY: BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4
-      VAPID_PRIVATE_KEY: 567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg
-      VAPID_EMAIL: mailto:poc@Sentra ICU.health
+      RABBITMQ_URL: amqp://${INFRA_RABBITMQ_USER:-ICUcharting}:${INFRA_RABBITMQ_PASSWORD_URLENC:-admin%40123}@CIS-rabbitmq:5672/ICUcharting
+      MONGODB_URI: mongodb://${INFRA_MONGO_USER:-monish}:${INFRA_MONGO_PASSWORD_URLENC:-admin%40123}@CIS-mongodb:27017/?authSource=admin
+      # Web Push identity keypair for this deployment. The checked-in default
+      # is a real keypair generated for this dev/demo instance, not a
+      # placeholder — any deployment that leaves it unset shares that same
+      # push identity. Generate your own before going to production:
+      #   npx web-push generate-vapid-keys
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg}
+      VAPID_EMAIL: ${VAPID_EMAIL:-mailto:poc@Sentra ICU.health}
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_NOTIFICATION_SERVICE:-172.31.0.11}
@@ -143,7 +151,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      RABBITMQ_URL: amqp://ICUcharting:admin%40123@CIS-rabbitmq:5672/ICUcharting
+      RABBITMQ_URL: amqp://${INFRA_RABBITMQ_USER:-ICUcharting}:${INFRA_RABBITMQ_PASSWORD_URLENC:-admin%40123}@CIS-rabbitmq:5672/ICUcharting
       DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
       # Must match alarm-engine's hub.auth.jwt.secret (HUB_AUTH_JWT_SECRET)
       # exactly — this is what lets device-ingestion verify Hub login
@@ -161,22 +169,13 @@ services:
     restart: "no"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: >
-      sh -c "
-        echo 'Waiting 25 seconds for RabbitMQ to be ready...' &&
-        sleep 25 &&
-        echo 'Creating destination queue...' &&
-        curl -s -f -u ICUcharting:admin@123
-          -X PUT 'http://host.docker.internal:7004/api/queues/ICUcharting/alarm-engine.device.data.queue'
-          -H 'Content-Type: application/json'
-          -d '{\"durable\":true,\"auto_delete\":false,\"arguments\":{}}' &&
-        echo 'Creating shovel...' &&
-        curl -s -f -u ICUcharting:admin@123
-          -X PUT 'http://host.docker.internal:7004/api/parameters/shovel/ICUcharting/device-to-alarm-engine'
-          -H 'Content-Type: application/json'
-          -d '{\"value\":{\"src-protocol\":\"amqp091\",\"src-uri\":\"amqp://ICUcharting:admin%40123@host.docker.internal:7003/ICUcharting\",\"src-queue\":\"device.data.queue\",\"dest-protocol\":\"amqp091\",\"dest-uri\":\"amqp://ICUcharting:admin%40123@host.docker.internal:7003/ICUcharting\",\"dest-queue\":\"alarm-engine.device.data.queue\",\"ack-mode\":\"on-publish\",\"src-prefetch-count\":1000,\"reconnect-delay\":5}}' &&
-        echo 'RabbitMQ shovel setup complete.'
-      "
+    environment:
+      RABBITMQ_SETUP_USER: ${INFRA_RABBITMQ_USER:-ICUcharting}
+      RABBITMQ_SETUP_PASS: ${INFRA_RABBITMQ_PASSWORD:-admin@123}
+      RABBITMQ_SETUP_PASS_URLENC: ${INFRA_RABBITMQ_PASSWORD_URLENC:-admin%40123}
+    volumes:
+      - ./CIS-Deployment/scripts/rabbitmq-setup.sh:/rabbitmq-setup.sh:ro
+    entrypoint: ["/bin/sh", "/rabbitmq-setup.sh"]
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_RABBITMQ_SETUP:-172.31.0.13}

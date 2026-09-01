@@ -8,8 +8,12 @@ services:
     ports:
       - "7000:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: monish
-      MONGO_INITDB_ROOT_PASSWORD: admin@123
+      MONGO_INITDB_ROOT_USERNAME: ${INFRA_MONGO_USER:-monish}
+      # NOTE: this same value is also embedded directly (URL-encoded) in the
+      # mongodb:// URIs in docker-compose.yml/docker-compose.poc.yml. If you
+      # change it from the default, either pick a value with no reserved URI
+      # characters (@ : / ? # [ ]), or update those URI lines to match.
+      MONGO_INITDB_ROOT_PASSWORD: ${INFRA_MONGO_PASSWORD:-admin@123}
     volumes:
       - cis_mongodb_data:/data/db
     networks:
@@ -29,8 +33,10 @@ services:
       - "7003:5672"
       - "7004:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ICUcharting
-      RABBITMQ_DEFAULT_PASS: admin@123
+      RABBITMQ_DEFAULT_USER: ${INFRA_RABBITMQ_USER:-ICUcharting}
+      # Same note as MONGO_INITDB_ROOT_PASSWORD above — embedded (URL-encoded)
+      # in amqp:// URIs elsewhere; avoid reserved URI characters if you change it.
+      RABBITMQ_DEFAULT_PASS: ${INFRA_RABBITMQ_PASSWORD:-admin@123}
       RABBITMQ_DEFAULT_VHOST: ICUcharting
     command: >
       bash -c "rabbitmq-plugins enable rabbitmq_shovel rabbitmq_shovel_management && rabbitmq-server"
@@ -54,7 +60,7 @@ services:
     environment:
       POSTGRES_DB: icu_hub
       POSTGRES_USER: icu_hub
-      POSTGRES_PASSWORD: hub@123
+      POSTGRES_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-hub@123}
     volumes:
       - cis_postgres_data:/var/lib/postgresql/data
     networks:
