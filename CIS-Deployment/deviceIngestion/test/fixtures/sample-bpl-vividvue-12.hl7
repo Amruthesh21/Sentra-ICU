@@ -1,0 +1,21 @@
+MSH|^~&\|Vivid Vue|Sending facility|||20241219154849||ORU^R01|||2.5
+PID|||crn00105||Demo||Patient||19980705||M|||||||
+OBR|||VS12340000 |28562-7 ^Vital Signs ^LN||
+OBX|1|NM|8867-4^HEART_BEAT^LN||75|bpm|50_120|N|||F|||20241219154849
+OBX|2|NM|2710-2^OXYGEN_SATURATION^LN||99|%|90_100|N|||F|||20241219154849
+OBX|3|NM|8889-8^Pulse_rate^LN||76|bpm|50_120|N|||F|||20241219154849
+OBX|4|NM|18686-6^Respiration_rate^LN||14|rpm|8_30|N|||F|||20241219154849
+OBX|5|NM|8480-6^Systolic_blood_pressure^LN||138|mmHg|58_91|H|||F|||20241219154849
+OBX|6|NM|8462-4^Diastolic_blood_pressure^LN||91|mmHg|50_60|H|||F|||20241219154849
+OBX|7|NM|8478-0^Mean_blood_pressure^LN||107|mmHg|60_110|N|||F|||20241219154849
+OBX|8|NM|61008-9^Body_temperature_T1^LN||33.5|C|36.0_39.0|L|||F|||20241219154849
+OBX|9|NM|61008-9^Body_temperature_T2^LN||32.8|C|36.0_39.0|L|||F|||20241219154849
+OBX|10|NM|76215-3^Systolic_blood_pressure_IBP1^LN||0|mmHg|90_160|L|||F|||20241219154849
+OBX|11|NM|76213-8^Diastolic_blood_pressure_IBP1^LN||0|mmHg|50_90|L|||F|||20241219154849
+OBX|12|NM|76214-6^Mean_blood_pressure_IBP1^LN||0|mmHg|60_110|L|||F|||20241219154849
+OBX|13|NM|76215-3^Systolic_blood_pressure_IBP2^LN||0|mmHg|90_160|L|||F|||20241219154849
+OBX|14|NM|76213-8^Diastolic_blood_pressure_IBP2^LN||0|mmHg|50_90|L|||F|||20241219154849
+OBX|15|NM|76214-6^Mean_blood_pressure_IBP2^LN||0|mmHg|60_110|L|||F|||20241219154849
+OBX|16|NM|19891-1^Carbon_dioxide_at_end_expiration^LN||0|mmHg|250_500|L|||F|||20241219154849
+OBX|17|NM|60924-8^Carbon_dioxide_during_inspiration^LN||0|mmHg|0_50|N|||F|||20241219154849
+OBX|18|NM|18686-6^Airway_Respiration_rate^LN||0|rpm|8_30|L|||F|||20241219154849

@@ -11,35 +11,19 @@ const env = require('../env');
 const { createFramer } = require('../core/mllpFraming');
 const { parseHl7Message } = require('../core/hl7Parser');
 const { getAdapter } = require('../adapters/registry');
-const { resolveBedId, normalizeIp } = require('../bedMapping/bedMap');
+const { resolveMapping, normalizeIp } = require('../bedMapping/bedMap');
 const quarantine = require('../bedMapping/quarantine');
 const { buildDeviceDataMessage, extractAlerts } = require('../messages/deviceDataMessage');
 const publisher = require('../rabbit/publisher');
 const waveformBuffer = require('../waveform/waveformBuffer');
-
-/** @type {Map<string, {bedId: string, deviceType: string, lastMessageAt: string, messageCount: number, lastAlerts: object[]}>} */
-const bedStatus = new Map();
-
-function recordStatus(bedId, deviceType, alerts) {
-  const now = new Date().toISOString();
-  const existing = bedStatus.get(bedId);
-  bedStatus.set(bedId, {
-    bedId,
-    deviceType,
-    lastMessageAt: now,
-    messageCount: (existing?.messageCount || 0) + 1,
-    lastAlerts: alerts,
-  });
-}
-
-function getBedStatus() {
-  return Array.from(bedStatus.values());
-}
+const { recordStatus, getBedStatus } = require('./bedStatus');
 
 function startTcpServer() {
   const server = net.createServer((socket) => {
     const remoteIp = socket.remoteAddress;
-    const bedId = resolveBedId(remoteIp);
+    const mapping = resolveMapping(remoteIp);
+    const bedId = mapping ? mapping.bedId : null;
+    const deviceType = mapping ? mapping.deviceType : null;
     const framer = createFramer();
 
     if (!bedId) {
@@ -51,7 +35,7 @@ function startTcpServer() {
     socket.on('data', async (chunk) => {
       const messages = framer.push(chunk);
       for (const raw of messages) {
-        await handleMessage(raw, bedId, remoteIp);
+        await handleMessage(raw, bedId, deviceType, remoteIp);
       }
     });
 
@@ -66,15 +50,15 @@ function startTcpServer() {
   return server;
 }
 
-async function handleMessage(rawMessage, bedId, remoteIp) {
+async function handleMessage(rawMessage, bedId, deviceType, remoteIp) {
   if (!bedId) {
     quarantine.record(normalizeIp(remoteIp));
     return;
   }
 
-  // deviceType is fixed to the single configured adapter for now — see
-  // adapters/registry.js for how to extend this per-connection if needed.
-  const adapter = getAdapter();
+  // deviceType comes from this connection's bed-map entry — see
+  // bedMapping/bedMap.js's resolveMapping and adapters/registry.js.
+  const adapter = getAdapter(deviceType);
 
   let parsed;
   try {
@@ -105,4 +89,4 @@ async function handleMessage(rawMessage, bedId, remoteIp) {
   }
 }
 
-module.exports = { startTcpServer, getBedStatus };
+module.exports = { startTcpServer };

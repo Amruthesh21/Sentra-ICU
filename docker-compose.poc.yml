@@ -143,9 +143,10 @@ services:
       # issues (see src/server/requireHubAuth.js), there's no reason to
       # expose it to the wider network too. Reachable inside the docker
       # network via the Hub's nginx proxy at /device-ingestion/*. The HL7
-      # TCP port stays published since real bedside monitors connect to it
-      # directly over the network.
+      # and JSON TCP ports both stay published since real bedside
+      # monitors/ventilators connect to them directly over the network.
       - "${DEVICE_INGESTION_HL7_PORT:-7061}:6661"
+      - "${DEVICE_INGESTION_JSON_PORT:-7062}:6662"
     expose:
       - "9050"
     extra_hosts:

@@ -87,7 +87,14 @@ function parseHl7Message(rawMessage, adapterHooks = {}) {
         obsType, code, text, codingSystem,
         rawValue: obx5, rawUnitField, obx5,
       });
-    } else if (obsType === 'CE') {
+    } else if (obsType === 'CE' || obsType === 'CWE') {
+      // CE (Coded Entry) and CWE (Coded With Exceptions) are both standard
+      // HL7 v2 coded-value datatypes — CWE is CE's superset, differing only
+      // in fields (original text, coding system version) this service
+      // doesn't read. Treating them identically here is a core-level
+      // datatype fix, not a device-specific quirk (some devices, e.g. a
+      // neonatal incubator's alarm fields, use CWE where others use CE for
+      // the same kind of alert observation).
       const codeParts = (obx5 || '').split('^');
       result.alerts.push({ code, text, codingSystem, valueParts: codeParts });
     } else if (obsType === 'CD') {

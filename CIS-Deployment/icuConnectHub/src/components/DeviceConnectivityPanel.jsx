@@ -1,8 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getBedMap, getQuarantine, mapDevice, unmapDevice } from '../api/deviceIngestion';
+import { getBedMap, getQuarantine, mapDevice, unmapDevice, getDeviceTypes, normalizeMapping } from '../api/deviceIngestion';
 import { listUnits, getUnit } from '../api/units';
 
 const POLL_MS = 5000;
+
+// Friendlier labels for known device types — purely cosmetic; the actual
+// list of what's supported always comes live from getDeviceTypes(), so a
+// new adapter shows up (under its raw deviceType) even before a label is
+// added here.
+const DEVICE_TYPE_LABELS = {
+  BplVividVueM10: 'BPL VividVue M10 (default)',
+  BplAcuraS1: 'BPL Acura S1 (syringe pump)',
+  AviIW6000: 'Avi IW6000 (incubator)',
+  AviVihaDV10: 'Avi Viha DV10 (ventilator)',
+  BplPenlon320: 'BPL Penlon 320 (anesthesia)',
+  BplVividVue12: 'BPL VividVue M12',
+  G40: 'Philips Goldway G40',
+  MindrayBeneviewT5: 'Mindray Beneview T5',
+  PVM2703: 'Nihon Kohden PVM-2703',
+  SchillerNeumovent: 'Schiller Neumovent (ventilator)',
+  VmDevice: 'Philips SureSigns VM',
+  IntelliVue: 'Philips IntelliVue',
+  EvitaV600: 'Draeger Evita V600 (ventilator)',
+  MX550: 'Philips MX550',
+  DraegerSavina300: 'Draeger Savina 300 (ventilator)',
+};
 
 /**
  * "Connect a device" — lets hospital staff map a patient monitor's IP
@@ -20,13 +42,16 @@ export default function DeviceConnectivityPanel() {
   const [beds, setBeds] = useState([]); // flat list across all units
   const [bedMap, setBedMapState] = useState({});
   const [unmapped, setUnmapped] = useState([]);
+  const [deviceTypes, setDeviceTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [busyKey, setBusyKey] = useState('');
   const [pickedBedByIp, setPickedBedByIp] = useState({});
+  const [pickedDeviceTypeByIp, setPickedDeviceTypeByIp] = useState({});
   const [manualIp, setManualIp] = useState('');
   const [manualBedLabel, setManualBedLabel] = useState('');
+  const [manualDeviceType, setManualDeviceType] = useState('');
 
   const loadBeds = useCallback(async () => {
     const units = await listUnits();
@@ -51,11 +76,15 @@ export default function DeviceConnectivityPanel() {
     setUnmapped(sources);
   }, []);
 
+  const loadDeviceTypes = useCallback(async () => {
+    setDeviceTypes(await getDeviceTypes());
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        await Promise.all([loadBeds(), loadConnectivity()]);
+        await Promise.all([loadBeds(), loadConnectivity(), loadDeviceTypes()]);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -69,7 +98,7 @@ export default function DeviceConnectivityPanel() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [loadBeds, loadConnectivity]);
+  }, [loadBeds, loadConnectivity, loadDeviceTypes]);
 
   const bedOptions = useMemo(
     () => beds.map((b) => ({
@@ -79,7 +108,20 @@ export default function DeviceConnectivityPanel() {
     [beds],
   );
 
-  async function handleMap(ip, bedLabel) {
+  const deviceTypeOptions = useMemo(
+    () => [
+      { value: '', label: DEVICE_TYPE_LABELS.BplVividVueM10 || 'Default (BPL VividVue M10)' },
+      ...deviceTypes
+        .filter((d) => d.deviceType !== 'BplVividVueM10')
+        .map((d) => ({
+          value: d.deviceType,
+          label: `${DEVICE_TYPE_LABELS[d.deviceType] || d.deviceType} — ${d.protocol.toUpperCase()}`,
+        })),
+    ],
+    [deviceTypes],
+  );
+
+  async function handleMap(ip, bedLabel, deviceType) {
     if (!bedLabel) {
       setError('Pick a bed first');
       return;
@@ -88,7 +130,7 @@ export default function DeviceConnectivityPanel() {
     setError(null);
     setMessage(null);
     try {
-      await mapDevice(ip, bedLabel);
+      await mapDevice(ip, bedLabel, deviceType);
       setMessage(`${ip} connected to ${bedLabel}`);
       await loadConnectivity();
     } catch (err) {
@@ -119,12 +161,16 @@ export default function DeviceConnectivityPanel() {
       setError('Enter a device IP and pick a bed');
       return;
     }
-    await handleMap(manualIp.trim(), manualBedLabel);
+    await handleMap(manualIp.trim(), manualBedLabel, manualDeviceType);
     setManualIp('');
     setManualBedLabel('');
+    setManualDeviceType('');
   }
 
-  const mappedEntries = Object.entries(bedMap);
+  // Each entry is either a plain bedId string (default adapter) or a
+  // {bedId, deviceType} object — normalize before rendering so an object
+  // never gets handed to React as a child (see api/deviceIngestion.js).
+  const mappedEntries = Object.entries(bedMap).map(([ip, entry]) => ({ ip, ...normalizeMapping(entry) }));
 
   if (loading) {
     return (
@@ -162,6 +208,7 @@ export default function DeviceConnectivityPanel() {
                 <th>Device IP</th>
                 <th>First seen</th>
                 <th>Messages</th>
+                <th>Device model</th>
                 <th>Connect to bed</th>
                 <th />
               </tr>
@@ -172,6 +219,16 @@ export default function DeviceConnectivityPanel() {
                   <td className="mono">{u.ip}</td>
                   <td className="muted">{new Date(u.firstSeenAt).toLocaleTimeString()}</td>
                   <td>{u.messageCount}</td>
+                  <td>
+                    <select
+                      value={pickedDeviceTypeByIp[u.ip] || ''}
+                      onChange={(e) => setPickedDeviceTypeByIp({ ...pickedDeviceTypeByIp, [u.ip]: e.target.value })}
+                    >
+                      {deviceTypeOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td>
                     <select
                       value={pickedBedByIp[u.ip] || ''}
@@ -188,7 +245,7 @@ export default function DeviceConnectivityPanel() {
                       type="button"
                       className="btn btn-primary"
                       disabled={busyKey === `map-${u.ip}`}
-                      onClick={() => handleMap(u.ip, pickedBedByIp[u.ip])}
+                      onClick={() => handleMap(u.ip, pickedBedByIp[u.ip], pickedDeviceTypeByIp[u.ip])}
                     >
                       {busyKey === `map-${u.ip}` ? 'Connecting…' : 'Connect'}
                     </button>
@@ -210,14 +267,16 @@ export default function DeviceConnectivityPanel() {
               <tr>
                 <th>Device IP</th>
                 <th>Bed</th>
+                <th>Device model</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {mappedEntries.map(([ip, bedId]) => (
+              {mappedEntries.map(({ ip, bedId, deviceType }) => (
                 <tr key={ip}>
                   <td className="mono">{ip}</td>
                   <td>{bedId}</td>
+                  <td className="muted">{DEVICE_TYPE_LABELS[deviceType] || deviceType || DEVICE_TYPE_LABELS.BplVividVueM10}</td>
                   <td>
                     <button
                       type="button"
@@ -254,6 +313,14 @@ export default function DeviceConnectivityPanel() {
           <select value={manualBedLabel} onChange={(e) => setManualBedLabel(e.target.value)}>
             <option value="">Select bed…</option>
             {bedOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Device model</label>
+          <select value={manualDeviceType} onChange={(e) => setManualDeviceType(e.target.value)}>
+            {deviceTypeOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>

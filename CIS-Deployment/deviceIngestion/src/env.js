@@ -23,6 +23,12 @@ const env = {
   // scripts) connect to.
   HL7_PORT: Number(process.env.HL7_PORT || 6661),
 
+  // TCP listener for JSON-speaking devices (server/jsonServer.js) — a
+  // second, independent port/protocol alongside HL7_PORT, not a
+  // replacement for it. See adapters/deviceAdapter.md for why JSON devices
+  // get their own server rather than protocol-sniffing on HL7_PORT.
+  JSON_PORT: Number(process.env.JSON_PORT || 6662),
+
   // Admin-maintained IP -> bedId mapping. Never trust bed identity from the
   // HL7 message itself — see src/bedMapping/bedMap.js.
   BED_MAP_PATH: process.env.BED_MAP_PATH || require('path').join(__dirname, '..', 'config', 'bed-map.json'),

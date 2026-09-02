@@ -2,13 +2,15 @@
  * SentraICU device-ingestion service.
  * Drop-in replacement for Connect Engine's device-vitals ingestion path —
  * see docs/MIGRATION-NOTE.md for exactly what this replaces and what it
- * doesn't. Listens for HL7 v2 from bedside monitors, parses via a per-device
- * adapter, and publishes straight to alarm-engine's existing RabbitMQ queue.
+ * doesn't. Listens for HL7 v2 and JSON from bedside monitors/ventilators,
+ * parses via a per-device adapter, and publishes straight to alarm-engine's
+ * existing RabbitMQ queue.
  */
 
 const env = require('./env');
 const publisher = require('./rabbit/publisher');
 const { startTcpServer } = require('./server/tcpServer');
+const { startJsonServer } = require('./server/jsonServer');
 const { startHttpServer } = require('./server/httpServer');
 
 async function start() {
@@ -23,6 +25,7 @@ async function start() {
 
   startHttpServer();
   startTcpServer();
+  startJsonServer();
 }
 
 start().catch((err) => {

@@ -1,0 +1,21 @@
+MSH|^~\&||SyringePump_Acura S1|||20150407163418||ORU^R01|BPL0001|P|2.4
+PID|||DEMOPATIENT||BPL||20150407|N
+PV1||Research&Development|^^1&1&1
+OBR|||||||20150407163418
+OBX||NM|10^Rate||10.0|ml/h|0.1^1550||||F
+OBX||NM|11^InfuseTime||30|min|||||F
+OBX||NM|12^InfuseTimeLeft||22|min|||||F
+OBX||NM|13^TotalVolume||1.31|ml|0^9999||||F
+OBX||NM|14^SyringeSize||50|ml|0^50||||F
+OBX||NM|15^SyringeBrand||S-G||||||F
+OBX||NM|16^DrugName||	Agapurin	||||||F
+OBX||NM|17^PumpStatus||running||||||F
+OBX||NM|18^Occlusion||M||||||F
+OBX||NM|19^VTBI||5.0|ml|0^9999||||F
+OBX||NM|20^BolusRate||0.0|ml/h|10^1550||||F
+OBX||NM|21^BolusVTBI||3.0|ml|0.1^10||||F
+OBX||NM|22^BolusVOL||0.00|ml|0^9999||||F
+OBX||NM|23^PurgeRate||1550.0|ml|0.1^1200||||F
+OBX||NM|24^Dose||0.30|ml|0.1^1200||||F
+OBX||NM|25^Weight||50.0|age|0^150||||F
+OBX||NM|26^PumpMode||TIME MODE|ml/h|||||F

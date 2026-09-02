@@ -15,7 +15,14 @@ const adapter = require('../src/adapters/bplVividVueM10');
 
 function loadMessages(fixtureFile) {
   const raw = fs.readFileSync(path.join(__dirname, 'fixtures', fixtureFile), 'utf8');
-  return raw.split(/(?=^MSH\|)/m).map((m) => m.trim()).filter(Boolean);
+  // Segment terminator is HL7's own \r, not necessarily \n — split on that,
+  // not just newlines, then regroup into messages on MSH boundaries.
+  return raw.split(/(?=MSH\|)/).map((m) => m.trim()).filter(Boolean);
+}
+
+/** Parses one fixture message with a given adapter's own waveform hook. */
+function parseWith(msg, adp) {
+  return parseHl7Message(msg, { decodeWaveformMeta: adp.decodeWaveformMeta });
 }
 
 function findMessageContaining(messages, needle) {
@@ -72,6 +79,310 @@ test('CD + NA segments decode a waveform channel using the CD scale factor', () 
   // raw first sample is -20; CD scale factor is 0.001 -> -0.02
   assert.strictEqual(ecg.samples[0], -0.02);
 });
+
+console.log('sample-bpl-acura-s1.hl7 (BPL Acura S1 syringe pump):');
+{
+  const acuraAdapter = require('../src/adapters/bplAcuraS1');
+  const [msg] = loadMessages('sample-bpl-acura-s1.hl7');
+
+  test('a real pump rate observation maps to a secondary, non-vital attribute', () => {
+    const parsed = parseWith(msg, acuraAdapter);
+    const rateObs = parsed.observations.find((o) => o.text === 'Rate');
+    const mapped = acuraAdapter.mapObservation(rateObs);
+    assert.deepStrictEqual(mapped, { name: 'Pump Rate', unit: 'ml/h', value: 10.0 });
+    assert.strictEqual(acuraAdapter.classify(mapped.name), 'secondary');
+  });
+
+  test('non-numeric operational status (DrugName) is dropped, not published as garbage', () => {
+    const parsed = parseWith(msg, acuraAdapter);
+    const drugObs = parsed.observations.find((o) => o.text === 'DrugName');
+    assert.strictEqual(acuraAdapter.mapObservation(drugObs), null);
+  });
+}
+
+console.log('sample-avi-iw6000.hl7 (Avi IW6000 neonatal incubator):');
+{
+  const iw6000Adapter = require('../src/adapters/aviIW6000');
+  const [msg] = loadMessages('sample-avi-iw6000.hl7');
+
+  test('a Measured-category SpO2 reading maps to the canonical primary vital', () => {
+    const parsed = parseWith(msg, iw6000Adapter);
+    const spo2Obs = parsed.observations.find((o) => o.codingSystem === 'SpO2' && o.text === 'Measured');
+    const mapped = iw6000Adapter.mapObservation(spo2Obs);
+    assert.deepStrictEqual(mapped, { name: 'SpO2', unit: '%', value: 0 });
+    assert.strictEqual(iw6000Adapter.classify(mapped.name), 'primary');
+  });
+
+  test('a Setting-category observation (configured threshold, not a reading) is dropped', () => {
+    const parsed = parseWith(msg, iw6000Adapter);
+    const settingObs = parsed.observations.find((o) => o.codingSystem === 'SpO2High' && o.text === 'Setting');
+    assert.strictEqual(iw6000Adapter.mapObservation(settingObs), null);
+  });
+
+  test('a CWE alert (this device uses CWE, not CE) is surfaced via mapAlert', () => {
+    const parsed = parseWith(msg, iw6000Adapter);
+    const alarm = parsed.alerts.find((a) => a.valueParts[0] === 'Overhead Heater Fail');
+    assert.ok(alarm, 'CWE-type alert should be captured by the core parser');
+    const mapped = iw6000Adapter.mapAlert(alarm);
+    assert.strictEqual(mapped.label, 'Overhead Heater Fail');
+  });
+}
+
+console.log('sample-avi-viha-dv10.hl7 (Avi Viha DV10 ventilator):');
+{
+  const dv10Adapter = require('../src/adapters/aviVihaDV10');
+  const [msg] = loadMessages('sample-avi-viha-dv10.hl7');
+
+  test('a Measured-category respiratory rate maps to canonical Resp.Rate', () => {
+    const parsed = parseWith(msg, dv10Adapter);
+    const rrObs = parsed.observations.find((o) => o.codingSystem === 'RR' && o.text === 'Measured');
+    const mapped = dv10Adapter.mapObservation(rrObs);
+    assert.deepStrictEqual(mapped, { name: 'Resp.Rate', unit: 'bpm', value: 40 });
+    assert.strictEqual(dv10Adapter.classify(mapped.name), 'primary');
+  });
+}
+
+console.log('sample-bpl-penlon-320.hl7 (BPL Penlon 320 anesthesia workstation):');
+{
+  const penlonAdapter = require('../src/adapters/bplPenlon320');
+  const [msg] = loadMessages('sample-bpl-penlon-320.hl7');
+
+  test('respiratory frequency ("f") maps to canonical Resp.Rate', () => {
+    const parsed = parseWith(msg, penlonAdapter);
+    const fObs = parsed.observations.find((o) => o.text === 'f');
+    const mapped = penlonAdapter.mapObservation(fObs);
+    assert.deepStrictEqual(mapped, { name: 'Resp.Rate', unit: 'bpm', value: 12 });
+    assert.strictEqual(penlonAdapter.classify(mapped.name), 'primary');
+  });
+
+  test('a real Unicode subscript-2 field name (SpO₂) is matched correctly, not mangled', () => {
+    const parsed = parseWith(msg, penlonAdapter);
+    const spo2Obs = parsed.observations.find((o) => o.text === 'SpO₂');
+    assert.ok(spo2Obs, 'the fixture must actually contain the Unicode field name');
+    const mapped = penlonAdapter.mapObservation(spo2Obs);
+    assert.strictEqual(mapped.name, 'SpO2');
+  });
+}
+
+console.log('sample-bpl-vividvue-12.hl7 (BPL VividVue M12 patient monitor):');
+{
+  const m12Adapter = require('../src/adapters/bplVividVue12');
+  const [msg] = loadMessages('sample-bpl-vividvue-12.hl7');
+
+  test('a LOINC-coded heart rate observation maps to canonical HeartRate', () => {
+    const parsed = parseWith(msg, m12Adapter);
+    const hrObs = parsed.observations.find((o) => o.text === 'HEART_BEAT');
+    const mapped = m12Adapter.mapObservation(hrObs);
+    assert.deepStrictEqual(mapped, { name: 'HeartRate', unit: 'bpm', value: 75 });
+    assert.strictEqual(m12Adapter.classify(mapped.name), 'primary');
+  });
+
+  test('unlike M10, this device has no "-1 means no data" sentinel — zero is a real zero', () => {
+    const parsed = parseWith(msg, m12Adapter);
+    const ibpObs = parsed.observations.find((o) => o.text === 'Systolic_blood_pressure_IBP1');
+    const mapped = m12Adapter.mapObservation(ibpObs);
+    assert.strictEqual(mapped.value, 0);
+  });
+}
+
+console.log('sample-g40.hl7 (Philips Goldway G40 patient monitor):');
+{
+  const g40Adapter = require('../src/adapters/g40');
+  const [msg] = loadMessages('sample-g40.hl7');
+
+  test('a real heart rate observation maps to canonical HeartRate with unit unwrapped from MDIL coding', () => {
+    const parsed = parseWith(msg, g40Adapter);
+    const hrObs = parsed.observations.find((o) => o.text === 'HR');
+    const mapped = g40Adapter.mapObservation(hrObs);
+    assert.deepStrictEqual(mapped, { name: 'HeartRate', unit: 'bpm', value: 60 });
+    assert.strictEqual(g40Adapter.classify(mapped.name), 'primary');
+  });
+}
+
+console.log('sample-mindray-beneview-t5.hl7 (Mindray Beneview T5 patient monitor):');
+{
+  const mindrayAdapter = require('../src/adapters/mindrayBeneviewT5');
+  const messages = loadMessages('sample-mindray-beneview-t5.hl7');
+
+  test('this device sends one vital group per message — a full round covers HR/RR/SpO2/NIBP', () => {
+    assert.strictEqual(messages.length, 4, 'fixture should carry 4 separate messages');
+    const allObs = messages.flatMap((m) => parseWith(m, mindrayAdapter).observations);
+    const mapped = allObs.map((o) => mindrayAdapter.mapObservation(o)).filter(Boolean);
+    const names = mapped.map((m) => m.name).sort();
+    assert.deepStrictEqual(names, ['HeartRate', 'NIBP Dia', 'NIBP Mean', 'NIBP Sys', 'Pulse', 'Resp.Rate', 'SpO2']);
+  });
+}
+
+console.log('sample-pvm2703.hl7 (Nihon Kohden PVM-2703 patient monitor):');
+{
+  const pvmAdapter = require('../src/adapters/pvm2703');
+  const [msg] = loadMessages('sample-pvm2703.hl7');
+
+  test('the literal "VITAL " prefix baked into the field name is stripped before matching', () => {
+    const parsed = parseWith(msg, pvmAdapter);
+    const hrObs = parsed.observations.find((o) => o.text === 'VITAL HR');
+    const mapped = pvmAdapter.mapObservation(hrObs);
+    assert.deepStrictEqual(mapped, { name: 'HeartRate', unit: 'bpm', value: 80 });
+  });
+
+  test('the "r"-prefixed redundant channel is kept distinct from the primary reading', () => {
+    const parsed = parseWith(msg, pvmAdapter);
+    const rResp = parsed.observations.find((o) => o.text === 'VITAL rRESP(co2)');
+    const mapped = pvmAdapter.mapObservation(rResp);
+    assert.strictEqual(mapped.name, 'Resp.Rate (redundant channel)');
+    assert.strictEqual(pvmAdapter.classify(mapped.name), 'secondary');
+  });
+}
+
+console.log('sample-schiller-neumovent.hl7 (Schiller Neumovent ventilator):');
+{
+  const schillerAdapter = require('../src/adapters/schillerNeumovent');
+  const [msg] = loadMessages('sample-schiller-neumovent.hl7');
+
+  test('a real ventilator reading (Minute Volume) maps to a secondary attribute', () => {
+    const parsed = parseWith(msg, schillerAdapter);
+    const mvObs = parsed.observations.find((o) => o.text === 'Minute Volume');
+    const mapped = schillerAdapter.mapObservation(mvObs);
+    assert.deepStrictEqual(mapped, { name: 'Ventilator Minute Volume', unit: 'L/min', value: 1.61 });
+    assert.strictEqual(schillerAdapter.classify(mapped.name), 'secondary');
+  });
+}
+
+console.log('sample-vm-device.hl7 (Philips SureSigns VM spot-check monitor):');
+{
+  const vmAdapter = require('../src/adapters/vmDevice');
+  const [msg] = loadMessages('sample-vm-device.hl7');
+
+  test('this device\'s own "ABPs" label maps to the same canonical NIBP Sys as other devices', () => {
+    const parsed = parseWith(msg, vmAdapter);
+    const abpsObs = parsed.observations.find((o) => o.text === 'ABPs');
+    const mapped = vmAdapter.mapObservation(abpsObs);
+    assert.deepStrictEqual(mapped, { name: 'NIBP Sys', unit: 'mmHg', value: 120 });
+    assert.strictEqual(vmAdapter.classify(mapped.name), 'primary');
+  });
+}
+
+console.log('sample-intellivue.json (Philips IntelliVue, JSON protocol):');
+{
+  const intelliVueAdapter = require('../src/adapters/intelliVue');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'sample-intellivue.json'), 'utf8').trim();
+
+  test('a real params.oxi.spo2 reading flattens and maps to canonical SpO2', () => {
+    const parsed = intelliVueAdapter.parseObservations(raw);
+    const spo2Obs = parsed.observations.find((o) => o.text === 'oxi.spo2');
+    assert.ok(spo2Obs, 'oxi.spo2 should be present in the fixture (it has a params block)');
+    const mapped = intelliVueAdapter.mapObservation(spo2Obs);
+    assert.deepStrictEqual(mapped, { name: 'SpO2', unit: '', value: 95 });
+    assert.strictEqual(intelliVueAdapter.classify(mapped.name), 'primary');
+  });
+
+  test('unix-epoch "ts" converts to a real ISO-8601 timestamp', () => {
+    const parsed = intelliVueAdapter.parseObservations(raw);
+    assert.ok(!Number.isNaN(new Date(parsed.timestamp).getTime()));
+    assert.ok(parsed.timestamp.endsWith('Z'));
+  });
+
+  test('the "curves" waveform block does not leak into observations', () => {
+    const parsed = intelliVueAdapter.parseObservations(raw);
+    assert.ok(!parsed.observations.some((o) => o.text.startsWith('curves')));
+  });
+}
+
+console.log('sample-evita-v600.json (Draeger Evita V600 ventilator, JSON protocol):');
+{
+  const evitaAdapter = require('../src/adapters/evitaV600');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'sample-evita-v600.json'), 'utf8').trim();
+
+  test('a real parametersCP1 reading (Respiratory_rate) maps to canonical Resp.Rate', () => {
+    const parsed = evitaAdapter.parseObservations(raw);
+    const rrObs = parsed.observations.find((o) => o.text === 'Respiratory_rate');
+    const mapped = evitaAdapter.mapObservation(rrObs);
+    assert.deepStrictEqual(mapped, { name: 'Resp.Rate', unit: '', value: 12 });
+    assert.strictEqual(evitaAdapter.classify(mapped.name), 'primary');
+  });
+
+  test('deviceSettings fields (configured targets, not readings) are excluded from observations', () => {
+    const parsed = evitaAdapter.parseObservations(raw);
+    assert.ok(!parsed.observations.some((o) => o.text === 'Respiratory_rate_setting'));
+  });
+}
+
+console.log('sample-mx550.json (Philips MX550 patient monitor, JSON protocol):');
+{
+  const mx550Adapter = require('../src/adapters/mx550');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'sample-mx550.json'), 'utf8').trim();
+
+  test('a real IEEE 11073 heart-rate field (wrapped in a single-element array) unwraps and maps', () => {
+    const parsed = mx550Adapter.parseObservations(raw);
+    const hrObs = parsed.observations.find((o) => o.text === 'NOM_ECG_CARD_BEAT_RATE');
+    const mapped = mx550Adapter.mapObservation(hrObs);
+    assert.deepStrictEqual(mapped, { name: 'HeartRate', unit: '', value: 60 });
+    assert.strictEqual(mx550Adapter.classify(mapped.name), 'primary');
+  });
+
+  test('the "-" no-data sentinel (ST-segment amplitude) is dropped, not published as NaN', () => {
+    const parsed = mx550Adapter.parseObservations(raw);
+    const stObs = parsed.observations.find((o) => o.text === 'NOM_ECG_AMPL_ST_I');
+    assert.strictEqual(mx550Adapter.mapObservation(stObs), null);
+  });
+
+  test('ECG/PLETH waveform sample arrays are excluded from observations, not mis-published as vitals', () => {
+    const parsed = mx550Adapter.parseObservations(raw);
+    assert.ok(!parsed.observations.some((o) => o.text === 'ECG' || o.text === 'PLETH'));
+  });
+}
+
+console.log('sample-draeger-savina-300.json (Draeger Savina 300 ventilator, JSON protocol):');
+{
+  const savinaAdapter = require('../src/adapters/draegerSavina300');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'sample-draeger-savina-300.json'), 'utf8').trim();
+
+  test('a real live-reading respiratory rate maps to canonical Resp.Rate', () => {
+    const parsed = savinaAdapter.parseObservations(raw);
+    const rrObs = parsed.observations.find((o) => o.text === 'Respiratory_rate');
+    const mapped = savinaAdapter.mapObservation(rrObs);
+    assert.deepStrictEqual(mapped, { name: 'Resp.Rate', unit: '', value: 19 });
+    assert.strictEqual(savinaAdapter.classify(mapped.name), 'primary');
+  });
+
+  test('"Mode" and "BedIp" are excluded from observations (not vitals)', () => {
+    const parsed = savinaAdapter.parseObservations(raw);
+    assert.ok(!parsed.observations.some((o) => o.text === 'Mode' || o.text === 'BedIp'));
+  });
+}
+
+console.log('core/jsonFraming.js:');
+{
+  const { createFramer } = require('../src/core/jsonFraming');
+
+  test('two messages back-to-back with no delimiter at all split correctly', () => {
+    const framer = createFramer();
+    const msgs = framer.push('{"a":1}{"b":2}');
+    assert.deepStrictEqual(msgs, ['{"a":1}', '{"b":2}']);
+  });
+
+  test('braces inside a JSON string value do not break framing', () => {
+    const framer = createFramer();
+    const msgs = framer.push('{"note":"contains { and } chars","n":1}');
+    assert.strictEqual(msgs.length, 1);
+    assert.deepStrictEqual(JSON.parse(msgs[0]), { note: 'contains { and } chars', n: 1 });
+  });
+
+  test('an escaped quote inside a string does not end the string early', () => {
+    const framer = createFramer();
+    const msgs = framer.push('{"note":"a \\"quoted\\" word","n":2}');
+    assert.strictEqual(msgs.length, 1);
+    assert.strictEqual(JSON.parse(msgs[0]).n, 2);
+  });
+
+  test('a message split across multiple TCP chunks reassembles into one', () => {
+    const framer = createFramer();
+    const first = framer.push('{"a":');
+    const second = framer.push('42}');
+    assert.strictEqual(first.length, 0);
+    assert.deepStrictEqual(second, ['{"a":42}']);
+  });
+}
 
 console.log('hl7Timestamp:');
 

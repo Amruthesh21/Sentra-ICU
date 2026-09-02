@@ -31,11 +31,29 @@ function normalizeIp(remoteAddress) {
   return String(remoteAddress || '').replace('::ffff:', '');
 }
 
-/** @returns {string|null} the mapped bedId, or null if the source IP is unmapped */
-function resolveBedId(remoteAddress) {
+/**
+ * Entries are either a plain string (bedId — defaults to the registry's
+ * DEFAULT_ADAPTER, currently BplVividVueM10) or an object
+ * {bedId, deviceType} for a non-default device model. Both forms coexist so
+ * existing bed-map.json files keep working unchanged.
+ * @returns {{bedId: string, deviceType: string|null}|null} null if unmapped
+ */
+function resolveMapping(remoteAddress) {
   const ip = normalizeIp(remoteAddress);
   const map = loadRawMap();
-  return map[ip] || null;
+  const entry = map[ip];
+  if (!entry) return null;
+  if (typeof entry === 'string') return { bedId: entry, deviceType: null };
+  if (entry && typeof entry === 'object' && entry.bedId) {
+    return { bedId: entry.bedId, deviceType: entry.deviceType || null };
+  }
+  return null;
+}
+
+/** @returns {string|null} the mapped bedId, or null if the source IP is unmapped */
+function resolveBedId(remoteAddress) {
+  const mapping = resolveMapping(remoteAddress);
+  return mapping ? mapping.bedId : null;
 }
 
 /** Read-only snapshot for the admin API (GET /api/bed-map). */
@@ -48,10 +66,13 @@ function saveRawMap(map) {
 }
 
 /** Adds or overwrites one IP -> bedId entry. Used by the "Connect a device"
- * admin UI so this never has to be hand-edited on the server again. */
-function setMapping(ip, bedId) {
+ * admin UI so this never has to be hand-edited on the server again.
+ * `deviceType` is optional — omit it (or pass the default adapter's own
+ * type) to write the plain-string form, keeping existing entries and tools
+ * that expect a bedId string working unchanged. */
+function setMapping(ip, bedId, deviceType) {
   const map = loadRawMap();
-  map[normalizeIp(ip)] = bedId;
+  map[normalizeIp(ip)] = deviceType ? { bedId, deviceType } : bedId;
   saveRawMap(map);
   return map;
 }
@@ -63,4 +84,4 @@ function removeMapping(ip) {
   return map;
 }
 
-module.exports = { resolveBedId, getBedMap, normalizeIp, setMapping, removeMapping };
+module.exports = { resolveBedId, resolveMapping, getBedMap, normalizeIp, setMapping, removeMapping };

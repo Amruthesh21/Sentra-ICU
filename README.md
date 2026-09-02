@@ -16,7 +16,7 @@ today. Everything below is an orientation map, not a run guide.
 |---|---|---|---|
 | `alarmEngine` | Java/Spring backend — vitals, alarm thresholds, admissions, staff, auth, reporting (Postgres + Mongo) | CIS-alarm-engine | 7020 |
 | `icuConnectHub` | React clinical Hub — the app doctors/admins actually use | CIS-icu-connect-hub | 7040 (or `HUB_UI_PORT`) |
-| `deviceIngestion` | Listens for HL7v2/MLLP from bedside monitors, parses per-device-model, publishes vitals straight into alarmEngine's queue. Replaces Connect Engine for this one path — see its own [MIGRATION-NOTE.md](CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md) | CIS-device-ingestion | 7061 (HL7 only; admin API is internal-only, proxied via the Hub) |
+| `deviceIngestion` | Listens for HL7v2/MLLP and JSON from bedside monitors/ventilators/pumps (15 device models across both protocols), parses per-device-model, publishes vitals straight into alarmEngine's queue. Replaces Connect Engine for this one path — see its own [MIGRATION-NOTE.md](CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md) | CIS-device-ingestion | 7061 (HL7), 7062 (JSON); admin API is internal-only, proxied via the Hub |
 | `notificationService` | Web Push delivery for the doctor PWA | CIS-notification-service | internal only, proxied via the PWA |
 | `icuWatchPwa` | Doctor mobile PWA (watch/phone alarm notifications) | CIS-icu-watch-pwa | 7031 — **will not start standalone in this repo**; its nginx proxies to an external CIS backend/Connect Engine stack that isn't part of this repository |
 

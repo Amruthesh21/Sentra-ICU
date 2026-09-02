@@ -1,9 +1,15 @@
 # Device Ingestion Service
 
 SentraICU's own bedside device gateway for the vitals-ingestion path —
-replaces Connect Engine for this one function. Listens for HL7 v2 from a
-patient monitor over TCP, parses it, and publishes straight to the same
+replaces Connect Engine for this one function. Listens for **HL7 v2** (TCP/
+MLLP) and **JSON** over TCP from patient monitors/ventilators/pumps, parses
+each via a per-device-model adapter, and publishes straight to the same
 RabbitMQ queue `alarm-engine`'s `DeviceDataConsumer` already consumes.
+
+**15 device models across 2 protocol families are supported today** — see
+`src/adapters/registry.js` for the full list, or `GET /api/device-types` for
+it live. Onboarding the next one is a small, documented addition (see
+"Adding a new device model" below), not new architecture.
 
 See [docs/MIGRATION-NOTE.md](docs/MIGRATION-NOTE.md) for exactly what this
 does and does not replace.
@@ -23,7 +29,8 @@ Env vars (all optional, defaults shown — see [src/env.js](src/env.js)):
 | `RABBITMQ_URL` | `amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting` | Same vhost/creds as alarm-engine |
 | `DEVICE_DATA_QUEUE` | `alarm-engine.device.data.queue` | Must match alarm-engine's `alarm.rabbitmq.device-data-queue` property |
 | `HTTP_PORT` | `9050` | Admin/health API |
-| `HL7_PORT` | `6661` | TCP port monitors connect to |
+| `HL7_PORT` | `6661` | TCP port HL7-speaking devices connect to |
+| `JSON_PORT` | `6662` | TCP port JSON-speaking devices connect to — a separate port/protocol, not a replacement for `HL7_PORT` |
 | `BED_MAP_PATH` | `config/bed-map.json` | Admin-editable IP → bed mapping |
 | `WAVEFORM_PUBLISH_ENABLED` | `false` | See "Waveforms" below |
 
@@ -33,9 +40,10 @@ Env vars (all optional, defaults shown — see [src/env.js](src/env.js)):
 - `GET /api/status` — per-bed last-message time, message count, last device alerts, latest waveform samples
 - `GET /api/quarantine` — sources that sent data but have no bed-map entry (never silently dropped or guessed)
 - `GET /api/bed-map` — current mapping
-- `POST /api/bed-map` — `{ip, bedId}`, adds/updates one mapping (writes `bed-map.json`), clears that IP from quarantine
+- `POST /api/bed-map` — `{ip, bedId, deviceType?}` (`deviceType` optional, omit for the default HL7 adapter), adds/updates one mapping (writes `bed-map.json`), clears that IP from quarantine
 - `DELETE /api/bed-map/:ip` — removes one mapping
 - `POST /api/bed-map/reload` — re-reads and validates `bed-map.json` from disk
+- `GET /api/device-types` — every adapter actually registered, with which protocol/port each needs
 
 These are also exposed through the Hub UI — see "Connect a device" on the Hospital Admin
 page (`icuConnectHub`, proxied at `/device-ingestion/*`) so staff never have to hand-edit
@@ -48,24 +56,29 @@ npm test
 ```
 
 Runs `test/parser.test.js` against real captured device output in
-`test/fixtures/` (patient name anonymized before committing) — covers the
-`-1` sentinel, a real valid vital, non-vital field dropping, and waveform
-CD+NA decoding.
+`test/fixtures/` (patient names/identifiers anonymized before committing) —
+covers all 15 adapters (sentinel values, category/setting filtering, alert
+handling, canonical name mapping) plus `core/hl7Parser.js`,
+`core/jsonFraming.js`, and `core/hl7Timestamp.js` directly. All 15 adapters
+have additionally been verified live against the real device simulator they
+were built from — see `docs/MIGRATION-NOTE.md`.
 
 ## Bed identity — never trust the device
 
-Real devices (confirmed against actual output) do not self-identify their
-bed anywhere in the HL7 message. Bed identity always comes from
-`config/bed-map.json`, keyed by the device's source IP — never inferred from
-message content. A connection from an unmapped IP is quarantined (logged and
-tracked via `GET /api/quarantine`), never silently dropped and never guessed
-at.
+Real devices (confirmed against actual output, across every device model
+this service supports) do not self-identify their bed anywhere in the
+message. Bed identity always comes from `config/bed-map.json`, keyed by the
+device's source IP — never inferred from message content. A connection from
+an unmapped IP is quarantined (logged and tracked via `GET /api/quarantine`),
+never silently dropped and never guessed at.
 
 ## Adding a new device model
 
 Each device model's quirks live entirely in its own adapter under
-`src/adapters/` — the core parser (`src/core/hl7Parser.js`) never gets
-special-cased per device. Full contract: [src/adapters/deviceAdapter.md](src/adapters/deviceAdapter.md).
+`src/adapters/` — the shared core (`src/core/hl7Parser.js`,
+`core/mllpFraming.js`, `core/jsonFraming.js`) never gets special-cased per
+device. Full contract, including the JSON-adapter-specific
+`parseObservations` method: [src/adapters/deviceAdapter.md](src/adapters/deviceAdapter.md).
 
 ### Worked example: what onboarding the BPL VividVue M10 actually needed
 
@@ -104,9 +117,11 @@ samples are also published to a separate fanout exchange
 (`device-ingestion.waveform`) for a future consumer — nothing in this repo
 subscribes to it today.
 
-## No hardware? Use the demo simulator path
+## No hardware? Replay real captured data instead
 
-This service is independent of `alarm-engine`'s existing
-`ALARM_DEMO_VITALS_ENABLED` fallback (see `alarmEngine`'s
-`DemoVitalsPublisher.java`) — that path is untouched and keeps working
-exactly as before, with or without this service running.
+There's no synthetic/fake vitals generator anywhere in this stack (removed
+deliberately — see the repo root README's "Known limitations"). To see this
+service working without real hardware, use `test/replay.js` to replay a
+real captured fixture over TCP, or the standalone `simulation/` tool at the
+repo root, which drives the whole pipeline (login → admit a patient →
+replay real device data) through the actual public APIs.
