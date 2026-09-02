@@ -25,12 +25,12 @@
   padding-right: 24px;
 }
 
-.auth-brand .rtwo-logo {
+.auth-brand .sentra-logo {
   width: auto;
   max-width: 220px;
 }
 
-.auth-brand .rtwo-logo-img {
+.auth-brand .sentra-logo-img {
   max-width: 220px;
   width: auto;
   height: auto;
@@ -40,7 +40,7 @@
   margin-bottom: 28px;
 }
 
-.auth-brand--logo-only .rtwo-logo-img {
+.auth-brand--logo-only .sentra-logo-img {
   margin-bottom: 0;
 }
 
@@ -409,7 +409,7 @@
     padding-right: 0;
   }
 
-  .auth-brand .rtwo-logo-img {
+  .auth-brand .sentra-logo-img {
     margin-left: auto;
     margin-right: auto;
   }

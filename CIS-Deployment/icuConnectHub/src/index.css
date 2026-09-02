@@ -117,12 +117,12 @@ button, input, select, textarea {
   color: inherit;
 }
 
-.sidebar-brand .rtwo-logo {
+.sidebar-brand .sentra-logo {
   width: 100%;
   max-width: 96px;
 }
 
-.sidebar-brand .rtwo-logo-img {
+.sidebar-brand .sentra-logo-img {
   width: 100%;
   max-width: 96px;
   max-height: 52px;
@@ -130,7 +130,7 @@ button, input, select, textarea {
   object-fit: contain;
 }
 
-.rtwo-logo {
+.sentra-logo {
   display: block;
   width: 100%;
   max-width: 100%;
@@ -138,7 +138,7 @@ button, input, select, textarea {
   text-align: center;
 }
 
-.rtwo-logo-img {
+.sentra-logo-img {
   display: block;
   width: auto;
   height: auto;
@@ -4465,7 +4465,7 @@ button, input, select, textarea {
     justify-content: center;
   }
 
-  .rtwo-logo-img {
+  .sentra-logo-img {
     object-position: center center;
   }
 

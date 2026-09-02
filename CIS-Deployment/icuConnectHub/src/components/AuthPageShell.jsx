@@ -1,4 +1,4 @@
-import RtowLogo from './RtowLogo';
+import SentraLogo from './SentraLogo';
 import '../styles/auth-login.css';
 
 export default function AuthPageShell({ title, subtitle, children, cardClassName = '' }) {
@@ -6,7 +6,7 @@ export default function AuthPageShell({ title, subtitle, children, cardClassName
     <div className="auth-shell">
       <div className="auth-shell-inner">
         <section className="auth-brand">
-          <RtowLogo blend />
+          <SentraLogo blend />
           <h1 className="auth-product-title">Sentra ICU — Critical Care Intelligence Platform</h1>
           <p className="auth-product-tagline">Live Vitals. Faster Decisions. Zero Delays.</p>
         </section>

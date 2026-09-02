@@ -1,15 +1,21 @@
 # RabbitMQ Shovel Setup for Alarm Engine
 
-**This already happens automatically.** `docker-compose.poc.yml`'s
-`rabbitmq-setup` service runs
+**This already happens automatically when running via Docker.**
+`docker-compose.poc.yml`'s `rabbitmq-setup` service runs
 [`rabbitmq-setup.sh`](rabbitmq-setup.sh) on every `docker compose up`,
 creating both the queue and this shovel — no manual step needed for a normal
-run of this repo. This doc (and the manual options below) exist for the one
-case that still needs them: a legacy device that publishes to Connect
-Engine's own `device.data.queue` rather than talking to `deviceIngestion`
-directly. `deviceIngestion` itself bypasses this shovel entirely, publishing
-straight to `alarm-engine.device.data.queue` — see
+Docker run of this repo. `deviceIngestion` itself bypasses this shovel
+entirely, publishing straight to `alarm-engine.device.data.queue` — see
 [MIGRATION-NOTE.md](../deviceIngestion/docs/MIGRATION-NOTE.md).
+
+This doc (and `setup-rabbitmq-shovel.ps1`, Option B below) still matter for
+two cases with no automatic container to do it for them:
+- **`start-local.ps1`'s no-Docker path** — it calls
+  `setup-rabbitmq-shovel.ps1` directly as its own step 1, since there's no
+  `rabbitmq-setup` container in that flow. Keep this script; don't remove it
+  even though the Docker path no longer needs it manually.
+- A legacy device that publishes to Connect Engine's own `device.data.queue`
+  rather than talking to `deviceIngestion` directly.
 
 The Connect Engine consumes `device.data.queue`. To fan-out vitals to the alarm engine without modifying Connect Engine, bind a copy queue using a RabbitMQ shovel.
 
