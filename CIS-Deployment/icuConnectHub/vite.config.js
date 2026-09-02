@@ -7,11 +7,6 @@ export default defineConfig({
     port: 5174,
     proxy: {
       '/api': 'http://localhost:7020',
-      '/integration': {
-        target: 'http://127.0.0.1:9070',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/integration/, ''),
-      },
       '/device-ingestion': {
         target: 'http://localhost:7050',
         changeOrigin: true,

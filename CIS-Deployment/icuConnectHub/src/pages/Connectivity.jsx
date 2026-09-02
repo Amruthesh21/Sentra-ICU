@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getEngineStatus, listAudit } from '../api/integration';
+import { useMemo } from 'react';
 import { useLiveWard } from '../hooks/useLiveWard';
-
-const FRESH_MS = 5 * 60 * 1000;
 
 function formatLiveVitals(bed) {
   const parts = [];
@@ -19,12 +16,6 @@ function feedLabel(bed) {
   return 'NO FEED';
 }
 
-function isFresh(iso) {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  return Number.isFinite(t) && Date.now() - t < FRESH_MS;
-}
-
 export default function Connectivity() {
   const {
     beds,
@@ -37,31 +28,6 @@ export default function Connectivity() {
     updatedAt,
   } = useLiveWard({ pollMs: 3000 });
 
-  const [engine, setEngine] = useState(null);
-  const [audit, setAudit] = useState([]);
-  const [engineDown, setEngineDown] = useState(false);
-  const [labError, setLabError] = useState(null);
-
-  const refreshLab = useCallback(async () => {
-    try {
-      const [st, aud] = await Promise.all([getEngineStatus(), listAudit()]);
-      setEngine(st);
-      setAudit(Array.isArray(aud) ? aud : []);
-      setEngineDown(false);
-      setLabError(null);
-    } catch (e) {
-      setEngineDown(true);
-      setEngine(null);
-      setLabError(e.message);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshLab();
-    const id = setInterval(refreshLab, 5000);
-    return () => clearInterval(id);
-  }, [refreshLab]);
-
   const liveFeeds = useMemo(
     () => beds.filter((b) => b.simulatorConnected || b.liveVitalsCapable),
     [beds],
@@ -71,57 +37,32 @@ export default function Connectivity() {
     [occupied],
   );
 
-  const channels = useMemo(() => {
-    const recentAudit = (ch) =>
-      audit.some((a) => String(a.channel || '').toUpperCase() === ch && isFresh(a.ts));
-    const fhirOk = (engine?.connections || []).some(
-      (c) => c.type === 'FHIR' && c.status === 'connected' && isFresh(c.lastSyncAt),
-    );
-    return [
-      {
-        key: 'ce',
-        title: 'Connect Engine',
-        detail: `${liveFeeds.length} bed device stream${liveFeeds.length === 1 ? '' : 's'}`,
-        on: liveFeeds.length > 0,
-      },
-      {
-        key: 'vitals',
-        title: 'Live vitals',
-        detail: `${streamingOccupied.length}/${occupied.length || 0} patients streaming`,
-        on: streamingOccupied.length > 0,
-      },
-      {
-        key: 'alarms',
-        title: 'Alarm feed',
-        detail: `${alerts.length} active`,
-        on: true,
-      },
-      {
-        key: 'hl7',
-        title: 'HL7 ingest',
-        detail: recentAudit('HL7') ? 'Activity in last 5 min' : 'No recent messages',
-        on: recentAudit('HL7'),
-      },
-      {
-        key: 'fhir',
-        title: 'FHIR pull',
-        detail: fhirOk ? 'Synced recently' : 'No fresh sync',
-        on: fhirOk,
-      },
-      {
-        key: 'device',
-        title: 'Device adapter',
-        detail: recentAudit('DEVICE') ? 'Activity in last 5 min' : 'No recent posts',
-        on: recentAudit('DEVICE'),
-      },
-      {
-        key: 'hub',
-        title: 'Alarm hub',
-        detail: wardError ? 'Unreachable' : `${centerName} · ${stats.bedCount} beds`,
-        on: !wardError && !loading,
-      },
-    ];
-  }, [audit, engine, liveFeeds, streamingOccupied, occupied, alerts, wardError, loading, centerName, stats.bedCount]);
+  const channels = useMemo(() => [
+    {
+      key: 'ce',
+      title: 'Connect Engine',
+      detail: `${liveFeeds.length} bed device stream${liveFeeds.length === 1 ? '' : 's'}`,
+      on: liveFeeds.length > 0,
+    },
+    {
+      key: 'vitals',
+      title: 'Live vitals',
+      detail: `${streamingOccupied.length}/${occupied.length || 0} patients streaming`,
+      on: streamingOccupied.length > 0,
+    },
+    {
+      key: 'alarms',
+      title: 'Alarm feed',
+      detail: `${alerts.length} active`,
+      on: true,
+    },
+    {
+      key: 'hub',
+      title: 'Alarm hub',
+      detail: wardError ? 'Unreachable' : `${centerName} · ${stats.bedCount} beds`,
+      on: !wardError && !loading,
+    },
+  ], [liveFeeds, streamingOccupied, occupied, alerts, wardError, loading, centerName, stats.bedCount]);
 
   const liveChannels = channels.filter((c) => c.on).length;
 
@@ -154,8 +95,6 @@ export default function Connectivity() {
           <p>{wardError}</p>
         </div>
       )}
-
-      {labError && !engineDown && <div className="pulse-conn-alert is-error">{labError}</div>}
 
       {!wardError && (
         <div className="pulse-conn-statusline">
@@ -278,69 +217,6 @@ export default function Connectivity() {
           )}
         </section>
       </div>
-
-      {/* Recent HL7/FHIR/device audit activity from the Integration Engine —
-          read-only status; there is no UI here to push test messages into
-          it (that was a demo-only sandbox, removed). Real device
-          connectivity is managed under Admin → "Connect a device". */}
-      <details className="pulse-panel pulse-conn-setup pulse-conn-lab">
-        <summary>
-          Hospital interface activity (HL7 / FHIR)
-          <span className="pulse-conn-lab-meta">
-            {engineDown ? 'Engine offline' : `Engine online · ${audit.length} audit events`}
-          </span>
-        </summary>
-
-        {engineDown && (
-          <div className="pulse-conn-alert is-error" style={{ margin: '0 1.1rem 1rem' }}>
-            <strong>Integration Engine unreachable (:9070)</strong>
-            <p>Live ward data above does not depend on it.</p>
-          </div>
-        )}
-
-        <div className="pulse-conn-lab-body">
-          <section className="pulse-conn-panel">
-            <header className="pulse-conn-panel-head">
-              <div>
-                <h2>Recent activity</h2>
-                <p>HL7 / FHIR / device events seen by the Integration Engine.</p>
-              </div>
-              <span className="pulse-conn-count">{Math.min(audit.length, 20)}</span>
-            </header>
-            {audit.length === 0 ? (
-              <p className="pulse-muted">No events yet.</p>
-            ) : (
-              <div className="pulse-conn-table-wrap">
-                <table className="pulse-table">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Channel</th>
-                      <th>Action</th>
-                      <th>Result</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {audit.slice(0, 20).map((a) => (
-                      <tr key={a.id}>
-                        <td className="mono">{a.ts ? new Date(a.ts).toLocaleTimeString() : '—'}</td>
-                        <td>{a.channel || '—'}</td>
-                        <td>{a.action || '—'}</td>
-                        <td>
-                          <span className={`pulse-conn-tag${String(a.result).toUpperCase() === 'OK' ? ' is-ok' : ''}`}>
-                            {a.result || '—'}
-                          </span>
-                          {a.detail ? <div className="pulse-sub">{a.detail}</div> : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
-      </details>
     </div>
   );
 }
