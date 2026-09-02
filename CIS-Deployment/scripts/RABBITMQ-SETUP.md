@@ -1,5 +1,16 @@
 # RabbitMQ Shovel Setup for Alarm Engine
 
+**This already happens automatically.** `docker-compose.poc.yml`'s
+`rabbitmq-setup` service runs
+[`rabbitmq-setup.sh`](rabbitmq-setup.sh) on every `docker compose up`,
+creating both the queue and this shovel — no manual step needed for a normal
+run of this repo. This doc (and the manual options below) exist for the one
+case that still needs them: a legacy device that publishes to Connect
+Engine's own `device.data.queue` rather than talking to `deviceIngestion`
+directly. `deviceIngestion` itself bypasses this shovel entirely, publishing
+straight to `alarm-engine.device.data.queue` — see
+[MIGRATION-NOTE.md](../deviceIngestion/docs/MIGRATION-NOTE.md).
+
 The Connect Engine consumes `device.data.queue`. To fan-out vitals to the alarm engine without modifying Connect Engine, bind a copy queue using a RabbitMQ shovel.
 
 ## Option A: RabbitMQ Management UI (port 7004)

@@ -53,5 +53,5 @@ if ($distros -match "Ubuntu") {
 
 Write-Host ""
 Write-Host "Demo without Docker:" -ForegroundColor Green
-Write-Host "  cd 'c:\Users\Monish Reddy\Downloads\alaram poc'"
+Write-Host "  cd <repo root>"
 Write-Host "  .\CIS-Deployment\scripts\start-local.ps1"

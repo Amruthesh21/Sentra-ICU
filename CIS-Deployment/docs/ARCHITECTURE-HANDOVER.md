@@ -907,8 +907,6 @@ curl -X POST http://127.0.0.1:7020/api/alarm-config \
 curl -s http://127.0.0.1:7020/api/alarm/active
 ```
 
-See also: `CIS-Deployment/scripts/DEMO-TRIGGER-SPO2.md`
-
 ---
 
 ## Appendix A — File Reference
@@ -919,12 +917,13 @@ See also: `CIS-Deployment/scripts/DEMO-TRIGGER-SPO2.md`
 | `docker-compose.poc.yml` | Full Hub stack |
 | `CIS-Deployment/alarmEngine/` | All backend Java code |
 | `CIS-Deployment/icuConnectHub/` | React Hub SPA |
+| `CIS-Deployment/deviceIngestion/` | HL7/MLLP bedside device gateway (replaces Connect Engine for raw vitals ingestion) |
 | `CIS-Deployment/notificationService/` | Web Push service |
-| `CIS-Deployment/icuWatchPwa/` | Doctor mobile PWA |
-| `CIS-Deployment/scripts/setup-rabbitmq-shovel.ps1` | RabbitMQ shovel setup |
-| `CIS-Deployment/scripts/start-full-server.sh` | Server startup script |
+| `CIS-Deployment/icuWatchPwa/` | Doctor mobile PWA (needs an external CIS backend not in this repo) |
+| `simulation/` | Standalone pipeline test tool (repo root, not part of the app) |
+| `CIS-Deployment/scripts/rabbitmq-setup.sh` | RabbitMQ queue/shovel setup — runs automatically via the `rabbitmq-setup` compose service |
 | `CIS-Deployment/scripts/RABBITMQ-SETUP.md` | Shovel documentation |
-| `CIS-Deployment/docs/LIVE-SPLIT-DEPLOYMENT.md` | Production split deployment |
+| `CIS-Deployment/docs/LIVE-SPLIT-DEPLOYMENT.md` | Production split deployment (written for the Connect-Engine-era topology) |
 
 ---
 
