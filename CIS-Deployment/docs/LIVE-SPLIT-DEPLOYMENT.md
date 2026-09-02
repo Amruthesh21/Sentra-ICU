@@ -2,6 +2,21 @@
 
 **Scenario:** Connect Engine + RabbitMQ run on the **hospital (client) server**. ICU Connect Hub + Alarm Engine run on the **RTWO cloud server**.
 
+> **Status note:** this document was written when Connect Engine was the only
+> option for the hospital-side device gateway. That's no longer true — this
+> repo now has its own bedside device gateway, `deviceIngestion`
+> (`CIS-Deployment/deviceIngestion/`, see its `docs/MIGRATION-NOTE.md` and
+> `docs/RUNBOOK.md`), built specifically because Connect Engine's own source
+> isn't available to this project. The split-deployment *concept* below
+> (Hub + Alarm Engine centralized on a cloud server, the device gateway
+> staying on the hospital LAN) still applies — but read every "Connect
+> Engine" reference below as "whichever device gateway you're actually
+> running," and prefer `deviceIngestion` for real hardware today.
+> Device-specific sections (§7 MongoDB Strategy, §9 Connect Engine Changes)
+> describe the Connect-Engine-only path and haven't been re-verified against
+> `deviceIngestion`, which bypasses that path entirely by publishing straight
+> to `alarm-engine.device.data.queue`.
+
 **Companion document:** [ARCHITECTURE-HANDOVER.md](./ARCHITECTURE-HANDOVER.md) — full system architecture
 
 **Last updated:** July 2026
@@ -501,15 +516,15 @@ Alarm Engine uses `GET /retrieve` for drift detection (`ConnectEngineBedSyncSche
 
 ### Required configuration changes
 
-| Setting | POC value | Split production value |
+| Setting | POC value (current default) | Split production value |
 |---------|-----------|----------------------|
 | `CONNECT_ENGINE_URL` | `http://CIS-Deployment-connect-engine:9010` | `https://<hospital-vpn-ip>:9010` |
-| `CONNECT_ENGINE_AUTO_RESTART` | `true` | `false` |
+| `CONNECT_ENGINE_AUTO_RESTART` | `false` (already off by default — Docker socket isn't mounted either) | `false` (still off; no local CE container to restart) |
 | `CONNECT_ENGINE_CONTAINER` | `CIS-Deployment-connect-engine` | *(empty / removed)* |
-| Docker socket mount | `/var/run/docker.sock` | **Remove** |
+| Docker socket mount | *(not mounted by default)* | **Stays removed** |
 | `SPRING_DATA_MONGODB_URI` | `CIS-mongodb:27017` | Hospital Mongo VPN IP OR cloud replica |
 | `SPRING_RABBITMQ_HOST` | `CIS-rabbitmq` | Cloud local RabbitMQ |
-| `HUB_AUTH_ENFORCED` | `false` | `true` |
+| `HUB_AUTH_ENFORCED` | `true` (already the default — the alternative is most endpoints reachable with no auth) | `true` |
 | `HUB_AUTH_JWT_SECRET` | dev default | Strong random secret |
 
 ### Code changes recommended for production
@@ -572,8 +587,8 @@ Rotate VAPID keys from POC defaults in `docker-compose.poc.yml`.
 
 - [ ] `HUB_AUTH_ENFORCED=true` on Alarm Engine
 - [ ] Strong `HUB_AUTH_JWT_SECRET` (256-bit random)
-- [ ] Rotate MongoDB credentials from `monish:admin@123`
-- [ ] Rotate RabbitMQ credentials from `ICUcharting:admin@123`
+- [ ] Rotate MongoDB credentials from `monish:admin@123` (set `INFRA_MONGO_USER`/`INFRA_MONGO_PASSWORD`/`INFRA_MONGO_PASSWORD_URLENC` in `.env` — no compose file editing needed)
+- [ ] Rotate RabbitMQ credentials from `ICUcharting:admin@123` (`INFRA_RABBITMQ_USER`/`INFRA_RABBITMQ_PASSWORD`/`INFRA_RABBITMQ_PASSWORD_URLENC`)
 - [ ] RabbitMQ AMQPS (TLS) on port 5671 for cross-site shovel
 - [ ] MongoDB authentication + TLS for cross-site access
 - [ ] VPN between hospital and RTWO cloud (no public Mongo/Rabbit ports)

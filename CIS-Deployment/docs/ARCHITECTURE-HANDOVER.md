@@ -40,7 +40,8 @@ This platform is an **ICU clinical operations hub** combined with a **real-time 
 |-----------|------|
 | **ICU Connect Hub** | React SPA — unit dashboard, bed detail, admissions, clinical notes, scoring, analytics, admin |
 | **Alarm Engine** | Spring Boot backend — **single API gateway** for Hub + alarms + auth + clinical data |
-| **Connect Engine** | External CIS device gateway (not in this repo) — connects bedside monitors/pumps/ventilators |
+| **deviceIngestion** | Node.js — this repo's own HL7v2/MLLP bedside device gateway. Listens for real monitors, parses per-device-model, publishes straight to alarm-engine's queue. Written specifically because Connect Engine's own source isn't available to this project — see `CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md` for exactly what it replaces and what it doesn't |
+| **Connect Engine** | External CIS device gateway (not in this repo) — still used for center/bed metadata sync (`ConnectEngineClient`/`ConnectEngineSyncBridge`); raw device-vitals ingestion for real hardware should go through `deviceIngestion` instead |
 | **MongoDB** | Operational CIS store — vitals history, center/bed config, alarm thresholds, patient mirror |
 | **PostgreSQL** | Hub master store — users, hospitals, units, beds, patients, visits, clinical documentation |
 | **RabbitMQ** | Real-time vitals streaming + alarm notification fan-out |
@@ -437,7 +438,10 @@ sequenceDiagram
 - **Live demo simulator:** fixed IP `172.25.0.8` on `cis-deployment_docker_compose_network`
 - Bed records store **encrypted** device IPs in MongoDB
 - Only **one bed** can use `172.25.0.8` for live vitals at a time
-- Other beds without live devices get **virtual simulated vitals** from `BedVirtualVitalsService`
+- Other beds without live devices get **no vitals** (`source: none`) — `BedVirtualVitalsService`,
+  the fabricated-vitals fallback that used to fill this gap, was deleted; it silently injected a
+  deterministic-but-fake NIBP reading into real vitals responses whenever a bed had no device,
+  which fed into alarm scoring as if it were real data. Not something to bring back.
 
 ### 7.6 Device catalog (`deviceConfigEntity`)
 
@@ -456,19 +460,23 @@ Connect Engine uses this to parse device protocol messages.
 
 When Hub calls `GET /api/vitals/latest/{bedId}`:
 
-1. **In-memory** `LatestVitalsStore` (from RabbitMQ, freshest)
+1. **In-memory** `LatestVitalsStore` (from RabbitMQ — Connect Engine's `device.data.queue` shovel
+   *or* `deviceIngestion` publishing directly, freshest either way)
 2. **MongoDB** `historyVitals` (written by Connect Engine)
-3. **Virtual simulation** `BedVirtualVitalsService` (for beds without live devices)
-4. Empty response with `source: none`
+3. Empty response with `source: none`
 
-Response includes `source` field: `cis-live`, `mongo`, `virtual`, `none`
+Response includes `source` field: `cis-live`/`rabbitmq`, `mongodb`, `mongodb-device`, `none` — there
+is no synthetic/virtual fallback. A bed with no real device reports `none`, not fabricated data.
 
 ### 8.2 Alarm evaluation (`AlarmCheckService`)
 
 Triggered by:
-- **Path A:** `DeviceDataConsumer` on each RabbitMQ message (primary)
+- **Path A:** `DeviceDataConsumer` on each RabbitMQ message (primary — fed by Connect Engine's
+  shovel or by `deviceIngestion` publishing directly)
 - **Path B:** `MongoVitalsSyncScheduler` every 2 seconds (fallback)
-- **Path C:** `DemoVitalsPublisher` if `alarm.demo-vitals.enabled=true` (dev only)
+
+(There used to be a Path C — `DemoVitalsPublisher`, gated by `alarm.demo-vitals.enabled` — that
+synthesized fake vitals on a timer. Removed; that property no longer exists.)
 
 Steps:
 1. Load thresholds from Mongo `doctorAlarmConfig` (30s cache)
@@ -830,14 +838,17 @@ See `.env.example` at repo root. Key variables:
 |----------|---------|---------|
 | `CONNECT_ENGINE_URL` | `http://CIS-Deployment-connect-engine:9010` | Alarm Engine → CE REST |
 | `CONNECT_ENGINE_CONTAINER` | `CIS-Deployment-connect-engine` | Docker restart target |
-| `CONNECT_ENGINE_AUTO_RESTART` | `true` | Enable debounced CE restart |
+| `CONNECT_ENGINE_AUTO_RESTART` | `false` | Enable debounced CE restart — needs the Docker socket mounted too (not mounted by default); off by default so alarm-engine doesn't carry root-equivalent host access unless deliberately opted into |
 | `HUB_UI_PORT` | `8000` | Hub host port |
-| `HUB_AUTH_ENFORCED` | `false` | Require JWT on all APIs |
-| `HUB_AUTH_DEV_EXPOSE_OTP` | `false` | Return OTP in login response |
+| `HUB_AUTH_ENFORCED` | `true` | Require JWT on all APIs — **must stay true**; `false` means most endpoints (only the few with their own explicit role check) are reachable with no auth at all |
+| `HUB_AUTH_DEV_EXPOSE_OTP` | `false` | Return OTP in login response — must stay `false` outside local dev |
+| `HUB_AUTH_JWT_SECRET` | (insecure placeholder) | JWT signing secret, shared with `deviceIngestion` — generate a real one (`openssl rand -base64 48`) for anything beyond local/demo |
+| `HUB_CORS_ALLOWED_ORIGINS` | `http://localhost:7040,http://localhost:5174` | Browser origins allowed to call `/api/*` directly |
+| `INFRA_MONGO_USER` / `INFRA_MONGO_PASSWORD` / `INFRA_RABBITMQ_USER` / `INFRA_RABBITMQ_PASSWORD` / `INFRA_POSTGRES_PASSWORD` | dev defaults, see `.env.example` | MongoDB/RabbitMQ/Postgres credentials |
 | `SUPER_ADMIN_EMAIL` | — | Bootstrap super admin |
 | `SUPER_ADMIN_PASSWORD` | — | Bootstrap super admin password |
 | `SMTP_*` | — | Email for MFA / password reset |
-| `ALARM_DEMO_VITALS_ENABLED` | `false` | Synthetic vitals (dev) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_EMAIL` | dev keypair, see `.env.example` | Web Push identity for `notificationService` |
 
 Spring properties in `alarmEngine/src/main/resources/application.properties` map env vars to Java config.
 
@@ -847,13 +858,20 @@ Spring properties in `alarmEngine/src/main/resources/application.properties` map
 
 1. **Connect Engine `/update` returns 403** — all structural changes use Mongo write + Docker restart
 2. **Bed ID must match exactly** — `ICU-1-BED 1` vs `ICU-1-BED-01` breaks alarm thresholds
-3. **Only one live simulator bed** — IP `172.25.0.8` is shared; other beds get virtual vitals
+3. **Only one live *simulator* bed** — IP `172.25.0.8` is shared by Connect Engine's device
+   simulator; other beds with no real device report `source: none` (no vitals), not fabricated
+   data — the fake-vitals fallback that used to paper over this was removed
 4. **Two MongoDB databases on server** — CE may use `ICU-Connect`; Hub uses `v2-ICU-Connect`. Do not mix.
 5. **Do not restore `v2-ICU-Connect.archive`** (~4GB) — overwrites live hub data
 6. **Alarm thresholds in Mongo, not Postgres** — saving thresholds does not trigger CE restart
 7. **Hub polls every 3s** — not WebSocket; latency is polling-based
-8. **CE source not in repo** — device protocol changes require separate CIS deployment
-9. **Docker socket mounted** — alarm-engine can restart CE container; security consideration for production
+8. **CE source not in repo** — device protocol changes require separate CIS deployment; real bedside
+   devices should instead go through `deviceIngestion` (`CIS-Deployment/deviceIngestion/`), which
+   this repo does own the source for — see its `docs/MIGRATION-NOTE.md`
+9. **Docker socket / CE auto-restart are off by default now** — `CONNECT_ENGINE_AUTO_RESTART`
+   defaults to `false` and `docker-compose.poc.yml` no longer mounts `/var/run/docker.sock` into
+   alarm-engine, specifically because that mount is root-equivalent host access. Only re-enable
+   both together if you deliberately want CE auto-restart and accept that tradeoff.
 10. **Subnet collision** — if hospital network uses `172.25.0.0/16`, change POC subnet in `.env`
 
 ---
