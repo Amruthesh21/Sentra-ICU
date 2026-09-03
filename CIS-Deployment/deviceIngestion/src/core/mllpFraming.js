@@ -10,6 +10,15 @@
  * every adapter benefits from this without change.
  */
 
+// This is a network-exposed TCP port (HL7_PORT is published to the host) —
+// the framer runs on every byte a connection sends *before* bedMap even
+// checks whether the source is mapped, so an unbounded buffer is a real,
+// unauthenticated memory-exhaustion DoS: a connection that never sends a
+// second "MSH|" (or just streams garbage) would otherwise grow `buffer`
+// forever. Real captured messages this session are a few KB at most, even
+// with waveform data — 1 MiB is generous headroom, not a tight fit.
+const MAX_BUFFER_BYTES = 1024 * 1024;
+
 /** Creates a per-connection framer that accumulates partial TCP chunks and
  * yields complete raw HL7 messages as they become available. */
 function createFramer() {
@@ -28,6 +37,15 @@ function createFramer() {
       // incomplete, chunk buffered until more data arrives.
       const parts = buffer.split(/(?=^MSH\|)/m);
       buffer = parts.pop() || '';
+
+      // No "MSH|" boundary ever arrived to flush it, and it's grown past
+      // the cap — drop the accumulated (and evidently malformed/malicious)
+      // data rather than let it grow without limit. This sacrifices one
+      // bad message, not the process's memory.
+      if (buffer.length > MAX_BUFFER_BYTES) {
+        console.warn(`[mllpFraming] discarding ${buffer.length} buffered bytes with no message boundary (exceeded ${MAX_BUFFER_BYTES}-byte cap)`);
+        buffer = '';
+      }
 
       return parts.map((p) => p.trim()).filter(Boolean);
     },

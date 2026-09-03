@@ -8,7 +8,12 @@ export function homePathForUser(user) {
 
 export function resolveReturnPath(returnTo) {
   if (!returnTo || typeof returnTo !== 'string') return null;
-  if (!returnTo.startsWith('/') || returnTo.startsWith('//')) return null;
+  // Reject anything that isn't a plain in-app path. Beyond the obvious
+  // "//host" protocol-relative form, browsers/URL parsers normalize a
+  // leading backslash to a forward slash (e.g. "/\evil.com" -> "//evil.com"),
+  // so a check for "//" alone is bypassable (CVE behind GHSA-wrjc-x8rr-h8h6) —
+  // reject any backslash in the value, not just a literal "//" prefix.
+  if (!returnTo.startsWith('/') || returnTo.startsWith('//') || returnTo.includes('\\')) return null;
   if (returnTo.startsWith('/login') || returnTo.startsWith('/mfa')
     || returnTo.startsWith('/forgot-password') || returnTo.startsWith('/reset-password')
     || returnTo.startsWith('/account-setup')) {

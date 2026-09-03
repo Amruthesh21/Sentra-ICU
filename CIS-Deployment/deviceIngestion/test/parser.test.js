@@ -382,6 +382,70 @@ console.log('core/jsonFraming.js:');
     assert.strictEqual(first.length, 0);
     assert.deepStrictEqual(second, ['{"a":42}']);
   });
+
+  test('an unbounded stream with no closing brace does not grow memory forever (DoS protection)', () => {
+    const framer = createFramer();
+    // Simulate a connection that never completes a message — e.g. an
+    // unclosed '{' streamed indefinitely, or garbage with no matching '}'.
+    // JSON_PORT is published to the host, so this is reachable by any
+    // network client, mapped or not, before bedMap even runs.
+    const junkChunk = `{${'"x":1,'.repeat(200000)}`; // ~1.2MB, over the cap, never closes
+    const msgs = framer.push(junkChunk);
+    assert.strictEqual(msgs.length, 0, 'an incomplete message should not be emitted');
+    // The framer must have discarded the buffer, not kept accumulating it —
+    // prove it by sending a small, complete, unrelated message next and
+    // confirming it parses cleanly (would fail/merge with garbage otherwise).
+    const clean = framer.push('{"ok":true}');
+    assert.deepStrictEqual(clean, ['{"ok":true}']);
+  });
+
+  test('an unclosed string literal (continuously "inString") also does not grow memory forever', () => {
+    // Regression test for a real bug caught during live testing against the
+    // running container: the cap check originally sat after the
+    // `inString`/`escapeNext` early-`continue`s, so a connection that opens
+    // a string and never closes it (a single long run of non-quote,
+    // non-backslash bytes) skipped the check on every character and grew
+    // unbounded — confirmed live (container memory climbed from ~26MiB to
+    // ~97MiB with no cap warning logged) before the check was moved above
+    // those `continue`s. This proves the fixed placement is actually reached
+    // from inside a string, not just between tokens.
+    const framer = createFramer();
+    const junkChunk = `{"a":"${'B'.repeat(1200000)}`; // opens a string and never closes it
+    const msgs = framer.push(junkChunk);
+    assert.strictEqual(msgs.length, 0, 'an incomplete message should not be emitted');
+    const clean = framer.push('{"ok":true}');
+    assert.deepStrictEqual(clean, ['{"ok":true}']);
+  });
+
+  test('a legitimate large-but-bounded message (e.g. a waveform payload) is not discarded', () => {
+    const framer = createFramer();
+    const bigButValid = `{"samples":[${'1,'.repeat(20000)}0]}`; // ~50KB, well under the cap, and complete
+    const msgs = framer.push(bigButValid);
+    assert.strictEqual(msgs.length, 1, 'a complete message under the cap must still be emitted');
+    assert.deepStrictEqual(JSON.parse(msgs[0]).samples.length, 20001);
+  });
+}
+
+console.log('core/mllpFraming.js — DoS protection:');
+{
+  const { createFramer } = require('../src/core/mllpFraming');
+
+  test('an unbounded stream with no "MSH|" boundary does not grow memory forever', () => {
+    const framer = createFramer();
+    // HL7_PORT is published to the host the same way JSON_PORT is — same
+    // reasoning as the jsonFraming test above.
+    const junkChunk = 'X'.repeat(1_100_000); // over the 1MiB cap, no "MSH|" anywhere
+    const msgs = framer.push(junkChunk);
+    assert.strictEqual(msgs.length, 0);
+    // Prove the buffer was actually discarded, not just left huge: send a
+    // real message followed by the start of a second one (the framer only
+    // emits a message once the *next* one's "MSH|" boundary arrives, same
+    // as every other test in this file) and confirm the first message is
+    // exactly the clean one — not "1.1M junk bytes + MSH|...".
+    const clean = framer.push('MSH|^~\\&|||||20260101000000||ORU^R01|1|P|2.6\r\nMSH|');
+    assert.strictEqual(clean.length, 1);
+    assert.strictEqual(clean[0], 'MSH|^~\\&|||||20260101000000||ORU^R01|1|P|2.6');
+  });
 }
 
 console.log('hl7Timestamp:');

@@ -18,6 +18,13 @@
  * vendors).
  */
 
+// Same reasoning as mllpFraming.js's cap: JSON_PORT is published to the
+// host, and this framer buffers every byte before bedMap checks anything —
+// an unclosed '{' (or a connection sitting inside one giant string literal)
+// would otherwise grow `buffer` forever. See mllpFraming.js for the size
+// rationale.
+const MAX_BUFFER_BYTES = 1024 * 1024;
+
 /** Creates a per-connection framer that accumulates partial TCP chunks and
  * yields complete raw JSON message strings as they become available. */
 function createFramer() {
@@ -39,6 +46,23 @@ function createFramer() {
       for (let i = 0; i < text.length; i++) {
         const ch = text[i];
         buffer += ch;
+
+        // Checked unconditionally, before any state branch below can
+        // `continue` past it — a connection that never closes a string
+        // literal (or never sends a backslash-escape it started) would
+        // otherwise skip this check forever via the `inString`/`escapeNext`
+        // `continue`s below, defeating the whole cap. Reset all tracking
+        // state together, not just `buffer`, since `msgStart` would
+        // otherwise point into a buffer that no longer exists.
+        if (buffer.length > MAX_BUFFER_BYTES) {
+          console.warn(`[jsonFraming] discarding ${buffer.length} buffered bytes with no complete message (exceeded ${MAX_BUFFER_BYTES}-byte cap)`);
+          buffer = '';
+          depth = 0;
+          msgStart = -1;
+          inString = false;
+          escapeNext = false;
+          continue;
+        }
 
         if (escapeNext) { escapeNext = false; continue; }
         if (inString) {

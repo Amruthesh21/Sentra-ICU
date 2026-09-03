@@ -11,5 +11,8 @@
     "amqplib": "^0.10.4",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }
