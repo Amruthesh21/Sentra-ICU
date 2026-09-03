@@ -100,8 +100,8 @@ services:
       # placeholder — any deployment that leaves it unset shares that same
       # push identity. Generate your own before going to production:
       #   npx web-push generate-vapid-keys
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-BLKYwR9R10uXjN-4niWs483ccOlJFLSC0SahNIN7NZy_BTRuQ07UiT_ENTUV-mtjHGSWhutwD6bMu2jRBC-VFA4}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-567k1VQcCBf9V-xSND_osaQdf0MKKQy6mfSIChFMLEg}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-BOYm_WiUJ4KhG6Viu9_zsRsR_7BCJJuCwk2lMQDflvaU9r5JLFxxVjL6gnfo1apS3hhk10Yp6cHOnlZHkFdPcA4}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-I25G74I2rXd-xArxtm_cbH5d9jCLjPqk0_R7m3dcPSs}
       VAPID_EMAIL: ${VAPID_EMAIL:-mailto:poc@Sentra ICU.health}
     networks:
       docker_compose_network:
