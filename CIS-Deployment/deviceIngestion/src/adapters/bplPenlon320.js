@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: BPL Penlon 320 anesthesia workstation
  * ---------------------------------------------------
@@ -48,7 +50,7 @@ const PRIMARY_VITALS = new Set(['SpO2', 'Pulse', 'Resp.Rate']);
 
 function mapObservation({ text, rawValue, rawUnitField }) {
   const vendorName = (text || '').trim();
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

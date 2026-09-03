@@ -458,4 +458,35 @@ test('an unparseable timestamp falls back to now() instead of throwing', () => {
   assert.doesNotThrow(() => toIsoTimestamp('not-a-timestamp'));
 });
 
+console.log('core/safeLookup.js:');
+
+{
+  const { safeLookup } = require('../src/core/safeLookup');
+  const map = { HR: 'HeartRate' };
+
+  test('a recognized key still returns its mapped value', () => {
+    assert.strictEqual(safeLookup(map, 'HR'), 'HeartRate');
+  });
+
+  test('an unrecognized key returns undefined, not an inherited Object.prototype member', () => {
+    // Regression test: every adapter's CANONICAL_NAME_MAP[vendorName] lookup
+    // used a plain object literal, which inherits Object.prototype — a
+    // vendor-supplied (i.e. attacker-controlled, straight off the wire)
+    // field named "constructor" or "toString" returned a truthy function
+    // instead of undefined, passing every call site's `if (!canonicalName)
+    // return null` guard and flowing downstream as a bogus canonical name.
+    assert.strictEqual(safeLookup(map, 'constructor'), undefined);
+    assert.strictEqual(safeLookup(map, 'toString'), undefined);
+    assert.strictEqual(safeLookup(map, 'hasOwnProperty'), undefined);
+    assert.strictEqual(safeLookup(map, '__proto__'), undefined);
+  });
+
+  test('a real adapter (BPL VividVue M10) drops a "constructor"-named observation instead of mismapping it', () => {
+    // End-to-end version of the same regression, through the actual adapter
+    // contract rather than the helper directly.
+    const result = adapter.mapObservation({ text: 'constructor', rawValue: '72', rawUnitField: '' });
+    assert.strictEqual(result, null);
+  });
+}
+
 console.log(`\n${passed} test(s) passed.`);

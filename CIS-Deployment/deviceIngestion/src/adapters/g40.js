@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Philips Goldway G40 patient monitor
  * ---------------------------------------------------
@@ -32,7 +34,7 @@ const PRIMARY_VITALS = new Set(['HeartRate', 'Pulse', 'SpO2', 'Resp.Rate', 'Temp
 
 function mapObservation({ text, rawValue, rawUnitField }) {
   const vendorName = (text || '').trim();
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

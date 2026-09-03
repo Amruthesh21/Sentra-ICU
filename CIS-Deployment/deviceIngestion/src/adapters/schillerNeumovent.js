@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Schiller (Tecme) Neumovent ventilator
  * ---------------------------------------------------
@@ -49,7 +51,7 @@ function mapObservation({ text, rawValue, rawUnitField }) {
   const vendorName = (text || '').trim();
   if (/^(Alarm )?Setting:/.test(vendorName)) return null; // configured target, not a reading
 
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

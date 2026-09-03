@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Avi Viha DV10 ventilator
  * -------------------------------------
@@ -42,7 +44,7 @@ function mapObservation({ text, codingSystem, rawValue, rawUnitField }) {
   if ((text || '').trim() !== 'Measured') return null;
 
   const vendorName = (codingSystem || '').trim();
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

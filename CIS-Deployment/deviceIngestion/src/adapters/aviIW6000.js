@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Avi IW6000 neonatal incubator
  * ------------------------------------------
@@ -36,7 +38,7 @@ function mapObservation({ text, codingSystem, rawValue, rawUnitField }) {
   if ((text || '').trim() !== 'Measured') return null; // Setting = config, not a reading
 
   const vendorName = (codingSystem || '').trim();
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

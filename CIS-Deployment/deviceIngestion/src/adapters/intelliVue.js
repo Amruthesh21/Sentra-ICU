@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Philips IntelliVue patient monitor (JSON protocol)
  * -------------------------------------------------------------
@@ -108,7 +110,7 @@ const CANONICAL_NAME_MAP = {
 const PRIMARY_VITALS = new Set(['HeartRate', 'Pulse', 'SpO2', 'Resp.Rate', 'Temp1', 'NIBP Sys', 'NIBP Dia']);
 
 function mapObservation({ text, rawValue }) {
-  const canonicalName = CANONICAL_NAME_MAP[text];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, text);
   if (!canonicalName) return null;
   if (rawValue === undefined || rawValue === null) return null;
 

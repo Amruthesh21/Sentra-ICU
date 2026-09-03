@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: Draeger Evita V600 ventilator (JSON protocol)
  * -----------------------------------------------------------
@@ -62,7 +64,7 @@ function parseObservations(rawJsonMessage) {
 }
 
 function mapObservation({ text, rawValue }) {
-  const canonicalName = CANONICAL_NAME_MAP[text];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, text);
   if (!canonicalName) return null;
 
   const trimmedValue = (rawValue ?? '').toString().trim();

@@ -1,3 +1,5 @@
+const { safeLookup } = require('../core/safeLookup');
+
 /**
  * Adapter: BPL VividVue M10 patient monitor
  * --------------------------------------------
@@ -65,7 +67,7 @@ function mapObservation({ text, rawValue, rawUnitField }) {
   const vendorName = (text || '').trim();
   if (NON_VITAL_FIELDS.has(vendorName)) return null;
 
-  const canonicalName = CANONICAL_NAME_MAP[vendorName];
+  const canonicalName = safeLookup(CANONICAL_NAME_MAP, vendorName);
   if (!canonicalName) return null; // unknown field — drop rather than guess
 
   const trimmedValue = (rawValue ?? '').toString().trim();
