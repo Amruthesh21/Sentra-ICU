@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -19,6 +19,15 @@
 
     <properties>
         <java.version>17</java.version>
+        <!-- Pin past what the 3.5.16 BOM ships by default — each of these has a
+             HIGH/CRITICAL CVE fixed only in a point release newer than the BOM's
+             pinned version (found via a Trivy image scan during a security
+             review). Bump these forward whenever bumping spring-boot-starter-parent
+             re-introduces a gap. -->
+        <tomcat.version>10.1.59</tomcat.version>
+        <postgresql.version>42.7.12</postgresql.version>
+        <rabbit-amqp-client.version>5.33.1</rabbit-amqp-client.version>
+        <netty.version>4.1.136.Final</netty.version>
     </properties>
 
     <dependencies>
@@ -76,6 +85,15 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Flyway 10+ split PostgreSQL support out of flyway-core into this
+                 module; without it Flyway's generic DB detector doesn't recognize
+                 newer PostgreSQL point releases ("Unsupported Database: PostgreSQL
+                 16.15") and migrations fail at startup. Version is managed by the
+                 spring-boot-starter-parent BOM, matching flyway-core's version. -->
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
