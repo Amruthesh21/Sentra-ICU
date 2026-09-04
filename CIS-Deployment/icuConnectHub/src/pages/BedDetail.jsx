@@ -16,7 +16,6 @@ import {
   getActiveAlarms,
   getAlarmFeed,
   acknowledgeAlarm,
-  getBedDevices,
   vitalsToMap,
   hasTrendData,
   normalizeParamName,
@@ -143,7 +142,6 @@ export default function BedDetail() {
   const [alarms, setAlarms] = useState([]);
   const [alarmFeed, setAlarmFeed] = useState([]);
   const [ackingKey, setAckingKey] = useState('');
-  const [deviceStatus, setDeviceStatus] = useState(null);
   const [selectedParams, setSelectedParams] = useState([]);
   const [paramWarning, setParamWarning] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -160,16 +158,6 @@ export default function BedDetail() {
       setSearchParams({ tab }, { replace: true });
     }
   }, [searchParams, tab, setSearchParams]);
-
-  const availableParams = useMemo(
-    () => deviceStatus?.availableParameters || [],
-    [deviceStatus]
-  );
-
-  const unavailableParams = useMemo(
-    () => deviceStatus?.unavailableParameters || [],
-    [deviceStatus]
-  );
 
   const trendParams = useMemo(() => trendParamNames(history), [history]);
 
@@ -201,13 +189,6 @@ export default function BedDetail() {
       aliases: ALIASES[key] || [],
     }));
   }, [selectableParams, vitals]);
-
-  const noDataParams = useMemo(() => {
-    return availableParams.filter((name) => {
-      const key = normalizeParamName(name);
-      return !selectableParams.includes(key) && !selectableParams.includes(name);
-    });
-  }, [availableParams, selectableParams]);
 
   function mergeSeries(param, includeLocal = true) {
     const server = getHistorySeries(history, param);
@@ -243,7 +224,7 @@ export default function BedDetail() {
   const load = useCallback(async () => {
     try {
       const range = rangeForPreset(trendPreset, customFrom, customTo);
-      const [patientInfo, vitalsData, historyData, activeAlarms, feed, devices, ctx] = await Promise.all([
+      const [patientInfo, vitalsData, historyData, activeAlarms, feed, ctx] = await Promise.all([
         getPatient(bedId),
         getLatestVitals(bedId),
         getVitalsHistory(bedId, range.live
@@ -251,7 +232,6 @@ export default function BedDetail() {
           : { from: range.from, to: range.to }),
         getActiveAlarms().catch(() => []),
         getAlarmFeed().catch(() => []),
-        getBedDevices(bedId).catch(() => null),
         getClinicalContext(bedId).catch(() => ({ hasPatient: false })),
       ]);
 
@@ -282,7 +262,6 @@ export default function BedDetail() {
       setClinicalCtx(ctx);
       setAlarms((Array.isArray(activeAlarms) ? activeAlarms : []).filter((a) => sameAlarmBed(a.bedId, bedId)));
       setAlarmFeed((Array.isArray(feed) ? feed : []).filter((a) => sameAlarmBed(a.bedId, bedId)));
-      setDeviceStatus(devices);
       setLastUpdate(new Date());
 
       const withData = trendParamNames(series).map(normalizeParamName);
@@ -315,14 +294,6 @@ export default function BedDetail() {
 
   function toggleParam(nameOrKey) {
     const normalized = normalizeParamName(nameOrKey);
-
-    const unavailable = unavailableParams.find(
-      (p) => normalizeParamName(p.name) === normalized || p.name === nameOrKey
-    );
-    if (unavailable) {
-      setParamWarning(`"${nameOrKey}" requires ${unavailable.deviceName} — not connected to this bed.`);
-      return;
-    }
 
     const hasLive = liveParams.includes(normalized);
     const hasTrend = hasTrendData(history, nameOrKey) || hasTrendData(history, normalized);
@@ -405,36 +376,6 @@ export default function BedDetail() {
           <p className="param-empty">Waiting for vitals…</p>
         )}
 
-        {noDataParams.length > 0 && (
-          <div className="param-section param-section-muted">
-            <div className="param-section-title">No data — cannot select</div>
-            <div className="param-check-grid">
-              {noDataParams.map((name) => (
-                <div key={name} className="param-item param-disabled" title="No data">
-                  <span className="param-x">✕</span>
-                  <span>{name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {unavailableParams.length > 0 && (
-          <div className="param-section param-section-muted">
-            <div className="param-section-title">Device not connected</div>
-            <div className="param-check-grid">
-              {unavailableParams.map((p) => (
-                <div key={p.name} className="param-item param-unavailable" title={`Requires ${p.deviceName}`}>
-                  <span className="param-x">✕</span>
-                  <span>
-                    {p.name}
-                    <small>{p.deviceName}</small>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   ) : null;
@@ -518,7 +459,7 @@ export default function BedDetail() {
 
       <div className={`detail-layout${tab === 'trends' ? ' detail-layout--with-params' : ' detail-layout--full'}`}>
         <div className="detail-main">
-          {showMonitorChrome && deviceStatus && !deviceStatus.simulatorConnected && (
+          {showMonitorChrome && liveParams.length === 0 && (
             <div className="message error">
               No live device feed on this bed yet. Map its monitor under Admin → &quot;Connect a device&quot;.
             </div>
@@ -630,6 +571,7 @@ export default function BedDetail() {
             <WaveformsPanel
               vitals={vitals}
               patient={patient}
+              bedId={bedId}
             />
           )}
 

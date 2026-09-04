@@ -86,11 +86,6 @@ export function formatVitalValue(paramName, value) {
   return n.toFixed(1);
 }
 
-export async function getBedDevices(bedId) {
-  const label = bedId.replace(/^ICU-1-/, '');
-  return readJson(await apiFetch(`/api/center/beds/${encodeURIComponent(label)}/devices`));
-}
-
 // Admission/discharge live in api/admissions.js (the real, Postgres-backed
 // HubAdmissionService path — the beds/ward views in this file's getCenter()
 // only ever reflect that data). The old /api/patients/admit|discharge pair
