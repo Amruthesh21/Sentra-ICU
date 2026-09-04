@@ -629,7 +629,6 @@ export default function BedDetail() {
           {tab === 'waveforms' && (
             <WaveformsPanel
               vitals={vitals}
-              deviceStatus={deviceStatus}
               patient={patient}
             />
           )}

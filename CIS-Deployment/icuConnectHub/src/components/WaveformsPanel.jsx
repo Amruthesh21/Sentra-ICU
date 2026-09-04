@@ -1,5 +1,5 @@
 import WaveformCanvas from './WaveformCanvas';
-import { formatVitalValue, normalizeParamName } from '../api/hub';
+import { formatVitalValue } from '../api/hub';
 
 function resolve(vitals, key, aliases = []) {
   if (vitals[key] != null) return vitals[key];
@@ -7,13 +7,6 @@ function resolve(vitals, key, aliases = []) {
     if (vitals[a] != null) return vitals[a];
   }
   return null;
-}
-
-function hasParam(deviceStatus, ...names) {
-  const available = deviceStatus?.availableParameters || [];
-  return names.some((name) =>
-    available.some((p) => p === name || normalizeParamName(p) === normalizeParamName(name))
-  );
 }
 
 function hasLive(vitals, key, aliases = []) {
@@ -27,28 +20,25 @@ const ECG_CHANNELS = [
   { id: 'ecg3', label: 'ECG 3', ecgLead: 3 },
 ];
 
-export default function WaveformsPanel({ vitals, deviceStatus, patient }) {
+export default function WaveformsPanel({ vitals, patient }) {
   const hr = resolve(vitals, 'HeartRate', ['Pulse', 'Heart Rate']);
   const spo2 = resolve(vitals, 'SpO2', []);
   const rr = resolve(vitals, 'Resp.Rate', ['Resp.Rate']);
   const pulse = resolve(vitals, 'Pulse', ['Heart Rate', 'HeartRate']);
 
-  const monitorReady =
-    deviceStatus?.virtualSimulatorActive ||
-    deviceStatus?.simulatorConnected ||
-    (deviceStatus?.availableParameters?.length > 0);
-
-  const ecgDataLive =
-    hasLive(vitals, 'HeartRate', ['Pulse', 'Heart Rate']) &&
-    (hasParam(deviceStatus, 'Heart Rate', 'Pulse', 'HeartRate') || monitorReady);
-
-  const plethDataLive =
-    (hasLive(vitals, 'SpO2') || hasLive(vitals, 'Pulse', ['Heart Rate', 'HeartRate'])) &&
-    (hasParam(deviceStatus, 'SpO2', 'Pulse') || monitorReady);
-
-  const respDataLive =
-    hasLive(vitals, 'Resp.Rate') &&
-    (hasParam(deviceStatus, 'Resp.Rate') || monitorReady);
+  // Gate purely on real, currently-published vitals — same source the numeric
+  // tiles elsewhere on this page already trust. This used to also require
+  // deviceStatus.availableParameters (fetched from alarmEngine's
+  // BedDeviceService/DeviceCatalogService), a catalog hardcoded to three
+  // pre-rebrand device names ("BplUltimaPrime"/"Agilia"/"BplElisa600") that
+  // deviceIngestion's current 15-adapter registry never populates — so any
+  // bed set up purely through the new bed-map.json flow showed "No signal"
+  // here even with a real monitor sending real, live vitals. Removed rather
+  // than reconciled: it was defended-in-depth against nothing hasLive()
+  // doesn't already cover, just a second, disconnected source of truth.
+  const ecgDataLive = hasLive(vitals, 'HeartRate', ['Pulse', 'Heart Rate']);
+  const plethDataLive = hasLive(vitals, 'SpO2') || hasLive(vitals, 'Pulse', ['Heart Rate', 'HeartRate']);
+  const respDataLive = hasLive(vitals, 'Resp.Rate');
 
   const admitted = Boolean(patient?.patientName || patient?.patientMRN);
 
