@@ -12,6 +12,7 @@ const path = require('path');
 const { parseHl7Message } = require('../src/core/hl7Parser');
 const { toIsoTimestamp } = require('../src/core/hl7Timestamp');
 const adapter = require('../src/adapters/bplVividVueM10');
+const waveformBuffer = require('../src/waveform/waveformBuffer');
 
 function loadMessages(fixtureFile) {
   const raw = fs.readFileSync(path.join(__dirname, 'fixtures', fixtureFile), 'utf8');
@@ -486,6 +487,31 @@ console.log('core/safeLookup.js:');
     // contract rather than the helper directly.
     const result = adapter.mapObservation({ text: 'constructor', rawValue: '72', rawUnitField: '' });
     assert.strictEqual(result, null);
+  });
+}
+
+console.log('waveform/waveformBuffer.js:');
+
+{
+  waveformBuffer.record('BED-07', { ECG_II: { unit: 'mV', sampleRate: 512, samples: [0, 1, 2] } });
+
+  test('an exact bedId match is found directly', () => {
+    const wf = waveformBuffer.getLatestForBedIdVariants('BED-07');
+    assert.deepStrictEqual(Object.keys(wf), ['ECG_II']);
+  });
+
+  test('a route bedId carrying the "ICU-1-" prefix still finds the bed-map-form id', () => {
+    // Real gap this fixes: bed-map.json resolved this connection to the
+    // plain "BED-07" (as tcpServer.js/jsonServer.js actually record it),
+    // but the Hub UI's route param is "ICU-1-BED-07" — an exact-match
+    // lookup would silently return nothing for a bed with real live data.
+    const wf = waveformBuffer.getLatestForBedIdVariants('ICU-1-BED-07');
+    assert.deepStrictEqual(Object.keys(wf), ['ECG_II']);
+  });
+
+  test('a bed with no recorded waveforms at all returns an empty object, not undefined', () => {
+    const wf = waveformBuffer.getLatestForBedIdVariants('ICU-1-BED-99');
+    assert.deepStrictEqual(wf, {});
   });
 }
 

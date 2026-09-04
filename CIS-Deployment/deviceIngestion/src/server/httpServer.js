@@ -36,6 +36,14 @@ function startHttpServer() {
     });
   });
 
+  // Bed-scoped waveform read, for the Hub's "Live waveforms" tab — avoids
+  // shipping every bed's full sample buffer (as /api/status does) just to
+  // render one bed's detail page. See waveformBuffer.getLatestForBedIdVariants
+  // for why the id needs normalizing rather than an exact-match lookup.
+  app.get('/api/waveforms/:bedId', (req, res) => {
+    res.json(waveformBuffer.getLatestForBedIdVariants(req.params.bedId));
+  });
+
   app.get('/api/quarantine', (_req, res) => {
     res.json({ unmappedSources: quarantine.list() });
   });

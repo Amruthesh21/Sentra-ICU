@@ -1479,10 +1479,25 @@ button, input, select, textarea {
 }
 
 .waveform-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Marks a trace as real decoded device samples (see WaveformCanvas's
+   realSamples prop), not the modeled fallback curve. */
+.waveform-real-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0a0f1a;
+  background: #4ade80;
+  border-radius: 3px;
+  padding: 1px 4px;
 }
 
 .waveform-status {

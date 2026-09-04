@@ -68,4 +68,21 @@ function getAllLatest() {
   return Object.fromEntries(latestByBed.entries());
 }
 
-module.exports = { record, getLatest, getAllLatest };
+/**
+ * Same lookup as getLatest, but tolerant of the "ICU-1-" prefix
+ * inconsistency between what bed-map.json resolves a connection to and
+ * what a caller (the Hub UI's route bedId) might use — tries the id as
+ * given, then with the prefix stripped, then with it added, and returns
+ * whichever first has any recorded channels.
+ */
+function getLatestForBedIdVariants(rawBedId) {
+  const stripped = rawBedId.replace(/^ICU-1-/, '');
+  const prefixed = rawBedId.startsWith('ICU-1-') ? rawBedId : `ICU-1-${rawBedId}`;
+  for (const id of [rawBedId, stripped, prefixed]) {
+    const wf = getLatest(id);
+    if (Object.keys(wf).length > 0) return wf;
+  }
+  return {};
+}
+
+module.exports = { record, getLatest, getAllLatest, getLatestForBedIdVariants };

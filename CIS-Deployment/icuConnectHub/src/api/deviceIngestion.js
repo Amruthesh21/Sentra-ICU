@@ -56,3 +56,14 @@ export async function unmapDevice(ip) {
 export async function getDeviceTypes() {
   return readJson(await authFetch(`${BASE}/api/device-types`, { cache: 'no-store' }));
 }
+
+/** Latest decoded waveform samples for one bed, keyed by device-reported
+ * channel name (e.g. "ECG_II", "SPO2", "RESP") — {unit, sampleRate, samples}
+ * each. Real device data, not a simulation: whatever deviceIngestion most
+ * recently decoded off the wire for this bed, trimmed to the last ~500
+ * samples per channel. Empty object if nothing's been recorded yet (no
+ * device connected for this bed, or it's a device type with no waveform
+ * output — a syringe pump, most ventilator/pump-class devices). */
+export async function getWaveforms(bedId) {
+  return readJson(await authFetch(`${BASE}/api/waveforms/${encodeURIComponent(bedId)}`, { cache: 'no-store' }));
+}
