@@ -17,7 +17,22 @@
 
 const env = require('../env');
 
-const MAX_SAMPLES_PER_CHANNEL = 500; // ~a few seconds of trace, plenty for a debug view
+// A real sliding window in TIME, not a flat sample count — a flat count
+// (the original design) meant a 512Hz ECG channel held under a second of
+// history while a 100Hz pleth/resp channel held ~5s from the exact same
+// cap, and the Hub's waveform panel derived its visual sweep width from
+// however much happened to be buffered — so ECG swept its whole trace in
+// under a second (looked frantic) while pleth/resp didn't, and neither
+// synced with the other. Capping by seconds-per-channel, computed from
+// each channel's own reported sample rate, fixes the buffer side of that;
+// see WaveformCanvas.jsx for the matching frontend fix (a fixed sweep
+// duration per trace kind, not derived from the buffer size either).
+// Matches the longest fixed sweep window on the frontend (RESP, at 12s —
+// see WaveformCanvas.jsx) so even the slowest trace can be fully populated
+// by real data once enough has accumulated, rather than permanently
+// showing a flat clamped stretch for the difference.
+const MAX_SECONDS_PER_CHANNEL = 12;
+const FALLBACK_MAX_SAMPLES = 500; // only used when sampleRate is unknown (null/0) and time-based trimming isn't possible
 
 /** @type {Map<string, Record<string, {unit: string, sampleRate: number|null, samples: number[]}>>} */
 const latestByBed = new Map();
@@ -44,8 +59,21 @@ async function record(bedId, waveforms) {
 
   const bucket = latestByBed.get(bedId) || {};
   for (const [channel, wf] of Object.entries(waveforms)) {
-    const trimmed = wf.samples.slice(-MAX_SAMPLES_PER_CHANNEL);
-    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples: trimmed };
+    const existing = bucket[channel];
+    // Same channel, same reported rate -> genuinely append (a real device
+    // streaming continuously sends one batch of new samples per message,
+    // not a replacement for everything before it). Different rate (a
+    // device reconfigured mid-stream) or no prior entry -> start fresh;
+    // concatenating samples recorded at two different rates would corrupt
+    // the time math everything else here depends on.
+    const samples = existing && existing.sampleRate === wf.sampleRate
+      ? existing.samples.concat(wf.samples)
+      : wf.samples.slice();
+
+    const cap = wf.sampleRate
+      ? Math.ceil(wf.sampleRate * MAX_SECONDS_PER_CHANNEL)
+      : FALLBACK_MAX_SAMPLES;
+    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples: samples.slice(-cap) };
   }
   latestByBed.set(bedId, bucket);
 

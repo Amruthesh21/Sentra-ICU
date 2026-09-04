@@ -513,6 +513,49 @@ console.log('waveform/waveformBuffer.js:');
     const wf = waveformBuffer.getLatestForBedIdVariants('ICU-1-BED-99');
     assert.deepStrictEqual(wf, {});
   });
+
+  test('a second message at the same sample rate is appended, not replaced', () => {
+    // Regression test for the actual bug this was built to fix: a flat
+    // per-message replace meant the visible sweep window was however many
+    // samples one HL7 batch happened to contain, which varies by device
+    // and even message to message — real devices stream continuously, so
+    // the buffer needs to accumulate across messages like a real sliding
+    // window, not restart from each new batch.
+    waveformBuffer.record('BED-08', { ECG_I: { unit: 'mV', sampleRate: 100, samples: [1, 2, 3] } });
+    waveformBuffer.record('BED-08', { ECG_I: { unit: 'mV', sampleRate: 100, samples: [4, 5] } });
+    const wf = waveformBuffer.getLatest('BED-08');
+    assert.deepStrictEqual(wf.ECG_I.samples, [1, 2, 3, 4, 5]);
+  });
+
+  test('the accumulated buffer is capped by seconds of history, not a flat sample count', () => {
+    // At 100Hz, 12 seconds of history is 1200 samples — the old flat
+    // 500-sample cap would have thrown away real, still-relevant recent
+    // history for anything slower than ~42Hz.
+    waveformBuffer.record('BED-09', { RESP: { unit: 'ohm', sampleRate: 100, samples: new Array(1300).fill(0).map((_, i) => i) } });
+    const wf = waveformBuffer.getLatest('BED-09');
+    assert.strictEqual(wf.RESP.samples.length, 1200);
+    assert.strictEqual(wf.RESP.samples[wf.RESP.samples.length - 1], 1299); // kept the most recent samples, not the oldest
+  });
+
+  test('a genuinely faster channel (e.g. 512Hz ECG) keeps proportionally more raw samples for the same 12s window', () => {
+    waveformBuffer.record('BED-10', { ECG_II: { unit: 'mV', sampleRate: 512, samples: new Array(7000).fill(0) } });
+    const wf = waveformBuffer.getLatest('BED-10');
+    assert.strictEqual(wf.ECG_II.samples.length, 512 * 12);
+  });
+
+  test('a sample-rate change on the same channel restarts the buffer instead of concatenating mismatched rates', () => {
+    waveformBuffer.record('BED-11', { RESP: { unit: 'ohm', sampleRate: 100, samples: [1, 1, 1] } });
+    waveformBuffer.record('BED-11', { RESP: { unit: 'ohm', sampleRate: 25, samples: [9, 9] } }); // device reconfigured
+    const wf = waveformBuffer.getLatest('BED-11');
+    assert.deepStrictEqual(wf.RESP.samples, [9, 9]);
+    assert.strictEqual(wf.RESP.sampleRate, 25);
+  });
+
+  test('an unknown sample rate (null) falls back to a flat sample cap rather than skipping trimming entirely', () => {
+    waveformBuffer.record('BED-12', { X: { unit: '', sampleRate: null, samples: new Array(600).fill(1) } });
+    const wf = waveformBuffer.getLatest('BED-12');
+    assert.strictEqual(wf.X.samples.length, 500);
+  });
 }
 
 console.log(`\n${passed} test(s) passed.`);

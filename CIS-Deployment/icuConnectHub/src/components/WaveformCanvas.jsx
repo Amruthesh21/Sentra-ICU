@@ -49,6 +49,18 @@ function sampleWaveform(phase, kind, ecgLead) {
   return respSample(phase);
 }
 
+/** Cheap content fingerprint for a real-samples array — NOT a reference
+ * check. Every poll hands WaveformsPanel a freshly-JSON.parse'd array, so
+ * `newArray !== oldArray` is true on every single poll even when
+ * deviceIngestion's buffer hasn't actually moved — comparing length + a
+ * few sample values instead of the array identity is what actually
+ * detects "did the underlying data change." */
+function sampleFingerprint(samples) {
+  const n = samples.length;
+  const mid = samples[n >> 1];
+  return `${n}:${samples[0]}:${mid}:${samples[n - 1]}`;
+}
+
 /**
  * Bedside-style erase-bar waveform.
  * Critical: never connect the path across the sweep gap (that caused the vertical glitch).
@@ -92,9 +104,11 @@ export default function WaveformCanvas({
     hr: heartRate, rr: respiratoryRate, mode, ecgLead, color, active, realSamples, realSampleRate,
   });
   // Real-sample playback: readPos advances through `samples` at
-  // realSampleRate while `active`; a fresh array (new poll) resets it so
-  // each refresh plays from its own start rather than skipping ahead.
-  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 });
+  // realSampleRate while `active`; a genuinely new window (fingerprint
+  // changed, not just array reference — see sampleFingerprint) resets it
+  // so each real refresh plays from its own start rather than skipping
+  // ahead.
+  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, fp: null });
 
   // Keep latest props without restarting RAF (vitals poll was remounting the loop → flow glitches)
   useEffect(() => {
@@ -180,36 +194,55 @@ export default function WaveformCanvas({
       const pb = playbackRef.current;
 
       if (usingReal) {
-        if (pb.samples !== rs) {
-          // A genuinely new window arrived (fresh poll) — play it from its
-          // own start, and auto-scale to its own min/max since raw sample
-          // units differ per device/channel and there's no shared
-          // calibration to assume.
+        const fp = sampleFingerprint(rs);
+        if (fp !== pb.fp) {
+          // A genuinely new window arrived (its actual content changed,
+          // not just a fresh array from the latest poll's JSON.parse —
+          // every poll hands back a new array reference even when
+          // deviceIngestion's buffer hasn't moved, which used to reset
+          // playback to frame 0 on every ~1s poll regardless of whether
+          // there was anything new to show, flattening most of each
+          // sweep). Play the new window from its own start, and
+          // auto-scale to its own min/max since raw sample units differ
+          // per device/channel and there's no shared calibration to
+          // assume.
           let min = Infinity;
           let max = -Infinity;
           for (let i = 0; i < rs.length; i++) {
             if (rs[i] < min) min = rs[i];
             if (rs[i] > max) max = rs[i];
           }
-          playbackRef.current = { samples: rs, sampleRate: rsr, readPos: 0, min, max };
+          playbackRef.current = { samples: rs, sampleRate: rsr, readPos: 0, min, max, fp };
         } else {
-          // Same window still buffered — keep advancing; hold at the last
-          // sample rather than fabricate motion if we outrun the buffer
-          // before the next poll refreshes it.
+          // Same window content, just re-fetched — keep advancing; hold
+          // at the last sample rather than fabricate motion if we outrun
+          // the buffer before the next poll actually brings new data.
+          pb.samples = rs; // adopt the latest array so subsequent fingerprints compare against it, not a stale reference
           pb.readPos = Math.min(pb.samples.length - 1, pb.readPos + dt * pb.sampleRate);
         }
       } else if (pb.samples) {
-        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 };
+        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, fp: null };
       }
 
       // Bedside monitors: ECG/Pleth default ~25 mm/s; RESP often slower (6.25–12.5 mm/s).
       // On a ~panel-width trace that maps to ~7.5s (ECG) / ~12s (RESP) — calmer than a 4s race.
-      // Real-sample mode instead sweeps at whatever duration is actually
-      // buffered (clamped to a sane range) so the trace reads as populated
-      // rather than mostly-frozen after a short real-data window.
-      const sweepSeconds = usingReal
-        ? Math.max(1, Math.min(4, playbackRef.current.samples.length / playbackRef.current.sampleRate))
-        : (m === 'resp' ? 12 : 7.5);
+      // Fixed per trace kind, same value in real and synthetic mode — NOT
+      // derived from how many samples happen to be buffered. It used to be
+      // (samples.length / sampleRate), which meant the sweep width was
+      // whatever duration one device's one message happened to carry: a
+      // 512Hz ECG channel swept its whole trace in under a second (looked
+      // frantic) while a 100Hz pleth/resp channel got ~5s from the exact
+      // same sample-count cap, and different channels/messages drifted the
+      // width independently — so ECG/Pleth/Resp never agreed on where
+      // "now" was, and the apparent speed depended on the device's own
+      // batching rather than anything clinically meaningful. Every ECG and
+      // Pleth trace on this page now shares the exact same constant (they
+      // mount together and mostly stay in phase as a result — see
+      // waveformBuffer.js on the server for the matching fix: the buffer
+      // itself now accumulates a real multi-second sliding window instead
+      // of replacing per-message, which is what makes there be enough real
+      // history to actually fill this fixed window).
+      const sweepSeconds = m === 'resp' ? 12 : 7.5;
       const bpm = Math.max(40, Math.min(Number(hr) || 72, 180));
       const resp = Math.max(6, Math.min(Number(rr) || 16, 40));
       const rateHz = m === 'resp' ? resp / 60 : bpm / 60;
