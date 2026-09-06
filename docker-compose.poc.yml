@@ -35,14 +35,6 @@ services:
       # change INFRA_MONGO_PASSWORD, update this URI to match.
       SPRING_DATA_MONGODB_URI: mongodb://${INFRA_MONGO_USER:-monish}:${INFRA_MONGO_PASSWORD_URLENC:-admin%40123}@CIS-mongodb:27017/?authSource=admin
       ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
-      CONNECT_ENGINE_URL: ${CONNECT_ENGINE_URL:-http://CIS-Deployment-connect-engine:9010}
-      # Off by default and no docker.sock mount below — see application.properties
-      # for why. Only re-enable both together if you deliberately want it.
-      CONNECT_ENGINE_AUTO_RESTART: ${CONNECT_ENGINE_AUTO_RESTART:-false}
-      CONNECT_ENGINE_RESTART_DEBOUNCE_MS: "15000"
-      CONNECT_ENGINE_POST_SAVE_DEBOUNCE_MS: "10000"
-      CONNECT_ENGINE_RESTART_ON_PATIENT_CHANGE: "false"
-      CONNECT_ENGINE_CONTAINER: CIS-Deployment-connect-engine
       SPRING_DATASOURCE_URL: jdbc:postgresql://CIS-postgres:5432/icu_hub
       SPRING_DATASOURCE_USERNAME: icu_hub
       SPRING_DATASOURCE_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-hub@123}

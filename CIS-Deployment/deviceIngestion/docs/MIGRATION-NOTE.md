@@ -13,15 +13,21 @@ Bedside HL7 device gateway → published to RabbitMQ `device.data.queue` →
 copied by a RabbitMQ shovel → `alarm-engine.device.data.queue` →
 `alarm-engine`'s `DeviceDataConsumer`.
 
-**Scope note:** Connect Engine also serves REST APIs consumed elsewhere in
-`alarm-engine` — see
-[`ConnectEngineClient.java`](../../alarmEngine/src/main/java/com/sentraicu/alarmengine/service/ConnectEngineClient.java)
-and
-[`ConnectEngineSyncService.java`](../../alarmEngine/src/main/java/com/sentraicu/alarmengine/service/ConnectEngineSyncService.java)
-for center/bed metadata sync, and Visualization Engine reads Connect
-Engine's MongoDB documents directly. **`device-ingestion` replaces only the
-raw device-vitals ingestion path** — it is not a full Connect Engine
-replacement, and none of those other integrations were touched.
+**Scope note:** `device-ingestion` replaces only the raw device-vitals
+ingestion path — it was never a full Connect Engine replacement.
+`alarm-engine` used to also call out to a live Connect Engine host for
+center/bed metadata sync (`ConnectEngineClient`/`ConnectEngineSyncService`/
+`ConnectEngineBedSyncScheduler`/`ConnectEngineReloader`, all in
+`alarm-engine/src/main/java/.../service/`) — every one of those calls always
+failed in this deployment (no such host exists in any compose profile) and
+had no effect beyond a caught exception and a log line, so that whole
+integration surface was removed as dead code rather than kept as a
+non-functional stub; see git history for
+`com.sentraicu.alarmengine.service.ConnectEngineClient` etc. if you need the
+old REST contract. Visualization Engine, an entirely separate deployment,
+still reads Connect Engine's MongoDB documents directly and is unaffected —
+`ConnectEngineSyncBridge.java`/`CenterAdminService.java` (below) keep writing
+those documents.
 
 ## What `device-ingestion` does instead
 
