@@ -8,7 +8,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -22,33 +21,21 @@ public class CenterAdminService {
     private static final String DEFAULT_LOCATION = "JPN";
 
     private final MongoTemplate mongoTemplate;
-    private final ConnectEngineClient connectEngineClient;
-    private final DeviceCatalogService deviceCatalogService;
-    private final ConnectEngineSyncService connectEngineSyncService;
     private final HubBedRepository hubBedRepository;
     private final HubBedAssignmentRepository hubAssignmentRepository;
     private final HubPatientVisitRepository hubVisitRepository;
     private final HubPatientRepository hubPatientRepository;
-    private final JdbcTemplate jdbcTemplate;
 
     public CenterAdminService(MongoTemplate mongoTemplate,
-                              ConnectEngineClient connectEngineClient,
-                              DeviceCatalogService deviceCatalogService,
-                              ConnectEngineSyncService connectEngineSyncService,
                               HubBedRepository hubBedRepository,
                               HubBedAssignmentRepository hubAssignmentRepository,
                               HubPatientVisitRepository hubVisitRepository,
-                              HubPatientRepository hubPatientRepository,
-                              JdbcTemplate jdbcTemplate) {
+                              HubPatientRepository hubPatientRepository) {
         this.mongoTemplate = mongoTemplate;
-        this.connectEngineClient = connectEngineClient;
-        this.deviceCatalogService = deviceCatalogService;
-        this.connectEngineSyncService = connectEngineSyncService;
         this.hubBedRepository = hubBedRepository;
         this.hubAssignmentRepository = hubAssignmentRepository;
         this.hubVisitRepository = hubVisitRepository;
         this.hubPatientRepository = hubPatientRepository;
-        this.jdbcTemplate = jdbcTemplate;
     }
 
     public Map<String, Object> getCenterOverview() {
@@ -59,7 +46,11 @@ public class CenterAdminService {
         String cid = resolveCenterId(centerId);
         Document mongoCenter = mongoTemplate.findOne(
                 new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
-        Map<String, Object> live = connectEngineClient.retrieve();
+        // Used to be connectEngineClient.retrieve() — always failed and came
+        // back empty in this deployment (no Connect Engine host exists in
+        // any compose profile here), so this is behavior-preserving, just
+        // without the guaranteed-to-fail network round trip on every read.
+        Map<String, Object> live = Map.of();
         Map<String, String> display = resolveCenterDisplay(cid, mongoCenter, live);
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -101,20 +92,22 @@ public class CenterAdminService {
         newBed.put("ip", encryptIp(resolvedIp));
         newBed.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.BedEntity");
         if (live) {
-            newBed.put("devices", deviceCatalogService.defaultDevicesForSimulatorBed());
+            // Used to also invent a devices list here
+            // (deviceCatalogService.defaultDevicesForSimulatorBed(), the
+            // pre-rebrand ["BplUltimaPrime","Agilia","BplElisa600"] catalog)
+            // — leave it unset instead; nothing about creating a bed with
+            // this IP tells us what's actually connected.
             newBed.put("simulationMode", "live");
         }
         beds.add(newBed);
 
         saveBeds(cid, beds, center);
-        boolean synced = syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
         result.put("bedId", newBed.getString("_id"));
         result.put("ip", resolvedIp);
         result.put("status", "created");
-        result.put("connectEngineSynced", synced);
         result.put("simulatorConnected", live);
         result.put("liveVitalsCapable", live);
         if (live) {
@@ -151,9 +144,8 @@ public class CenterAdminService {
                 bed.put("ip", encryptIp(resolvedIp));
                 if (DeviceCatalogService.SIMULATOR_IP.equals(resolvedIp)) {
                     bed.put("simulationMode", "live");
-                    if (bed.get("devices") == null) {
-                        bed.put("devices", deviceCatalogService.defaultDevicesForSimulatorBed());
-                    }
+                    // Used to also backfill a fake devices list here if one
+                    // wasn't already set — same reasoning as addBed() above.
                 } else {
                     bed.remove("simulationMode");
                 }
@@ -166,109 +158,13 @@ public class CenterAdminService {
         }
 
         saveBeds(cid, beds, center);
-        boolean synced = syncConnectEngine(cid, beds, center);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("bedLabel", bedLabel);
         result.put("ip", ip.trim());
         result.put("status", "updated");
-        result.put("connectEngineSynced", synced);
         result.put("message", "Bed IP updated — Hub synced instantly.");
         return result;
-    }
-
-    public Map<String, Object> reloadConnectEngine() {
-        boolean restarted = connectEngineSyncService.forceRestart();
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("connectEngineSynced", restarted);
-        result.put("message", restarted
-                ? "Connect Engine restarted — device gateway synced."
-                : "Connect Engine restart skipped (docker socket unavailable). Hub uses MongoDB.");
-        return result;
-    }
-
-    /**
-     * Pull center display name and location from Connect Engine and persist to Postgres + Mongo.
-     * Beds are not imported — add those manually in Admin so device IPs stay aligned.
-     */
-    public Map<String, Object> syncCenterMetadataFromConnectEngine(String centerId) {
-        String cid = resolveCenterId(centerId);
-        Map<String, Object> live = connectEngineClient.retrieve();
-        boolean fromConnect = live != null && !live.isEmpty();
-
-        String centerName;
-        String centerLocation;
-        if (fromConnect) {
-            centerName = stringVal(live.get("name"), stringVal(live.get("centerName"), cid));
-            centerLocation = stringVal(live.get("location"), stringVal(live.get("centerLocation"), DEFAULT_LOCATION));
-        } else {
-            Map<String, String> existing = loadPersistedCenterDisplay(cid);
-            centerName = existing.get("centerName");
-            centerLocation = existing.get("centerLocation");
-        }
-
-        if (fromConnect) {
-            persistCenterMetadata(cid, centerName, centerLocation);
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("centerId", cid);
-        result.put("centerName",
-                DEFAULT_CENTER.equalsIgnoreCase(cid) || "RTWO".equalsIgnoreCase(centerName)
-                        ? HubCenterIds.BRAND_DISPLAY
-                        : centerName);
-        result.put("centerLocation", centerLocation);
-        result.put("connectEngineAvailable", fromConnect);
-        result.put("synced", fromConnect);
-        result.put("message", fromConnect
-                ? "Center name synced from Connect Engine — create a unit, then add beds."
-                : "Connect Engine unavailable — using saved center name. Start Connect Engine and sync again.");
-        return result;
-    }
-
-    private void persistCenterMetadata(String centerId, String centerName, String centerLocation) {
-        jdbcTemplate.update(
-                """
-                INSERT INTO hub_centers (id, name, location, status)
-                VALUES (?, ?, ?, 'ACTIVE')
-                ON CONFLICT (id) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    location = EXCLUDED.location,
-                    status = 'ACTIVE'
-                """,
-                centerId, centerName, centerLocation);
-
-        mongoTemplate.updateFirst(
-                new Query(Criteria.where("_id").is(centerId)),
-                new Update()
-                        .set("centerName", centerName)
-                        .set("centerLocation", centerLocation),
-                "centerEntity");
-    }
-
-    private Map<String, String> loadPersistedCenterDisplay(String centerId) {
-        Document mongoCenter = mongoTemplate.findOne(
-                new Query(Criteria.where("_id").is(centerId)), Document.class, "centerEntity");
-        Map<String, String> display = resolveCenterDisplay(centerId, mongoCenter, Map.of());
-
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT name, location FROM hub_centers WHERE id = ?", centerId);
-            if (!rows.isEmpty()) {
-                Object name = rows.get(0).get("name");
-                Object location = rows.get(0).get("location");
-                if (name != null && !name.toString().isBlank()) {
-                    display.put("centerName", name.toString().trim());
-                }
-                if (location != null && !location.toString().isBlank()) {
-                    display.put("centerLocation", location.toString().trim());
-                }
-            }
-        } catch (Exception ignored) {
-            // hub_centers may be missing on very old DBs
-        }
-        brandCenterDisplay(centerId, display);
-        return display;
     }
 
     private String resolveCenterId(String centerId) {
@@ -341,8 +237,7 @@ public class CenterAdminService {
         Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
         if (center != null) return center;
 
-        Map<String, Object> live = connectEngineClient.retrieve();
-        Map<String, String> display = resolveCenterDisplay(cid, null, live);
+        Map<String, String> display = resolveCenterDisplay(cid, null, Map.of());
 
         Document created = new Document();
         created.put("_id", cid);
@@ -370,7 +265,7 @@ public class CenterAdminService {
 
     private void saveBeds(String centerId, List<Document> beds, Document center) {
         String cid = resolveCenterId(centerId);
-        Map<String, String> display = resolveCenterDisplay(cid, center, connectEngineClient.retrieve());
+        Map<String, String> display = resolveCenterDisplay(cid, center, Map.of());
         mongoTemplate.updateFirst(
                 new Query(Criteria.where("_id").is(cid)),
                 new Update()
@@ -379,20 +274,6 @@ public class CenterAdminService {
                         .set("centerLocation", display.get("centerLocation")),
                 "centerEntity"
         );
-    }
-
-    private boolean syncConnectEngine(String centerId, List<Document> beds, Document center) {
-        String cid = resolveCenterId(centerId);
-        Map<String, String> display = resolveCenterDisplay(cid, center, connectEngineClient.retrieve());
-        List<Map<String, Object>> payloadBeds = new ArrayList<>();
-        for (Document bed : beds) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("bedLabel", bed.getString("bedLabel"));
-            entry.put("ip", decryptIp(bed.getString("ip")));
-            payloadBeds.add(entry);
-        }
-        return connectEngineClient.pushCenterUpdate(
-                display.get("centerName"), display.get("centerLocation"), payloadBeds);
     }
 
     @SuppressWarnings("unchecked")

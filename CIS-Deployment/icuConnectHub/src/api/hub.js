@@ -33,10 +33,6 @@ export async function addBed(bedLabel, ip = 'auto') {
   }));
 }
 
-export async function getDevices() {
-  const data = await readJson(await apiFetch('/api/devices'));
-  return Array.isArray(data) ? data : [];
-}
 
 export function historySeriesWithData(history) {
   return (history || []).filter((s) => s.points?.length > 0);

@@ -935,57 +935,6 @@ button, input, select, textarea {
   margin-bottom: 6px;
 }
 
-.device-checklist {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.device-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  cursor: pointer;
-}
-
-.device-check input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  flex-shrink: 0;
-  accent-color: var(--primary);
-}
-
-.device-check-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.device-check-title {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 2px;
-}
-
-.device-check-type {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.device-check-params {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-top: 4px;
-  line-height: 1.4;
-}
-
 .form-group input, .form-group select, .form-group textarea {
   width: 100%;
   padding: 10px 14px;
@@ -2235,16 +2184,6 @@ button, input, select, textarea {
   gap: 12px;
 }
 
-.device-checklist--compact {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
-}
-
-.device-checklist--compact .device-check {
-  padding: 8px 10px;
-}
-
 .toggle-row--compact {
   padding: 10px 0;
 }
@@ -2409,30 +2348,6 @@ button, input, select, textarea {
   font-size: 0.65rem;
   color: #94a3b8;
 }
-
-.bedside-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-  padding: 12px;
-  background: rgba(248, 250, 252, 0.8);
-  border-radius: 10px;
-}
-
-.preview-dot {
-  font-size: 0.75rem;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-.preview-dot.green { border-left: 3px solid #10b981; }
-.preview-dot.yellow { border-left: 3px solid #f59e0b; }
-.preview-dot.blue { border-left: 3px solid #3b82f6; }
-.preview-dot.grey { border-left: 3px solid #94a3b8; }
-.preview-dot.red { border-left: 3px solid #ef4444; }
 
 .toggle-row {
   display: flex;

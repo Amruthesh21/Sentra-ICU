@@ -7,11 +7,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class BedDeviceService {
@@ -73,65 +70,6 @@ public class BedDeviceService {
         return bed != null && hasSimulatorIp(bed);
     }
 
-    public Map<String, Object> getBedDeviceStatus(String bedId) {
-        String bedLabel = resolveBedLabel(bedId);
-        Document bed = findBedByLabel(bedLabel);
-        List<String> configured = bed != null ? extractDeviceIds(bed) : List.of();
-        boolean simConnected = bed != null && hasSimulatorIp(bed);
-
-        Map<String, Map<String, Object>> paramToDevice = buildParamDeviceMap();
-        Set<String> availableParams = configured.stream()
-                .flatMap(deviceId -> getParamsForDevice(deviceId, paramToDevice).stream())
-                .collect(Collectors.toSet());
-
-        List<Map<String, Object>> devices = deviceCatalogService.listAvailableDevices().stream()
-                .map(d -> {
-                    Map<String, Object> copy = new LinkedHashMap<>(d);
-                    String id = String.valueOf(d.get("deviceId"));
-                    copy.put("connected", configured.contains(id));
-                    copy.put("liveCapable", simConnected && configured.contains(id));
-                    return copy;
-                })
-                .toList();
-
-        List<Map<String, Object>> unavailableParameters = new ArrayList<>();
-        for (Map.Entry<String, Map<String, Object>> entry : paramToDevice.entrySet()) {
-            if (!availableParams.contains(entry.getKey())) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("name", entry.getKey());
-                row.put("deviceId", entry.getValue().get("deviceId"));
-                row.put("deviceName", entry.getValue().get("deviceName"));
-                row.put("reason", "Device not connected to this bed");
-                unavailableParameters.add(row);
-            }
-        }
-
-        List<Map<String, Object>> availableParameterDetails = new ArrayList<>();
-        for (String param : availableParams) {
-            Map<String, Object> meta = paramToDevice.get(param);
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("name", param);
-            if (meta != null) {
-                row.put("deviceId", meta.get("deviceId"));
-                row.put("deviceName", meta.get("deviceName"));
-            }
-            availableParameterDetails.add(row);
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("bedLabel", bedLabel);
-        result.put("bedId", bedId);
-        result.put("simulatorConnected", simConnected);
-        result.put("liveVitalsCapable", simConnected);
-        result.put("deviceIp", bed != null ? CenterAdminService.decryptIp(bed.getString("ip")) : null);
-        result.put("configuredDevices", configured);
-        result.put("devices", devices);
-        result.put("availableParameters", new ArrayList<>(availableParams));
-        result.put("availableParameterDetails", availableParameterDetails);
-        result.put("unavailableParameters", unavailableParameters);
-        return result;
-    }
-
     @SuppressWarnings("unchecked")
     public List<String> extractDeviceIds(Document bed) {
         Object devicesObj = bed.get("devices");
@@ -171,30 +109,6 @@ public class BedDeviceService {
             return false;
         }
         return "virtual".equals(bed.getString("simulationMode")) || bed.get("patient") != null;
-    }
-
-    private Map<String, Map<String, Object>> buildParamDeviceMap() {
-        Map<String, Map<String, Object>> map = new LinkedHashMap<>();
-        for (Map<String, Object> device : deviceCatalogService.listAvailableDevices()) {
-            String deviceId = String.valueOf(device.get("deviceId"));
-            Object params = device.get("parameters");
-            if (params instanceof List<?> list) {
-                for (Object p : list) {
-                    if (p instanceof Map<?, ?> param) {
-                        String name = String.valueOf(param.get("name"));
-                        map.put(name, Map.of("deviceId", deviceId, "deviceName", device.get("deviceName")));
-                    }
-                }
-            }
-        }
-        return map;
-    }
-
-    private List<String> getParamsForDevice(String deviceId, Map<String, Map<String, Object>> paramToDevice) {
-        return paramToDevice.entrySet().stream()
-                .filter(e -> deviceId.equals(e.getValue().get("deviceId")))
-                .map(Map.Entry::getKey)
-                .toList();
     }
 
     @SuppressWarnings("unchecked")

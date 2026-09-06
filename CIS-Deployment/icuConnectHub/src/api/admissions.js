@@ -47,7 +47,3 @@ export async function getDischargePreview(bedLabel) {
   ));
 }
 
-export async function getDevices() {
-  const data = await readJson(await apiFetch('/api/devices'));
-  return Array.isArray(data) ? data : [];
-}

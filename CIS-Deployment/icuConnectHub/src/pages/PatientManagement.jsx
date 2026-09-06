@@ -4,7 +4,6 @@ import { listUnits } from '../api/units';
 import {
   admitPatientHub,
   dischargePatientHub,
-  getDevices,
   getDischargePreview,
   listAdmissionBeds,
   readmitPatientHub,
@@ -38,7 +37,6 @@ const STEPS_NEW = [
   { id: 'admission', label: 'Admission details' },
   { id: 'assessment', label: 'Clinical assessment' },
   { id: 'clinical', label: 'Clinical snapshot' },
-  { id: 'devices', label: 'Device mapping' },
   { id: 'consent', label: 'Consent & policies' },
   { id: 'summary', label: 'Summary' },
 ];
@@ -48,7 +46,6 @@ const STEPS_READMIT = [
   { id: 'admission', label: 'Admission details' },
   { id: 'assessment', label: 'Clinical assessment' },
   { id: 'clinical', label: 'Clinical snapshot' },
-  { id: 'devices', label: 'Device mapping' },
   { id: 'consent', label: 'Consent & policies' },
   { id: 'summary', label: 'Summary' },
 ];
@@ -57,8 +54,6 @@ const STEPS_DISCHARGE = [
   { id: 'select-bed', label: 'Select bed' },
   { id: 'summary', label: 'Discharge summary' },
 ];
-
-const DEVICE_ORDER = ['BplUltimaPrime', 'Agilia', 'BplElisa600'];
 
 function emptyForm() {
   const now = new Date();
@@ -93,8 +88,6 @@ function emptyForm() {
       hr: '', bp: '', spo2: '', rr: '', temp: '', gcs: '', painScore: '',
       ventilated: false, inotropes: false, dialysis: false,
     },
-    devices: { monitor: '', ventilator: '', pump: '' },
-    deviceIds: [],
     consent: {
       status: 'Obtained / Pending',
       videoMonitoring: true,
@@ -122,7 +115,6 @@ export default function PatientManagement() {
   const [form, setForm] = useState(emptyForm);
   const [units, setUnits] = useState([]);
   const [beds, setBeds] = useState([]);
-  const [devices, setDevices] = useState([]);
   const [searchQ, setSearchQ] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [message, setMessage] = useState(null);
@@ -186,20 +178,13 @@ export default function PatientManagement() {
   useEffect(() => {
     Promise.all([
       listUnits(),
-      getDevices(),
       listStaff('doctor').catch(() => []),
       listStaff('nurse').catch(() => []),
     ])
-      .then(async ([unitList, devList, doctorList, nurseList]) => {
+      .then(async ([unitList, doctorList, nurseList]) => {
         setUnits(unitList);
         setDoctors(doctorList);
         setNurses(nurseList);
-        const sorted = [...devList].sort((a, b) => {
-          const ai = DEVICE_ORDER.indexOf(a.deviceId);
-          const bi = DEVICE_ORDER.indexOf(b.deviceId);
-          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-        });
-        setDevices(sorted);
         const prefilled = await applyAdmitPrefill(unitList);
         if (!prefilled && unitList.length) {
           const firstId = unitList[0].unitId;
@@ -324,15 +309,6 @@ export default function PatientManagement() {
     loadDischargePreview(bedLabel);
   }
 
-  function toggleDeviceId(id) {
-    setForm((f) => ({
-      ...f,
-      deviceIds: f.deviceIds.includes(id)
-        ? f.deviceIds.filter((d) => d !== id)
-        : [...f.deviceIds, id],
-    }));
-  }
-
   function selectPatient(p) {
     patch({
       patientId: p.patientId,
@@ -388,8 +364,6 @@ export default function PatientManagement() {
       isolationFlags: form.isolationFlags,
       clinicalSnapshot: form.clinicalSnapshot,
       consent: form.consent,
-      deviceMapping: form.devices,
-      devices: form.deviceIds,
       patientId: form.patientId,
       unitId: form.unitId || null,
     };
@@ -786,41 +760,8 @@ export default function PatientManagement() {
                 </div>
               </section>
 
-              <section id="section-devices" ref={sectionRef('devices')} className="glass-card form-section form-section--compact">
-                <h3>{tab === 'readmit' ? '5' : '5'} Device mapping</h3>
-                <div className="form-grid three-col">
-                  {['monitor', 'ventilator', 'pump'].map((k) => (
-                    <div key={k} className="form-group">
-                      <label>{k === 'pump' ? 'Pumps / Other' : k.charAt(0).toUpperCase() + k.slice(1)}</label>
-                      <input value={form.devices[k]} onChange={(e) => patchNested('devices', { [k]: e.target.value })} placeholder="Scan ID" />
-                    </div>
-                  ))}
-                </div>
-                <div className="form-group">
-                  <label>Connect devices</label>
-                  <div className="device-checklist device-checklist--compact">
-                    {devices.map((d) => (
-                      <label key={d.deviceId} className="device-check">
-                        <input type="checkbox" checked={form.deviceIds.includes(d.deviceId)} onChange={() => toggleDeviceId(d.deviceId)} />
-                        <span className="device-check-body">
-                          <span className="device-check-title">{d.deviceName}</span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="bedside-preview">
-                  <span className="preview-dot green">ECG</span>
-                  <span className="preview-dot green">SpO₂</span>
-                  <span className="preview-dot yellow">ABP</span>
-                  <span className="preview-dot blue">EtCO₂</span>
-                  <span className="preview-dot grey">Vent</span>
-                  <span className="preview-dot red">Pump</span>
-                </div>
-              </section>
-
               <section id="section-consent" ref={sectionRef('consent')} className="glass-card form-section form-section--compact">
-                <h3>{tab === 'readmit' ? '6' : '6'} Consent &amp; policies</h3>
+                <h3>{tab === 'readmit' ? '5' : '5'} Consent &amp; policies</h3>
                 <div className="form-group">
                   <label>Admission consent status</label>
                   <select value={form.consent.status} onChange={(e) => patchNested('consent', { status: e.target.value })}>
@@ -846,7 +787,7 @@ export default function PatientManagement() {
               </section>
 
               <section id="section-summary" ref={sectionRef('summary')} className="glass-card form-section form-section--compact">
-                <h3>{tab === 'readmit' ? '7' : '7'} Summary &amp; actions</h3>
+                <h3>{tab === 'readmit' ? '6' : '6'} Summary &amp; actions</h3>
                 <div className="summary-table">
                   {summaryRows.map(([k, v]) => (
                     <div key={k} className="summary-cell"><span>{k}</span><strong>{v}</strong></div>
