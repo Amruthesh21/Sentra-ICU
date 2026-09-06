@@ -1,6 +1,15 @@
 # Standalone POC compose — no connectengine dependency
 # Use when Docker works but connectengine is in a separate compose file:
 #   docker compose -f docker-compose.poc.yml up --build -d
+#
+# Postgres/Mongo/RabbitMQ are NOT defined here — they live in
+# docker-compose.infra.yml (repo root), brought up separately first; see
+# CIS-Deployment/deviceIngestion/docs/RUNBOOK.md. This file used to declare
+# its own duplicate `postgres` service (byte-identical to infra.yml's, same
+# container_name CIS-postgres) — harmless as long as you only ever started
+# one of the two, but a guaranteed container-name collision on a genuine
+# full cold start of both files together, which is exactly what the RUNBOOK
+# documents doing. Removed rather than kept in sync by hand.
 
 networks:
   docker_compose_network:
@@ -8,27 +17,6 @@ networks:
     external: true
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: CIS-postgres
-    ports:
-      - "7001:5432"
-    environment:
-      POSTGRES_DB: icu_hub
-      POSTGRES_USER: icu_hub
-      POSTGRES_PASSWORD: ${INFRA_POSTGRES_PASSWORD:-hub@123}
-    volumes:
-      - cis_postgres_data:/var/lib/postgresql/data
-    networks:
-      docker_compose_network:
-        ipv4_address: ${DOCKER_COMPOSE_IP_POSTGRES:-172.31.0.22}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U icu_hub -d icu_hub"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   alarm-engine:
     build: ./CIS-Deployment/alarmEngine
     container_name: CIS-alarm-engine
@@ -71,9 +59,16 @@ services:
       AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # Postgres/Mongo/RabbitMQ all live in docker-compose.infra.yml, a
+    # separate compose file/project — depends_on can't reach a service
+    # that isn't defined in this file, so there's no compose-level wait for
+    # any of them here. Spring's own JDBC/AMQP/Mongo clients retry their
+    # initial connection instead of crashing (unlike deviceIngestion/
+    # notificationService, see those services' restart: unless-stopped
+    # comments for the failure mode this avoids), so this hasn't been
+    # observed to need it — restart: unless-stopped kept anyway as a
+    # cheap backstop.
+    restart: unless-stopped
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_ALARM_ENGINE:-172.31.0.10}
@@ -85,6 +80,14 @@ services:
     # (subscription list/create/delete are all open), so it stays reachable
     # only inside the docker network, via the PWA's nginx proxy at
     # /api/notification/*.
+    # src/index.js connects to Mongo/RabbitMQ eagerly at startup with no
+    # retry and exits(1) on failure — fine once the stack is warm, but a real
+    # race on a cold start: docker-compose.infra.yml (where both live) is
+    # brought up as a separate compose invocation with no wait, and this
+    # file's app containers start together right after. restart:
+    # unless-stopped turns that race into an automatic retry instead of a
+    # container that stays dead until someone notices and restarts it.
+    restart: unless-stopped
     expose:
       - "9030"
     dns:
@@ -125,6 +128,14 @@ services:
       - "${HUB_UI_PORT:-8000}:80"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # nginx's upstream config names CIS-device-ingestion by hostname, so it
+    # fails to start (exits, doesn't just retry) if that container isn't
+    # resolvable yet — a real ordering race on a cold `docker compose up`
+    # that starts every app container together, not a one-off. Compose's
+    # restart backoff retries the container start until device-ingestion is
+    # up, instead of leaving nginx down until someone notices and restarts
+    # it by hand.
+    restart: unless-stopped
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_ICU_CONNECT_HUB:-172.31.0.15}
@@ -147,6 +158,18 @@ services:
       # monitors/ventilators connect to them directly over the network.
       - "${DEVICE_INGESTION_HL7_PORT:-7061}:6661"
       - "${DEVICE_INGESTION_JSON_PORT:-7062}:6662"
+    # src/index.js connects to RabbitMQ eagerly at startup ("fail fast at
+    # boot rather than silently on the first device message") with no retry,
+    # and exits(1) on failure. That's the right call once the stack is warm,
+    # but on a cold start it's a real race: docker-compose.infra.yml (where
+    # RabbitMQ lives) is brought up as a separate compose invocation with no
+    # wait, and this file's app containers start together right after —
+    # RabbitMQ's own healthcheck can still be failing when this container's
+    # first (and only) connection attempt fires. restart: unless-stopped
+    # turns that into an automatic retry instead of a container that stays
+    # dead until someone notices and restarts it by hand (observed live
+    # during this session's verification).
+    restart: unless-stopped
     expose:
       - "9050"
     extra_hosts:
@@ -197,6 +220,3 @@ services:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_NGROK:-172.31.0.14}
     restart: unless-stopped
-
-volumes:
-  cis_postgres_data:
