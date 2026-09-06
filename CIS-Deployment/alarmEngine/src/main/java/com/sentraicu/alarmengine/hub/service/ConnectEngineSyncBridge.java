@@ -4,8 +4,6 @@ import com.sentraicu.alarmengine.hub.entity.HubBedEntity;
 import com.sentraicu.alarmengine.hub.entity.HubPatientEntity;
 import com.sentraicu.alarmengine.hub.entity.HubPatientVisitEntity;
 import com.sentraicu.alarmengine.service.CenterAdminService;
-import com.sentraicu.alarmengine.service.ConnectEngineClient;
-import com.sentraicu.alarmengine.service.ConnectEngineSyncService;
 import com.sentraicu.alarmengine.service.DeviceCatalogService;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -24,6 +22,14 @@ import java.util.*;
 /**
  * Writes CE-compatible documents to MongoDB after Postgres commits.
  * Postgres is master; Mongo is the Connect Engine operational mirror.
+ *
+ * No longer pushes to a live Connect Engine instance — this deployment's
+ * device pipeline is deviceIngestion, not the original Connect Engine, and
+ * there is no Connect Engine host reachable from this stack, so that push
+ * always failed silently on every admission/discharge (caught in
+ * ConnectEngineClient, logged at debug, no functional effect) while still
+ * paying for a network round-trip each time. Removed rather than pointed
+ * somewhere real, since nothing in this deployment consumes it.
  */
 @Service
 public class ConnectEngineSyncBridge {
@@ -33,15 +39,9 @@ public class ConnectEngineSyncBridge {
     private static final String CENTER_LOCATION = "JPN";
 
     private final MongoTemplate mongoTemplate;
-    private final ConnectEngineClient connectEngineClient;
-    private final DeviceCatalogService deviceCatalogService;
 
-    public ConnectEngineSyncBridge(MongoTemplate mongoTemplate,
-                                   ConnectEngineClient connectEngineClient,
-                                   DeviceCatalogService deviceCatalogService) {
+    public ConnectEngineSyncBridge(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
-        this.connectEngineClient = connectEngineClient;
-        this.deviceCatalogService = deviceCatalogService;
     }
 
     public void syncAdmission(HubPatientEntity patient,
@@ -67,8 +67,17 @@ public class ConnectEngineSyncBridge {
         String mongoVisitId = new ObjectId().toHexString();
         Instant now = visit.getAdmittedAt() != null ? visit.getAdmittedAt() : Instant.now();
 
-        if (deviceIds == null || deviceIds.isEmpty()) {
-            deviceIds = deviceCatalogService.defaultDevicesForSimulatorBed();
+        // Used to default to deviceCatalogService.defaultDevicesForSimulatorBed()
+        // (the pre-rebrand ["BplUltimaPrime","Agilia","BplElisa600"] demo
+        // catalog) whenever the admission form's "Device mapping" step was
+        // left unchecked — which is virtually every admission, since that
+        // step has nothing to do with the current deviceIngestion pipeline.
+        // That meant almost every admission through the real Hub UI silently
+        // wrote fake legacy device names into this bed's Mongo record,
+        // regardless of what (if anything) was actually connected. Leave it
+        // empty when nothing was actually selected instead of inventing data.
+        if (deviceIds == null) {
+            deviceIds = List.of();
         }
 
         String bedIp = CenterAdminService.decryptIp(targetBed.getString("ip"));
@@ -136,7 +145,6 @@ public class ConnectEngineSyncBridge {
                 "centerEntity"
         );
 
-        pushToConnectEngine(centerId, center, beds, ConnectEngineSyncService.SyncTrigger.PATIENT_ASSIGNMENT);
         log.info("Mongo mirror synced for admit: {} on {} ({})", patient.getMrn(), bed.getBedLabel(), centerId);
     }
 
@@ -156,7 +164,6 @@ public class ConnectEngineSyncBridge {
                     new Update().set("beds", beds),
                     "centerEntity"
             );
-            pushToConnectEngine(cid, center, beds, ConnectEngineSyncService.SyncTrigger.PATIENT_ASSIGNMENT);
             log.info("Mongo mirror synced for discharge: {} ({})", bedLabel, cid);
         }
     }
@@ -176,23 +183,6 @@ public class ConnectEngineSyncBridge {
         String upid = generateUpid();
         patient.setMongoUpid(upid);
         return upid;
-    }
-
-    private void pushToConnectEngine(String centerId, Document center, List<Document> beds,
-                                   ConnectEngineSyncService.SyncTrigger trigger) {
-        String name = center != null ? center.getString("centerName") : centerId;
-        String location = center != null ? center.getString("centerLocation") : CENTER_LOCATION;
-        if (name == null || name.isBlank()) name = centerId;
-        if (location == null) location = CENTER_LOCATION;
-
-        List<Map<String, Object>> payloadBeds = new ArrayList<>();
-        for (Document bed : beds) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("bedLabel", bed.getString("bedLabel"));
-            entry.put("ip", CenterAdminService.decryptIp(bed.getString("ip")));
-            payloadBeds.add(entry);
-        }
-        connectEngineClient.pushCenterUpdate(name, location, payloadBeds, trigger);
     }
 
     private Document ensureMongoCenter(String centerId) {
