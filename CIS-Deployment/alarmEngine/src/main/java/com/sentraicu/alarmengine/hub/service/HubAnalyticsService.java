@@ -167,8 +167,21 @@ public class HubAnalyticsService {
             row.put("losDays", round1(losHours / 24.0));
             row.put("primaryDiagnosis", visit.getPrimaryDiagnosis());
             row.put("isolation", visit.getIsolationFlags() != null && !visit.getIsolationFlags().isEmpty());
-            row.put("ventilated", bedDeviceService.getBedDeviceIds(bed.getBedLabel()).contains("BplElisa600"));
-            row.put("onInfusion", bedDeviceService.getBedDeviceIds(bed.getBedLabel()).contains("Agilia"));
+            // Used to be bedDeviceService.getBedDeviceIds(...).contains("BplElisa600"/"Agilia")
+            // — the pre-rebrand device catalog, whose fallback fires for any
+            // admitted-and-"virtual" bed regardless of what's really
+            // connected, so every patient here showed as both ventilated and
+            // on infusion (this fed real risk scoring in buildRiskMatrix()
+            // too — every patient's computed risk was inflated by the
+            // ventilated +15 weight). The admission form's own clinical
+            // snapshot has a real "ventilated" flag entered at admission;
+            // there's no real signal for "an infusion pump is physically
+            // connected" today, so "inotropes" (a specific vasoactive-
+            // medication flag, not a perfect match but a real one) stands in
+            // instead, renamed so the field says what it actually measures.
+            Map<String, Object> snapshot = visit.getClinicalSnapshot();
+            row.put("ventilated", snapshot != null && Boolean.TRUE.equals(snapshot.get("ventilated")));
+            row.put("onInotropes", snapshot != null && Boolean.TRUE.equals(snapshot.get("inotropes")));
             rows.add(row);
         }
         return rows;
@@ -528,28 +541,29 @@ public class HubAnalyticsService {
         Set<UUID> occupiedBedIds = assignments.stream()
                 .map(HubBedAssignmentEntity::getBedId)
                 .collect(Collectors.toSet());
+        int monitorTotal = beds.size();
 
-        int ventTotal = 0, ventInUse = 0, infTotal = 0, infInUse = 0, monitorTotal = beds.size();
-        for (HubBedEntity bed : beds) {
-            List<String> devices = bedDeviceService.getBedDeviceIds(bed.getBedLabel());
-            boolean occupied = occupiedBedIds.contains(bed.getId());
-            if (devices.contains("BplElisa600")) {
-                ventTotal++;
-                if (occupied) ventInUse++;
-            }
-            if (devices.contains("Agilia")) {
-                infTotal++;
-                if (occupied) infInUse++;
-            }
-        }
-
+        // ventilators/infusionPumps used to come from bedDeviceService
+        // .getBedDeviceIds(...).contains("BplElisa600"/"Agilia") — the
+        // pre-rebrand device catalog, whose fallback fires for any bed
+        // that's admitted-and-"virtual" (essentially every bed today)
+        // regardless of what's actually connected, so this counted every
+        // single bed in the hospital as owning both a ventilator and an
+        // infusion pump. Unlike the per-patient ventilated/onInotropes
+        // flags above, there's no real substitute for this one: it's asking
+        // "how much equipment does the hospital physically own," and
+        // nothing in this system tracks device inventory — deviceIngestion
+        // knows what's connected to which bed right now, not what's owned
+        // or in storage. Reporting a fabricated number here would be worse
+        // than reporting none, so this stays at zero until real equipment
+        // tracking exists rather than resurrect a different guess.
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("monitors", Map.of("total", monitorTotal, "inUse", occupiedBedIds.size(),
                 "utilizationPct", beds.isEmpty() ? 0 : Math.round(100.0 * occupiedBedIds.size() / beds.size())));
-        m.put("ventilators", deviceBlock(ventTotal, ventInUse));
-        m.put("infusionPumps", deviceBlock(infTotal, infInUse));
+        m.put("ventilators", deviceBlock(0, 0));
+        m.put("infusionPumps", deviceBlock(0, 0));
         m.put("ventilatedPatients", totals.getOrDefault("ventilatedCount", 0));
-        m.put("infusionPatients", totals.getOrDefault("infusionCount", 0));
+        m.put("inotropesPatients", totals.getOrDefault("inotropesCount", 0));
         return m;
     }
 

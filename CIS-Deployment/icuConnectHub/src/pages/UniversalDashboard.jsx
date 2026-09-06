@@ -67,7 +67,7 @@ function UnitCard({ unit, centerName, lastUpdated, readOnly }) {
         <div><span className="metric-critical">{unit.criticalCount}</span><small>Critical</small></div>
         <div><span className="metric-warning">{unit.warningCount}</span><small>Warning</small></div>
         <div><span className="metric-vent">{unit.ventilatorCount}</span><small>Ventilator</small></div>
-        <div><span className="metric-infusion">{unit.infusionCount}</span><small>Infusion</small></div>
+        <div><span className="metric-infusion">{unit.inotropesCount}</span><small>Inotropes</small></div>
       </div>
 
       <div className="ud-unit-footer">Updated {lastUpdated}</div>

@@ -101,7 +101,7 @@ public class HubOverviewService {
         int totalBeds = 0;
         int totalOccupied = 0;
         int totalVentilated = 0;
-        int totalInfusion = 0;
+        int totalInotropes = 0;
         int totalCritical = 0;
         int totalWarning = 0;
 
@@ -120,17 +120,35 @@ public class HubOverviewService {
 
             int occupied = 0;
             int ventilator = 0;
-            int infusion = 0;
+            int inotropes = 0;
             int critical = 0;
             int warning = 0;
 
             for (HubBedEntity bed : unitBeds) {
-                boolean isOccupied = assignmentRepository.findByBedIdAndActiveTrue(bed.getId()).isPresent();
+                Optional<HubBedAssignmentEntity> assignment = assignmentRepository.findByBedIdAndActiveTrue(bed.getId());
+                boolean isOccupied = assignment.isPresent();
                 if (isOccupied) occupied++;
 
-                List<String> devices = bedDeviceService.getBedDeviceIds(bed.getBedLabel());
-                if (devices.contains("BplElisa600") && isOccupied) ventilator++;
-                if (devices.contains("Agilia") && isOccupied) infusion++;
+                // Used to be bedDeviceService.getBedDeviceIds(...).contains("BplElisa600"/"Agilia")
+                // — the pre-rebrand device catalog, whose fallback fires for
+                // any admitted-and-"virtual" bed regardless of what's really
+                // connected, so this counted every occupied bed as both
+                // ventilated and infused. The admission form's own clinical
+                // snapshot has a real, clinician-entered "ventilated" flag;
+                // there's no real signal for "an infusion pump is physically
+                // connected" today, so this uses "inotropes" (a specific
+                // vasoactive-medication flag, not a perfect match but a real
+                // one) rather than keep reporting a fabricated device guess.
+                if (isOccupied) {
+                    Map<String, Object> snapshot = assignment
+                            .flatMap(a -> visitRepository.findById(a.getVisitId()))
+                            .map(HubPatientVisitEntity::getClinicalSnapshot)
+                            .orElse(null);
+                    if (snapshot != null) {
+                        if (Boolean.TRUE.equals(snapshot.get("ventilated"))) ventilator++;
+                        if (Boolean.TRUE.equals(snapshot.get("inotropes"))) inotropes++;
+                    }
+                }
 
                 List<AlarmEvent> bedAlarms = alarmsByBedLabel.getOrDefault(bed.getBedLabel(), List.of());
                 for (AlarmEvent a : bedAlarms) {
@@ -143,7 +161,7 @@ public class HubOverviewService {
             totalBeds += unitBeds.size();
             totalOccupied += occupied;
             totalVentilated += ventilator;
-            totalInfusion += infusion;
+            totalInotropes += inotropes;
             totalCritical += critical;
             totalWarning += warning;
 
@@ -164,7 +182,7 @@ public class HubOverviewService {
             unitCard.put("criticalCount", critical);
             unitCard.put("warningCount", warning);
             unitCard.put("ventilatorCount", ventilator);
-            unitCard.put("infusionCount", infusion);
+            unitCard.put("inotropesCount", inotropes);
             unitCard.put("riskLevel", computeRiskLevel(critical, warning, unitAlarms));
             unitCard.put("staffStrained", occupied > 4);
             unitCard.put("staffRatio", computeStaffRatio(occupied));
@@ -202,7 +220,7 @@ public class HubOverviewService {
         totals.put("deviceAlarmCount", deviceAlarms);
         totals.put("criticalCount", totalCritical);
         totals.put("warningCount", totalWarning);
-        totals.put("infusionCount", totalInfusion);
+        totals.put("inotropesCount", totalInotropes);
 
         Map<String, Object> center = new LinkedHashMap<>();
         center.put("centerId", cid);
