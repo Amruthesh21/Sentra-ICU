@@ -627,86 +627,15 @@ button, input, select, textarea {
 .text-critical { color: var(--critical) !important; }
 .text-success { color: var(--success) !important; }
 
-.patient-card {
-  display: block;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid rgba(10, 61, 98, 0.08);
-  padding: 20px;
-  box-shadow: 0 4px 16px rgba(10, 61, 98, 0.05);
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-  cursor: pointer;
-}
-
-.patient-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(10, 61, 98, 0.18);
-  box-shadow: 0 8px 24px rgba(10, 61, 98, 0.1);
-}
-
-.patient-card.critical,
-.patient-card--critical {
-  border-color: var(--critical);
-}
-
-.patient-card.warning,
-.patient-card--warning {
-  border-color: var(--warning);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.bed-label {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.patient-name {
-  font-size: var(--fs-2xl);
-  font-weight: 600;
-  color: var(--text);
-  margin-top: 4px;
-  line-height: 1.25;
-}
-
-.alarm-badge {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  background: var(--critical);
-  color: #fff;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.alarm-badge--live {
-  animation: alarm-badge-pulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
-}
-
-.alarm-badge-icon {
-  font-size: 0.85rem;
-  line-height: 1;
-}
-
-.patient-card.has-alarm {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
-}
-
+/* alarm-badge-pulse is still used by .hub-alarm-banner-pulse below — the
+   rest of this block (patient-card, card-header, bed-label, patient-name,
+   alarm-badge/--live/-icon, status-tags, tag/-vent/-infusion/-vacant,
+   vitals-row, vital-chip, patient-card-admit-hint) backed the PatientCard
+   component, which was never imported/rendered anywhere in the app (its
+   "Monitor"/"Infusion" tags were hardcoded regardless of real device data —
+   found while auditing the ventilated/onInotropes analytics bug, but the
+   component itself was dead, not just wrong). Removed with the component
+   rather than fixed, since nothing renders it. */
 @keyframes alarm-badge-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
   50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
@@ -757,84 +686,6 @@ button, input, select, textarea {
 .hub-alarm-banner .btn-outline {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.45);
-}
-
-.status-tags {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.tag-vent {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-}
-
-.tag-infusion {
-  background: rgba(25, 118, 210, 0.12);
-  color: var(--primary-dark);
-}
-
-.tag-vacant {
-  background: var(--surface-2);
-  color: var(--text-muted);
-}
-
-.vitals-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.vital-chip {
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  border: 1px solid rgba(25, 118, 210, 0.06);
-}
-
-.vital-chip .label {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 600;
-}
-
-.vital-chip .value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-top: 2px;
-  color: var(--text);
-}
-
-.vital-chip .unit {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.vital-chip.critical .value {
-  color: var(--critical);
-}
-
-.vital-chip.warning .value {
-  color: var(--warning);
-}
-
-.patient-card-admit-hint {
-  color: var(--text-muted);
-  font-size: var(--fs-md);
 }
 
 .kpi-panel {
@@ -2656,7 +2507,6 @@ button, input, select, textarea {
   background: rgba(255,255,255,0.9);
 }
 
-.patient-card,
 .kpi-card,
 .form-card {
   background: rgba(255, 255, 255, 0.92);

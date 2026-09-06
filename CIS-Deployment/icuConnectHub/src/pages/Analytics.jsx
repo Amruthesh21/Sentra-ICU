@@ -252,11 +252,18 @@ export default function Analytics({ centerId, hospitalAdmin = false }) {
               sublabel={`${throughput.admissions24h ?? 0} admits / 24h`}
               tone="accent"
             />
+            {/* This used to be an equipment-utilization gauge
+                (devices.ventilators.inUse / .total), but that block is a
+                fabricated 0/0 today — there's no real device-inventory
+                tracking in this system, see HubAnalyticsService
+                .buildDeviceFleet()'s comment. Showing real per-patient
+                ventilated counts instead: honest data that exists
+                (clinicalSnapshot.ventilated), not an always-empty ring. */}
             <RingGauge
-              value={devices?.ventilators?.inUse ?? 0}
-              max={devices?.ventilators?.total || 1}
-              label="Ventilators"
-              sublabel={`${devices?.ventilators?.utilizationPct ?? 0}% util`}
+              value={devices?.ventilatedPatients ?? 0}
+              max={throughput.activeCensus || 1}
+              label="Ventilated"
+              sublabel={`of ${throughput.activeCensus ?? 0} patients`}
               tone="warning"
             />
             <RingGauge
