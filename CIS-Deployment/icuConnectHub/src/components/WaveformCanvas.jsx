@@ -49,18 +49,6 @@ function sampleWaveform(phase, kind, ecgLead) {
   return respSample(phase);
 }
 
-/** Cheap content fingerprint for a real-samples array — NOT a reference
- * check. Every poll hands WaveformsPanel a freshly-JSON.parse'd array, so
- * `newArray !== oldArray` is true on every single poll even when
- * deviceIngestion's buffer hasn't actually moved — comparing length + a
- * few sample values instead of the array identity is what actually
- * detects "did the underlying data change." */
-function sampleFingerprint(samples) {
-  const n = samples.length;
-  const mid = samples[n >> 1];
-  return `${n}:${samples[0]}:${mid}:${samples[n - 1]}`;
-}
-
 /**
  * Bedside-style erase-bar waveform.
  * Critical: never connect the path across the sweep gap (that caused the vertical glitch).
@@ -68,17 +56,19 @@ function sampleFingerprint(samples) {
  * Two data sources, same rendering:
  *  - Real samples (`realSamples`/`realSampleRate`): what deviceIngestion
  *    actually decoded off the wire for this bed/channel (see
- *    api/deviceIngestion.js's getWaveforms) — auto-scaled per refresh to
- *    that window's own min/max, since raw sample units vary by device and
- *    there's no universal calibration to hardcode. The buffer is short
- *    (deviceIngestion keeps ~the last 500 samples, refreshed on each ~1s
- *    poll — that cadence tracks how often real devices actually batch
- *    waveform segments, not an arbitrary polling choice), so the visible
- *    sweep window shrinks to whatever duration is actually buffered rather
- *    than staying at the fixed synthetic-mode width — a real, short window
- *    refreshed every second reads better than a mostly-frozen long one.
- *    Playback holds on the last real sample (does not fabricate motion) if
- *    a poll is late.
+ *    api/deviceIngestion.js's getWaveforms), auto-scaled per poll to that
+ *    window's own min/max since raw sample units vary by device and
+ *    there's no universal calibration to hardcode. deviceIngestion's
+ *    buffer (waveformBuffer.js) is a real sliding window in time — up to
+ *    12s of history, continuously accumulating across polls, not a short
+ *    fixed clip replaced each time — so playback tracks readPos at the
+ *    newest available sample and reads backward into `samples` for the
+ *    rest of the sweepSeconds-wide sweep, rather than restarting a "clip"
+ *    from index 0 on every poll (which, for a continuously-streaming
+ *    device, is essentially every poll — the buffer's content keeps
+ *    moving, so a "did the content change" check resets just as often as
+ *    a naive reference check would). Holds at the last real sample (does
+ *    not fabricate motion) if a poll is late.
  *  - No real samples for this channel (device connected but this trace
  *    isn't something it outputs, or no poll has landed yet): unchanged
  *    fallback to the modeled curve, paced by the real numeric rate.
@@ -103,12 +93,20 @@ export default function WaveformCanvas({
   const rateRef = useRef({
     hr: heartRate, rr: respiratoryRate, mode, ecgLead, color, active, realSamples, realSampleRate,
   });
-  // Real-sample playback: readPos advances through `samples` at
-  // realSampleRate while `active`; a genuinely new window (fingerprint
-  // changed, not just array reference — see sampleFingerprint) resets it
-  // so each real refresh plays from its own start rather than skipping
-  // ahead.
-  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, fp: null });
+  // Real-sample playback: readPos always tracks the newest available real
+  // sample ("now"), not a from-zero position in a fixed clip. deviceIngestion's
+  // buffer (waveformBuffer.js) is a genuine sliding window that keeps
+  // accumulating across polls, not a fresh short clip each time — so
+  // treating a new poll as "start a new clip from index 0" throws away up
+  // to sweepSeconds of still-relevant history and, worse, for a
+  // continuously-streaming device the buffer's content changes on
+  // essentially every poll (old samples evicted, new ones appended), so a
+  // content-based "did it change" check resets to 0 almost every poll too
+  // — indistinguishable from never fixing the reset at all. See yAt() below:
+  // the erase-bar sweep position is independent of readPos and never
+  // resets; readPos only needs to say "which sample is the sweep tip right
+  // now," which is always the last one once new data lands.
+  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 });
 
   // Keep latest props without restarting RAF (vitals poll was remounting the loop → flow glitches)
   useEffect(() => {
@@ -194,34 +192,36 @@ export default function WaveformCanvas({
       const pb = playbackRef.current;
 
       if (usingReal) {
-        const fp = sampleFingerprint(rs);
-        if (fp !== pb.fp) {
-          // A genuinely new window arrived (its actual content changed,
-          // not just a fresh array from the latest poll's JSON.parse —
-          // every poll hands back a new array reference even when
-          // deviceIngestion's buffer hasn't moved, which used to reset
-          // playback to frame 0 on every ~1s poll regardless of whether
-          // there was anything new to show, flattening most of each
-          // sweep). Play the new window from its own start, and
-          // auto-scale to its own min/max since raw sample units differ
-          // per device/channel and there's no shared calibration to
-          // assume.
+        if (rs !== pb.samples) {
+          // A new poll landed (a fresh JSON.parse'd array — this fires on
+          // essentially every poll for a live-streaming device, and that's
+          // fine: it's cheap, and it's exactly when we want to pick up
+          // wherever the sliding buffer has moved to). Recompute auto-scale
+          // range for the current window (raw sample units differ per
+          // device/channel, no shared calibration to assume) and point the
+          // sweep tip at the newest sample — NOT index 0 — so playback
+          // continues forward rather than restarting a clip. Older history
+          // is still visible behind the tip: yAt() below reads backward
+          // from readPos into `samples` for the rest of the sweep, and the
+          // buffer already holds up to sweepSeconds of real history (see
+          // waveformBuffer.js).
           let min = Infinity;
           let max = -Infinity;
           for (let i = 0; i < rs.length; i++) {
             if (rs[i] < min) min = rs[i];
             if (rs[i] > max) max = rs[i];
           }
-          playbackRef.current = { samples: rs, sampleRate: rsr, readPos: 0, min, max, fp };
+          playbackRef.current = { samples: rs, sampleRate: rsr, readPos: rs.length - 1, min, max };
         } else {
-          // Same window content, just re-fetched — keep advancing; hold
-          // at the last sample rather than fabricate motion if we outrun
-          // the buffer before the next poll actually brings new data.
-          pb.samples = rs; // adopt the latest array so subsequent fingerprints compare against it, not a stale reference
+          // No new poll since the last frame — hold at the last real
+          // sample rather than fabricate motion. readPos is already at the
+          // tip (set above), so this is a no-op in practice; kept so
+          // holding behavior doesn't silently depend on readPos always
+          // starting a poll already-maxed.
           pb.readPos = Math.min(pb.samples.length - 1, pb.readPos + dt * pb.sampleRate);
         }
       } else if (pb.samples) {
-        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, fp: null };
+        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 };
       }
 
       // Bedside monitors: ECG/Pleth default ~25 mm/s; RESP often slower (6.25–12.5 mm/s).
