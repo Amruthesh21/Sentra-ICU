@@ -81,17 +81,20 @@ networks:
 volumes:
   cis_mongodb_data:
   cis_rabbitmq_data:
-  # Points at the literal volume docker-compose.poc.yml's now-removed
-  # duplicate `postgres` service actually created and used
-  # (alarampoc_cis_postgres_data) — that's where the real application data
-  # lives (hospitals/users/patient visits), not in a volume this file would
-  # otherwise create fresh under its own project name. Discovered when a
-  # from-cold-start docker-compose.infra.yml `up` created an empty
-  # sentra-icu_cis_postgres_data instead: same declared name, but Compose
-  # volume names are project-prefixed, so the two files were never actually
-  # sharing one volume even though both declared "cis_postgres_data".
-  # external: true means Compose attaches to this exact volume rather than
-  # creating/managing its own.
+  # docker-compose.poc.yml used to declare its own duplicate `postgres`
+  # service (byte-identical to this file's, same container_name) — its
+  # data ended up in alarampoc_cis_postgres_data (project-prefixed by
+  # poc.yml's `-p alarampoc`), not in a volume this file managed, since
+  # Compose volume names are project-prefixed and the two files were never
+  # actually sharing one volume despite both declaring "cis_postgres_data".
+  # A first attempt at fixing this pointed this volume at that literal
+  # existing name via `external: true` — which preserved the data but broke
+  # a genuine cold start (Compose refuses to create a missing `external`
+  # volume, and nothing left in the repo ever created that name). Fixed
+  # properly instead: the data was migrated once into this volume's real,
+  # normally-managed name (`docker volume create sentra-icu_cis_postgres_data`
+  # + a straight file copy from the old volume), so this declaration can go
+  # back to being a plain Compose-managed volume like the two above —
+  # created fresh on a real first run, already populated with the real data
+  # on this host.
   cis_postgres_data:
-    external: true
-    name: alarampoc_cis_postgres_data
