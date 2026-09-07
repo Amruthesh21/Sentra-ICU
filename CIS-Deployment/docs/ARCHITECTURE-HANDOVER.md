@@ -5,6 +5,22 @@
 **Last updated:** July 2026  
 **Audience:** Developers taking over maintenance and new feature work
 
+> **Status note:** Section 7 and other Connect-Engine references below
+> describe `alarm-engine` actively syncing to and restarting a live Connect
+> Engine host — that integration (`ConnectEngineClient`,
+> `ConnectEngineSyncService`, `ConnectEngineBedSyncScheduler`,
+> `ConnectEngineReloader`, and every `CONNECT_ENGINE_*` env var) has since
+> been deleted as dead code: every call it made always failed in this
+> deployment (no such host is reachable from any compose profile) and had no
+> effect beyond a caught exception and a log line. `ConnectEngineSyncBridge`
+> and `CenterAdminService` (also mentioned below) are unrelated and still
+> real — they still write CE-compatible documents to MongoDB for
+> Visualization Engine, a separate deployment that reads Mongo directly —
+> but they no longer push to or restart any live Connect Engine host. See
+> `CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md`'s "Scope note" for
+> the full explanation before relying on anything below that names a
+> `ConnectEngine*` class or `CONNECT_ENGINE_*` variable.
+
 ---
 
 ## Table of Contents
@@ -41,7 +57,7 @@ This platform is an **ICU clinical operations hub** combined with a **real-time 
 | **ICU Connect Hub** | React SPA — unit dashboard, bed detail, admissions, clinical notes, scoring, analytics, admin |
 | **Alarm Engine** | Spring Boot backend — **single API gateway** for Hub + alarms + auth + clinical data |
 | **deviceIngestion** | Node.js — this repo's own HL7v2/MLLP bedside device gateway. Listens for real monitors, parses per-device-model, publishes straight to alarm-engine's queue. Written specifically because Connect Engine's own source isn't available to this project — see `CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md` for exactly what it replaces and what it doesn't |
-| **Connect Engine** | External CIS device gateway (not in this repo) — still used for center/bed metadata sync (`ConnectEngineClient`/`ConnectEngineSyncBridge`); raw device-vitals ingestion for real hardware should go through `deviceIngestion` instead |
+| **Connect Engine** | External CIS device gateway (not in this repo). `alarm-engine` no longer syncs to or restarts a live instance (that client code was deleted — see the status note above); `ConnectEngineSyncBridge` still mirrors CE-compatible documents into MongoDB for Visualization Engine, a separate deployment that reads Mongo directly. Raw device-vitals ingestion for real hardware goes through `deviceIngestion` |
 | **MongoDB** | Operational CIS store — vitals history, center/bed config, alarm thresholds, patient mirror |
 | **PostgreSQL** | Hub master store — users, hospitals, units, beds, patients, visits, clinical documentation |
 | **RabbitMQ** | Real-time vitals streaming + alarm notification fan-out |
@@ -52,7 +68,7 @@ This platform is an **ICU clinical operations hub** combined with a **real-time 
 
 **PostgreSQL is the master for Hub clinical and admin data.**  
 **MongoDB is the operational mirror for Connect Engine compatibility.**  
-After Postgres commits (admit, discharge, add bed), `ConnectEngineSyncBridge` writes CE-compatible documents to Mongo, then triggers a debounced Connect Engine container restart so CE reloads from Mongo.
+After Postgres commits (admit, discharge, add bed), `ConnectEngineSyncBridge` writes CE-compatible documents to Mongo. It no longer triggers a Connect Engine container restart afterward — that push-and-restart step always failed in this deployment (no reachable CE host) and was removed as dead code; Mongo is now written for whatever external reader (e.g. Visualization Engine) picks it up on its own.
 
 ---
 

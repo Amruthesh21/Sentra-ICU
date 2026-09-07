@@ -16,6 +16,23 @@
 > describe the Connect-Engine-only path and haven't been re-verified against
 > `deviceIngestion`, which bypasses that path entirely by publishing straight
 > to `alarm-engine.device.data.queue`.
+>
+> **Update:** `alarm-engine`'s Connect-Engine *client* code — everything this
+> document's env-var tables and §6/§9 sections below tell you to
+> configure/replace (`CONNECT_ENGINE_URL`, `CONNECT_ENGINE_AUTO_RESTART`,
+> `CONNECT_ENGINE_CONTAINER`, `CONNECT_ENGINE_RESTART_ON_PATIENT_CHANGE`, and
+> the `ConnectEngineClient`/`ConnectEngineSyncService`/
+> `ConnectEngineBedSyncScheduler`/`ConnectEngineReloader` classes) — has since
+> been deleted entirely as dead code: every one of those calls always failed
+> in this deployment (no Connect Engine host was ever reachable from it) and
+> had no effect beyond a caught exception and a log line. Setting those env
+> vars today does nothing (`application.properties` no longer reads them),
+> and the Java files below no longer exist — see
+> `CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md`'s "Scope note" for
+> the full explanation. If a real split deployment still needs alarm-engine
+> to reach a genuinely separate hospital-side system, that integration would
+> need to be rebuilt from scratch; nothing below is a working starting point
+> for it anymore.
 
 **Companion document:** [ARCHITECTURE-HANDOVER.md](./ARCHITECTURE-HANDOVER.md) — full system architecture
 
