@@ -60,20 +60,36 @@ async function record(bedId, waveforms) {
   const bucket = latestByBed.get(bedId) || {};
   for (const [channel, wf] of Object.entries(waveforms)) {
     const existing = bucket[channel];
+    const cap = wf.sampleRate
+      ? Math.ceil(wf.sampleRate * MAX_SECONDS_PER_CHANNEL)
+      : FALLBACK_MAX_SAMPLES;
+
     // Same channel, same reported rate -> genuinely append (a real device
     // streaming continuously sends one batch of new samples per message,
     // not a replacement for everything before it). Different rate (a
     // device reconfigured mid-stream) or no prior entry -> start fresh;
     // concatenating samples recorded at two different rates would corrupt
     // the time math everything else here depends on.
-    const samples = existing && existing.sampleRate === wf.sampleRate
-      ? existing.samples.concat(wf.samples)
-      : wf.samples.slice();
+    //
+    // Trim `existing` down to however much of it could possibly survive
+    // the cap BEFORE concatenating, rather than concat-the-full-thing-then-
+    // slice-back-down — at steady state (existing already at cap) the old
+    // approach allocated and copied a full cap-plus-one-batch-sized array
+    // just to immediately discard the oldest batch's worth of it; this
+    // only ever allocates arrays at or under `cap`.
+    let samples;
+    if (existing && existing.sampleRate === wf.sampleRate) {
+      const keepFromExisting = Math.max(0, cap - wf.samples.length);
+      const trimmedExisting = existing.samples.length > keepFromExisting
+        ? existing.samples.slice(-keepFromExisting)
+        : existing.samples;
+      samples = trimmedExisting.concat(wf.samples);
+      if (samples.length > cap) samples = samples.slice(-cap); // a single batch alone longer than cap (rare)
+    } else {
+      samples = wf.samples.length > cap ? wf.samples.slice(-cap) : wf.samples.slice();
+    }
 
-    const cap = wf.sampleRate
-      ? Math.ceil(wf.sampleRate * MAX_SECONDS_PER_CHANNEL)
-      : FALLBACK_MAX_SAMPLES;
-    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples: samples.slice(-cap) };
+    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples };
   }
   latestByBed.set(bedId, bucket);
 
