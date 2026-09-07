@@ -46,18 +46,13 @@ public class CenterAdminService {
         String cid = resolveCenterId(centerId);
         Document mongoCenter = mongoTemplate.findOne(
                 new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
-        // Used to be connectEngineClient.retrieve() — always failed and came
-        // back empty in this deployment (no Connect Engine host exists in
-        // any compose profile here), so this is behavior-preserving, just
-        // without the guaranteed-to-fail network round trip on every read.
-        Map<String, Object> live = Map.of();
-        Map<String, String> display = resolveCenterDisplay(cid, mongoCenter, live);
+        Map<String, String> display = resolveCenterDisplay(cid, mongoCenter);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("centerId", cid);
         response.put("centerName", display.get("centerName"));
         response.put("centerLocation", display.get("centerLocation"));
-        response.put("beds", mapBeds(cid, mongoCenter, live));
+        response.put("beds", mapBeds(cid, mongoCenter));
         response.put("source", mongoCenter != null ? "mongodb+connect" : "postgres");
         return response;
     }
@@ -172,18 +167,14 @@ public class CenterAdminService {
         return centerId.trim().toUpperCase(Locale.ROOT);
     }
 
-    /** Prefer Connect Engine / Mongo display names over Postgres hospital labels. */
-    private Map<String, String> resolveCenterDisplay(String centerId, Document mongoCenter, Map<String, Object> live) {
+    /** Prefer Mongo's stored display name over Postgres hospital labels. */
+    private Map<String, String> resolveCenterDisplay(String centerId, Document mongoCenter) {
         String name = null;
         String location = null;
 
-        if (live != null && !live.isEmpty()) {
-            name = stringVal(live.get("name"), stringVal(live.get("centerName"), null));
-            location = stringVal(live.get("location"), stringVal(live.get("centerLocation"), null));
-        }
         if (mongoCenter != null) {
-            if (name == null) name = mongoCenter.getString("centerName");
-            if (location == null) location = mongoCenter.getString("centerLocation");
+            name = mongoCenter.getString("centerName");
+            location = mongoCenter.getString("centerLocation");
         }
         if (name == null || name.isBlank()) name = centerId;
         if (location == null) location = DEFAULT_CENTER.equals(centerId) ? DEFAULT_LOCATION : "";
@@ -237,7 +228,7 @@ public class CenterAdminService {
         Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
         if (center != null) return center;
 
-        Map<String, String> display = resolveCenterDisplay(cid, null, Map.of());
+        Map<String, String> display = resolveCenterDisplay(cid, null);
 
         Document created = new Document();
         created.put("_id", cid);
@@ -265,7 +256,7 @@ public class CenterAdminService {
 
     private void saveBeds(String centerId, List<Document> beds, Document center) {
         String cid = resolveCenterId(centerId);
-        Map<String, String> display = resolveCenterDisplay(cid, center, Map.of());
+        Map<String, String> display = resolveCenterDisplay(cid, center);
         mongoTemplate.updateFirst(
                 new Query(Criteria.where("_id").is(cid)),
                 new Update()
@@ -276,21 +267,9 @@ public class CenterAdminService {
         );
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> mapBeds(String centerId, Document center, Map<String, Object> live) {
+    private List<Map<String, Object>> mapBeds(String centerId, Document center) {
         String cid = resolveCenterId(centerId);
         List<Map<String, Object>> result = new ArrayList<>();
-        Map<String, Map<String, Object>> liveByLabel = new LinkedHashMap<>();
-
-        Object liveBeds = live.get("beds");
-        if (liveBeds instanceof List<?> list) {
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> map) {
-                    String label = String.valueOf(map.get("bedLabel"));
-                    liveByLabel.put(label, (Map<String, Object>) map);
-                }
-            }
-        }
 
         List<Document> mongoBeds = center != null ? getBedList(center) : List.of();
         Map<String, Document> mongoByLabel = mongoBeds.stream()
@@ -298,17 +277,12 @@ public class CenterAdminService {
 
         Set<String> labels = new LinkedHashSet<>();
         labels.addAll(mongoByLabel.keySet());
-        labels.addAll(liveByLabel.keySet());
         hubBedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(cid).stream()
                 .map(HubBedEntity::getBedLabel)
                 .forEach(labels::add);
 
-        if (labels.isEmpty() && !liveByLabel.isEmpty()) {
-            labels.addAll(liveByLabel.keySet());
-        }
-
         for (String label : labels) {
-            result.add(mapBedEntry(cid, label, liveByLabel.get(label), mongoByLabel.get(label),
+            result.add(mapBedEntry(cid, label, mongoByLabel.get(label),
                     mongoBeds.isEmpty() ? List.of() : mongoBeds));
         }
         return result;
@@ -317,12 +291,11 @@ public class CenterAdminService {
     private Map<String, Object> mapBedEntry(
             String centerId,
             String label,
-            Map<String, Object> liveBed,
             Document mongoBed,
             List<Document> allBeds) {
         Map<String, Object> bed = new LinkedHashMap<>();
         bed.put("bedLabel", label);
-        bed.put("bedId", mongoBed != null ? mongoBed.get("_id") : liveBed != null ? liveBed.get("bedId") : null);
+        bed.put("bedId", mongoBed != null ? mongoBed.get("_id") : null);
         bed.put("alarmBedId", "ICU-1-" + label);
 
         Map<String, Object> postgresPatient = resolvePostgresPatient(centerId, label);
