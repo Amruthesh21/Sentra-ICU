@@ -68,6 +68,20 @@ public class HubOverviewService {
         List<HubBedEntity> allBeds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(cid);
         List<AlarmEvent> activeAlarms = activeAlarmStore.getActiveAlarms();
 
+        // Batched once for the whole center instead of one findByBedIdAndActiveTrue
+        // + one findById(visitId) per occupied bed inside the unit loop below —
+        // that per-bed round-trip pattern (one of them newly added alongside the
+        // ventilated/inotropes fix) turns a single overview request into up to
+        // 2x the occupied-bed count of sequential DB calls.
+        Set<UUID> centerBedIds = allBeds.stream().map(HubBedEntity::getId).collect(Collectors.toSet());
+        Map<UUID, HubBedAssignmentEntity> assignmentByBedId = assignmentRepository.findByActiveTrue().stream()
+                .filter(a -> centerBedIds.contains(a.getBedId()))
+                .collect(Collectors.toMap(HubBedAssignmentEntity::getBedId, a -> a, (a, b) -> a));
+        Map<UUID, HubPatientVisitEntity> visitById = visitRepository
+                .findAllById(assignmentByBedId.values().stream().map(HubBedAssignmentEntity::getVisitId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(HubPatientVisitEntity::getId, v -> v));
+
         Map<String, HubBedEntity> bedByLabel = allBeds.stream()
                 .collect(Collectors.toMap(HubBedEntity::getBedLabel, b -> b, (a, b) -> a));
         Map<String, String> alarmBedIdToLabel = new HashMap<>();
@@ -125,8 +139,8 @@ public class HubOverviewService {
             int warning = 0;
 
             for (HubBedEntity bed : unitBeds) {
-                Optional<HubBedAssignmentEntity> assignment = assignmentRepository.findByBedIdAndActiveTrue(bed.getId());
-                boolean isOccupied = assignment.isPresent();
+                HubBedAssignmentEntity assignment = assignmentByBedId.get(bed.getId());
+                boolean isOccupied = assignment != null;
                 if (isOccupied) occupied++;
 
                 // Used to be bedDeviceService.getBedDeviceIds(...).contains("BplElisa600"/"Agilia")
@@ -140,10 +154,8 @@ public class HubOverviewService {
                 // vasoactive-medication flag, not a perfect match but a real
                 // one) rather than keep reporting a fabricated device guess.
                 if (isOccupied) {
-                    Map<String, Object> snapshot = assignment
-                            .flatMap(a -> visitRepository.findById(a.getVisitId()))
-                            .map(HubPatientVisitEntity::getClinicalSnapshot)
-                            .orElse(null);
+                    HubPatientVisitEntity visit = visitById.get(assignment.getVisitId());
+                    Map<String, Object> snapshot = visit != null ? visit.getClinicalSnapshot() : null;
                     if (snapshot != null) {
                         if (Boolean.TRUE.equals(snapshot.get("ventilated"))) ventilator++;
                         if (Boolean.TRUE.equals(snapshot.get("inotropes"))) inotropes++;
