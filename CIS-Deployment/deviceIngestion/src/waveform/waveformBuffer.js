@@ -34,7 +34,18 @@ const env = require('../env');
 const MAX_SECONDS_PER_CHANNEL = 12;
 const FALLBACK_MAX_SAMPLES = 500; // only used when sampleRate is unknown (null/0) and time-based trimming isn't possible
 
-/** @type {Map<string, Record<string, {unit: string, sampleRate: number|null, samples: number[]}>>} */
+// A channel is dropped once nothing new has arrived for it in longer than the
+// window this buffer keeps — past that point every sample still held is older
+// than the history it claims to have, so there is nothing current left to
+// serve. Without expiry, a device that stops sending one channel (a monitor
+// whose SpO2 lead comes off, or a one-shot fixture replay that disconnects)
+// leaves its last samples here indefinitely and the Hub keeps drawing them
+// behind a "LIVE" badge — a trace that looks like a running signal but is
+// frozen minutes in the past, which is worse than showing nothing. Evaluated
+// on read rather than on a timer, so beds nobody is looking at cost nothing.
+const CHANNEL_STALE_AFTER_MS = MAX_SECONDS_PER_CHANNEL * 1000;
+
+/** @type {Map<string, Record<string, {unit: string, sampleRate: number|null, samples: number[], updatedAt: number}>>} */
 const latestByBed = new Map();
 
 let publishChannel = null;
@@ -53,8 +64,9 @@ async function ensurePublishChannel() {
 /**
  * @param {string} bedId
  * @param {Record<string, {unit: string, sampleRate: number|null, samples: number[]}>} waveforms
+ * @param {number} [nowMs] injectable clock, so expiry is testable without waiting it out
  */
-async function record(bedId, waveforms) {
+async function record(bedId, waveforms, nowMs = Date.now()) {
   if (!waveforms || Object.keys(waveforms).length === 0) return;
 
   const bucket = latestByBed.get(bedId) || {};
@@ -89,7 +101,7 @@ async function record(bedId, waveforms) {
       samples = wf.samples.length > cap ? wf.samples.slice(-cap) : wf.samples.slice();
     }
 
-    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples };
+    bucket[channel] = { unit: wf.unit, sampleRate: wf.sampleRate, samples, updatedAt: nowMs };
   }
   latestByBed.set(bedId, bucket);
 
@@ -104,12 +116,39 @@ async function record(bedId, waveforms) {
   }
 }
 
-function getLatest(bedId) {
-  return latestByBed.get(bedId) || {};
+/**
+ * Drops every channel that has gone stale, and the bed itself once its last
+ * channel goes. Mutates the stored bucket rather than filtering a copy, so a
+ * channel the device has stopped sending is genuinely released instead of being
+ * re-filtered out on every poll for the lifetime of the process.
+ */
+function pruneStale(bedId, nowMs) {
+  const bucket = latestByBed.get(bedId);
+  if (!bucket) return null;
+
+  for (const [channel, wf] of Object.entries(bucket)) {
+    if (nowMs - wf.updatedAt > CHANNEL_STALE_AFTER_MS) delete bucket[channel];
+  }
+
+  if (Object.keys(bucket).length === 0) {
+    latestByBed.delete(bedId);
+    return null;
+  }
+  return bucket;
 }
 
-function getAllLatest() {
-  return Object.fromEntries(latestByBed.entries());
+function getLatest(bedId, nowMs = Date.now()) {
+  return pruneStale(bedId, nowMs) || {};
+}
+
+function getAllLatest(nowMs = Date.now()) {
+  const out = {};
+  // Snapshot the keys first: pruneStale can delete the bed it is called for.
+  for (const bedId of [...latestByBed.keys()]) {
+    const bucket = pruneStale(bedId, nowMs);
+    if (bucket) out[bedId] = bucket;
+  }
+  return out;
 }
 
 /**
@@ -119,11 +158,11 @@ function getAllLatest() {
  * given, then with the prefix stripped, then with it added, and returns
  * whichever first has any recorded channels.
  */
-function getLatestForBedIdVariants(rawBedId) {
+function getLatestForBedIdVariants(rawBedId, nowMs = Date.now()) {
   const stripped = rawBedId.replace(/^ICU-1-/, '');
   const prefixed = rawBedId.startsWith('ICU-1-') ? rawBedId : `ICU-1-${rawBedId}`;
   for (const id of [rawBedId, stripped, prefixed]) {
-    const wf = getLatest(id);
+    const wf = getLatest(id, nowMs);
     if (Object.keys(wf).length > 0) return wf;
   }
   return {};

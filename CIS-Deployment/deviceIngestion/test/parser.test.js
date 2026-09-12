@@ -556,6 +556,54 @@ console.log('waveform/waveformBuffer.js:');
     const wf = waveformBuffer.getLatest('BED-12');
     assert.strictEqual(wf.X.samples.length, 500);
   });
+
+  test('a channel the device has stopped sending expires instead of being served forever', () => {
+    // The real bug: a one-shot fixture replay (or a lead coming off) left its
+    // last samples buffered indefinitely, and the Hub kept drawing them behind
+    // a "LIVE" badge — a frozen trace that reads as a running flat signal.
+    const t0 = 1_000_000;
+    waveformBuffer.record('BED-13', { SPO2: { unit: '', sampleRate: 100, samples: [1, 2, 3] } }, t0);
+
+    assert.deepStrictEqual(Object.keys(waveformBuffer.getLatest('BED-13', t0 + 11_000)), ['SPO2']);
+    assert.deepStrictEqual(waveformBuffer.getLatest('BED-13', t0 + 13_000), {});
+  });
+
+  test('a still-streaming channel survives while a silent one beside it is dropped', () => {
+    // Partial staleness is the common real case: the emulator's demo-mode
+    // fixture carries ECG but no SpO2, so ECG must keep rendering while the
+    // stale SpO2 lane falls back rather than the whole bed going dark.
+    const t0 = 2_000_000;
+    waveformBuffer.record('BED-14', {
+      ECG_II: { unit: 'mV', sampleRate: 100, samples: [1, 2, 3] },
+      SPO2: { unit: '', sampleRate: 100, samples: [9, 9, 9] },
+    }, t0);
+    // ECG keeps arriving; SpO2 does not.
+    waveformBuffer.record('BED-14', { ECG_II: { unit: 'mV', sampleRate: 100, samples: [4, 5] } }, t0 + 13_000);
+
+    const wf = waveformBuffer.getLatest('BED-14', t0 + 13_000);
+    assert.deepStrictEqual(Object.keys(wf), ['ECG_II']);
+    assert.deepStrictEqual(wf.ECG_II.samples, [1, 2, 3, 4, 5]); // still accumulating, not reset by the pruning
+  });
+
+  test('a bed whose every channel has gone silent disappears from getAllLatest', () => {
+    const t0 = 3_000_000;
+    waveformBuffer.record('BED-15', { RESP: { unit: 'ohm', sampleRate: 100, samples: [7] } }, t0);
+
+    assert.ok(Object.prototype.hasOwnProperty.call(waveformBuffer.getAllLatest(t0 + 1_000), 'BED-15'));
+    assert.ok(!Object.prototype.hasOwnProperty.call(waveformBuffer.getAllLatest(t0 + 13_000), 'BED-15'));
+  });
+
+  test('a re-connecting device repopulates a channel that had already expired', () => {
+    // Expiry must not be sticky: plug the monitor back in (or re-run the
+    // replay) and the channel comes back like any first message would.
+    const t0 = 4_000_000;
+    waveformBuffer.record('BED-16', { SPO2: { unit: '', sampleRate: 100, samples: [1] } }, t0);
+    assert.deepStrictEqual(waveformBuffer.getLatest('BED-16', t0 + 13_000), {});
+
+    waveformBuffer.record('BED-16', { SPO2: { unit: '', sampleRate: 100, samples: [2, 3] } }, t0 + 14_000);
+    const wf = waveformBuffer.getLatest('BED-16', t0 + 14_000);
+    assert.deepStrictEqual(wf.SPO2.samples, [2, 3]); // fresh start, not stitched onto the expired history
+  });
 }
 
 console.log(`\n${passed} test(s) passed.`);

@@ -43,6 +43,16 @@ function respSample(breathPhase) {
   return Math.sin(t * Math.PI * 2) * 0.85 + Math.sin(t * Math.PI * 4) * 0.08;
 }
 
+// A channel resting on only a handful of distinct sample values across a whole
+// window is a lead that isn't producing a signal — not a faint one. At 100Hz+
+// over several seconds any real waveform, however low its amplitude, moves
+// through many values. Below this count, auto-scaling to the window's own
+// min/max stretches ±1-LSB jitter across the full trace height and draws a
+// convincing square wave out of a resting ADC. The captured SpO2 channel in
+// deviceIngestion's sample-real-device.hl7 fixture is exactly this: three
+// values (118/119/120) across ~480 samples.
+const SIGNAL_MIN_DISTINCT_VALUES = 4;
+
 function sampleWaveform(phase, kind, ecgLead) {
   if (kind === 'ecg') return ecgSample(phase, ecgLead);
   if (kind === 'pleth') return plethSample(phase);
@@ -68,7 +78,11 @@ function sampleWaveform(phase, kind, ecgLead) {
  *    device, is essentially every poll — the buffer's content keeps
  *    moving, so a "did the content change" check resets just as often as
  *    a naive reference check would). Holds at the last real sample (does
- *    not fabricate motion) if a poll is late.
+ *    not fabricate motion) if a poll is late. Where the buffer holds less
+ *    history than the sweep is wide, the older stretch is left blank rather
+ *    than held at the oldest sample; and a channel whose entire window sits
+ *    on a few adjacent ADC codes is drawn as a baseline rather than having
+ *    its 1-LSB jitter auto-scaled up into a waveform.
  *  - No real samples for this channel (device connected but this trace
  *    isn't something it outputs, or no poll has landed yet): unchanged
  *    fallback to the modeled curve, paced by the real numeric rate.
@@ -106,7 +120,7 @@ export default function WaveformCanvas({
   // the erase-bar sweep position is independent of readPos and never
   // resets; readPos only needs to say "which sample is the sweep tip right
   // now," which is always the last one once new data lands.
-  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 });
+  const playbackRef = useRef({ samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, flat: false });
 
   // Keep latest props without restarting RAF (vitals poll was remounting the loop → flow glitches)
   useEffect(() => {
@@ -134,7 +148,17 @@ export default function WaveformCanvas({
         // secondsAgo behind the sweep tip -> an index behind the current
         // real-sample read position, at the real sample rate.
         const idx = Math.round(pb.readPos - secondsAgo * pb.sampleRate);
-        const clamped = Math.max(0, Math.min(pb.samples.length - 1, idx));
+        // Older than the history actually held: report "no data" so the caller
+        // leaves this stretch blank. Clamping to samples[0] instead (the
+        // previous behaviour) drew a long flat run held at whatever the oldest
+        // sample happened to be — indistinguishable from a genuinely flatlined
+        // signal, and pinned to the lane's top or bottom edge rather than the
+        // baseline whenever that sample was the window's max or min.
+        if (idx < 0) return null;
+        // Quantization-limited channel: draw the baseline rather than an
+        // auto-scaled square wave. Same honesty as the zero-span case below.
+        if (pb.flat) return mid;
+        const clamped = Math.min(pb.samples.length - 1, idx);
         const v = pb.samples[clamped];
         const span = pb.max - pb.min;
         const yNorm = span > 0 ? ((v - pb.min) / span) * 2 - 1 : 0; // flat signal -> flat line, honestly
@@ -151,14 +175,24 @@ export default function WaveformCanvas({
       const span = x1 - x0;
       const steps = Math.max(12, Math.ceil(span * 1.6));
       ctx.beginPath();
+      let penDown = false;
       for (let i = 0; i <= steps; i++) {
         const x = x0 + (i / steps) * span;
         // Distance behind the sweep tip (0 = newest). Never wrap inside a segment.
         const lookbackPx = sweepX >= x ? (sweepX - x) : (sweepX + w - x);
         const secondsAgo = (lookbackPx / w) * sweepSeconds;
         const y = yAt(secondsAgo, rateHz, amp, h, mid, kind, lead);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+        // No data this far back — lift the pen instead of bridging the gap, for
+        // the same reason the erase band is never stroked across.
+        if (y == null) {
+          penDown = false;
+          continue;
+        }
+        if (penDown) ctx.lineTo(x, y);
+        else {
+          ctx.moveTo(x, y);
+          penDown = true;
+        }
       }
       ctx.stroke();
     }
@@ -207,11 +241,24 @@ export default function WaveformCanvas({
           // waveformBuffer.js).
           let min = Infinity;
           let max = -Infinity;
+          // Distinct-value count, stopped as soon as it clears the threshold —
+          // the Set never grows past a few entries, so this stays a single O(n)
+          // pass alongside min/max rather than a second scan.
+          const distinct = new Set();
           for (let i = 0; i < rs.length; i++) {
-            if (rs[i] < min) min = rs[i];
-            if (rs[i] > max) max = rs[i];
+            const v = rs[i];
+            if (v < min) min = v;
+            if (v > max) max = v;
+            if (distinct.size <= SIGNAL_MIN_DISTINCT_VALUES) distinct.add(v);
           }
-          playbackRef.current = { samples: rs, sampleRate: rsr, readPos: rs.length - 1, min, max };
+          playbackRef.current = {
+            samples: rs,
+            sampleRate: rsr,
+            readPos: rs.length - 1,
+            min,
+            max,
+            flat: distinct.size <= SIGNAL_MIN_DISTINCT_VALUES,
+          };
         } else {
           // No new poll since the last frame — hold at the last real
           // sample rather than fabricate motion. readPos is already at the
@@ -221,7 +268,7 @@ export default function WaveformCanvas({
           pb.readPos = Math.min(pb.samples.length - 1, pb.readPos + dt * pb.sampleRate);
         }
       } else if (pb.samples) {
-        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1 };
+        playbackRef.current = { samples: null, sampleRate: null, readPos: 0, min: 0, max: 1, flat: false };
       }
 
       // Bedside monitors: ECG/Pleth default ~25 mm/s; RESP often slower (6.25–12.5 mm/s).
