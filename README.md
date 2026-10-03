@@ -2,7 +2,7 @@
 
 Multi-hospital ICU Hub: live vitals and waveforms from bedside monitors, Super Admin / Hospital Admin / clinical consoles, and an on-site gateway that maps devices by IP — never by what the monitor claims.
 
-Doctors and nurses see only the ward their hospital configured. Hospital Admin builds that ward (units, beds, logins, device map). Super Admin onboard hospitals and points each tenant at its gateway.
+Doctors and nurses see only the ward their hospital configured. Hospital Admin builds that ward (units, beds, logins, device map). Super Admin onboards hospitals and points each tenant at its gateway.
 
 ```
 Bedside monitor  --HL7 :7061 / JSON :7062-->  hospital device-ingestion
