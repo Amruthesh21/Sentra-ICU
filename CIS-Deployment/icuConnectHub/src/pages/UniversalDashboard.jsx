@@ -142,12 +142,12 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
           {error}
         </p>
         <p className="muted" style={{ marginTop: 12, lineHeight: 1.55 }}>
-          Create ICU units and beds under Administration (when available), or connect hospital live/history
-          data from the <Link to="/connectivity">Connectivity</Link> tab (HL7 / FHIR / adapters).
-          This Hub no longer depends on Connect Engine.
+          Create ICU units and beds under Administration. This Hub no longer depends on Connect Engine.
         </p>
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-          <Link to="/connectivity" className="btn btn-primary">Open Connectivity</Link>
+          {hospitalAdmin ? (
+            <Link to="/hospital-config" className="btn btn-primary">Open Administration</Link>
+          ) : null}
           <Link to="/overview" className="btn btn-outline">Overview</Link>
           <button type="button" className="btn btn-outline" onClick={() => { setLoading(true); load(); }}>
             Retry
@@ -207,9 +207,8 @@ export default function UniversalDashboard({ centerId, compact = false, hospital
           {visibleBlocks.length === 0 ? (
             <div className="ud-empty-block">
               <p>
-                No ICU units configured yet. Connect hospital live/history from{' '}
-                <Link to="/connectivity">Connectivity</Link>
-                {' '}(HL7 / FHIR / adapters), or create units under Administration when available.
+                No ICU units configured yet. Create units under Administration, then map a
+                bedside device under Connect a device.
               </p>
             </div>
           ) : hospitalAdmin ? (

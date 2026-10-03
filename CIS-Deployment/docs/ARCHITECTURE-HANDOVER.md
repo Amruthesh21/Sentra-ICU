@@ -1,7 +1,7 @@
 # ICU Connect V2 — Architecture & Developer Handover
 
-**Project:** RTWO ICU Connect Hub + Alarm Engine POC  
-**Version:** V2 (center `RTWO` / location `JPN`)  
+**Project:** Sentra ICU Connect Hub + Alarm Engine POC
+**Version:** V2 (center `SENTRA_ICU` / location `JPN`)
 **Last updated:** July 2026  
 **Audience:** Developers taking over maintenance and new feature work
 
@@ -42,7 +42,7 @@
 15. [Known Limitations & Gotchas](#15-known-limitations--gotchas)
 16. [Development Guide](#16-development-guide)
 
-> **Split production deployment** (Connect Engine + RabbitMQ on hospital site, Hub on RTWO cloud) is documented separately in **[LIVE-SPLIT-DEPLOYMENT.md](./LIVE-SPLIT-DEPLOYMENT.md)**.
+> **Split production deployment** (device gateway + RabbitMQ on hospital site, Hub on Sentra ICU cloud) is documented separately in **[LIVE-SPLIT-DEPLOYMENT.md](./LIVE-SPLIT-DEPLOYMENT.md)**.
 
 ---
 
@@ -84,7 +84,7 @@ flowchart TB
         DOC[Doctor Phone PWA]
     end
 
-    subgraph RTWO_Hub["RTWO Hub Stack (docker-compose.poc.yml)"]
+    subgraph Sentra_Hub["Sentra ICU Hub Stack (docker-compose.poc.yml)"]
         HUB[ICU Connect Hub SPA<br/>:8000 → nginx :80]
         AE[Alarm Engine<br/>:7020 / internal :9020]
         PG[(PostgreSQL icu_hub<br/>:7001)]
@@ -158,7 +158,7 @@ sequenceDiagram
 
 ## 3. Services & Ports
 
-### 3.1 Hub stack (`~/RTWO-version-2` on QA server)
+### 3.1 Hub stack (`~/Sentra-ICU` on QA server)
 
 | Service | Container | Host Port | Internal Port | Description |
 |---------|-----------|-----------|---------------|-------------|
@@ -269,7 +269,7 @@ Migrations: `alarmEngine/src/main/resources/db/migration/V1__hub_schema.sql` thr
 | Table group | Tables | Purpose |
 |-------------|--------|---------|
 | **Auth & RBAC** | `hub_users`, `hub_auth_sessions`, `hub_mfa_challenges`, `hub_password_reset_tokens`, `hub_auth_audit`, `hub_hospitals`, `hub_roles`, `hub_role_permissions`, `hub_user_roles` | Login, MFA, password reset, super-admin hospitals, hospital-admin users/roles |
-| **Facility** | `hub_centers`, `hub_units`, `hub_beds` | ICU center (RTWO), units (ICU-1, ICU-2), bed labels, device IPs |
+| **Facility** | `hub_centers`, `hub_units`, `hub_beds` | ICU center (SENTRA_ICU), units (ICU-1, ICU-2), bed labels, device IPs |
 | **Patients** | `hub_patients`, `hub_patient_visits`, `hub_bed_assignments`, `hub_admission_drafts` | MRN, demographics, active visits, bed occupancy |
 | **Clinical** | `hub_clinical_notes`, `hub_orders`, `hub_lab_results`, `hub_imaging_studies`, `hub_fluid_entries`, `hub_score_snapshots` | Progress notes, orders, labs, imaging, fluid balance, APACHE/SOFA scores |
 | **Sync audit** | `hub_mongo_sync_log` | Tracks Postgres→Mongo sync success/failure |
@@ -295,7 +295,7 @@ Database: `v2-ICU-Connect` on port **7000**
 
 | Collection | Written by | Read by | Contents |
 |------------|-----------|---------|----------|
-| `centerEntity` | Alarm Engine (sync bridge), Connect Engine | Alarm Engine, Connect Engine | Center `RTWO` with embedded `beds[]`: label, encrypted device IP, device list, embedded patient |
+| `centerEntity` | Alarm Engine (sync bridge), Connect Engine | Alarm Engine, Connect Engine | Center `SENTRA_ICU` with embedded `beds[]`: label, encrypted device IP, device list, embedded patient |
 | `patientInfoEntity` | Alarm Engine (sync bridge) | Alarm Engine, Connect Engine | Patient demographics keyed by UPID (Mongo ObjectId string) |
 | `patientInfo` | Legacy | Alarm Engine (fallback read) | Older patient document format |
 | `historyVitals` | **Connect Engine** | Alarm Engine (`VitalsReadService`, `MongoVitalsSyncScheduler`) | Time-series vitals per bed: `primaryAttributes`, `secondaryAttributes`, timestamp |
@@ -401,7 +401,7 @@ sequenceDiagram
 
 ### 7.1 What Connect Engine is
 
-Connect Engine is an **external Spring Boot application** (RTWO CIS stack) that acts as the **bedside device gateway**. It is **not built from this repository** — it runs from a separate `CIS-Deployment` deployment (GitHub: `Connectengine-DEMO`).
+Connect Engine is an **external Spring Boot application** (legacy CIS stack) that acts as the **bedside device gateway**. It is **not built from this repository** — it runs from a separate `CIS-Deployment` deployment (GitHub: `Connectengine-DEMO`).
 
 ### 7.2 Responsibilities
 
@@ -772,7 +772,7 @@ sequenceDiagram
 
 ### 11.4 Default credentials (QA server)
 
-- Super Admin: `monish.reddy@invensis.net` / `Rtwo@2026`
+- Super Admin: `monish.reddy@invensis.net` / `SentraDemo@2026`
 - MFA OTP (dev): `123456` when `HUB_AUTH_DEV_EXPOSE_OTP=true`
 
 ---
@@ -805,7 +805,7 @@ Delivers **Web Push notifications** to doctors' phones when alarms fire. Support
 
 ```bash
 # 1. Hub infrastructure
-cd ~/RTWO-version-2
+cd ~/Sentra-ICU
 sudo docker compose -f docker-compose.infra.yml up -d
 sleep 20
 

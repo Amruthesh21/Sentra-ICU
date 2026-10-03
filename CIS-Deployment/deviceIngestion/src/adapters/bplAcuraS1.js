@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: BPL Acura S1 syringe pump
  * -------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\BPLAcuraS1Device.data,
+ * legacy device-simulator capture BPLAcuraS1Device.data,
  * a device simulator folder the user separately confirmed rights to — not
  * Connect Engine's server source, and not referenced for anything beyond
  * this one capture file's raw protocol bytes).

@@ -25,8 +25,8 @@ public class HubAdmissionController {
     }
 
     @GetMapping("/patients/search")
-    public List<Map<String, Object>> searchPatients(@RequestParam String q) {
-        return admissionService.searchPatients(q);
+    public List<Map<String, Object>> searchPatients(@RequestParam String q, HttpServletRequest request) {
+        return admissionService.searchPatients(q, hospitalContextService.resolveCenterId(request));
     }
 
     @GetMapping("/beds")

@@ -11,6 +11,7 @@ const quarantine = require('../bedMapping/quarantine');
 const waveformBuffer = require('../waveform/waveformBuffer');
 const { getBedStatus } = require('./bedStatus');
 const { requireHubAuth } = require('./requireHubAuth');
+const publisher = require('../rabbit/publisher');
 const { ADAPTERS } = require('../adapters/registry');
 
 function startHttpServer() {
@@ -18,7 +19,11 @@ function startHttpServer() {
   app.use(express.json());
 
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'device-ingestion' });
+    res.json({
+      status: 'ok',
+      service: 'device-ingestion',
+      rabbit: publisher.isConnected(),
+    });
   });
 
   // Everything below is only ever meant to be called by a logged-in Hub

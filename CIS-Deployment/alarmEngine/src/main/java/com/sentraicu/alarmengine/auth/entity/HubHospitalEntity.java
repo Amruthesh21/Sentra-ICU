@@ -20,6 +20,10 @@ public class HubHospitalEntity {
     @Column(nullable = false)
     private String status = "ACTIVE";
 
+    /** Hospital-LAN origin of device-ingestion, e.g. http://10.20.0.10:9050. Null = use DEVICE_INGESTION_URL. */
+    @Column(name = "device_ingestion_url", length = 512)
+    private String deviceIngestionUrl;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -47,4 +51,6 @@ public class HubHospitalEntity {
     public void setCode(String code) { this.code = code; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getDeviceIngestionUrl() { return deviceIngestionUrl; }
+    public void setDeviceIngestionUrl(String deviceIngestionUrl) { this.deviceIngestionUrl = deviceIngestionUrl; }
 }

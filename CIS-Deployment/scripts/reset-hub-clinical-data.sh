@@ -44,8 +44,8 @@ if [[ "$REMOVE_R2" == true ]]; then
 else
   echo "Removing Cardiac ICU and other non-R2 units..."
   docker exec CIS-postgres psql -U icu_hub -d icu_hub -v ON_ERROR_STOP=1 \
-    -c "DELETE FROM hub_beds WHERE unit_id IN (SELECT id FROM hub_units WHERE center_id = 'RTWO' AND UPPER(code) <> 'R2');" \
-    -c "DELETE FROM hub_units WHERE center_id = 'RTWO' AND UPPER(code) <> 'R2';"
+    -c "DELETE FROM hub_beds WHERE unit_id IN (SELECT id FROM hub_units WHERE center_id = 'SENTRA_ICU' AND UPPER(code) <> 'R2');" \
+    -c "DELETE FROM hub_units WHERE center_id = 'SENTRA_ICU' AND UPPER(code) <> 'R2';"
 fi
 
 echo "After:"
@@ -56,10 +56,10 @@ docker exec CIS-postgres psql -U icu_hub -d icu_hub -c \
 
 if [[ "$FULL_MONGO" == true ]]; then
   docker exec CIS-mongodb mongosh -u monish -p "admin@123" --authenticationDatabase admin --quiet --eval \
-    'const h=db.getSiblingDB("v2-ICU-Connect"); print("patients:"+h.patientInfoEntity.deleteMany({}).deletedCount); print("beds cleared:"+h.centerEntity.updateOne({_id:"RTWO"},{$set:{beds:[]}}).modifiedCount);'
+    'const h=db.getSiblingDB("v2-ICU-Connect"); print("patients:"+h.patientInfoEntity.deleteMany({}).deletedCount); print("beds cleared:"+h.centerEntity.updateOne({_id:"SENTRA_ICU"},{$set:{beds:[]}}).modifiedCount);'
 else
   docker exec CIS-mongodb mongosh -u monish -p "admin@123" --authenticationDatabase admin --quiet --eval \
-    'const h=db.getSiblingDB("v2-ICU-Connect"); print("patients:"+h.patientInfoEntity.deleteMany({}).deletedCount); const d=h.centerEntity.findOne({_id:"RTWO"}); let b=d&&d.beds?d.beds:[]; b=b.map(x=>{const c=Object.assign({},x); delete c.patient; delete c.devices; return c;}); h.centerEntity.updateOne({_id:"RTWO"},{$set:{beds:b}}); print("mongo beds kept:"+b.length);'
+    'const h=db.getSiblingDB("v2-ICU-Connect"); print("patients:"+h.patientInfoEntity.deleteMany({}).deletedCount); const d=h.centerEntity.findOne({_id:"SENTRA_ICU"}); let b=d&&d.beds?d.beds:[]; b=b.map(x=>{const c=Object.assign({},x); delete c.patient; delete c.devices; return c;}); h.centerEntity.updateOne({_id:"SENTRA_ICU"},{$set:{beds:b}}); print("mongo beds kept:"+b.length);'
 fi
 
 curl -sf -X POST http://127.0.0.1:7020/api/center/reload >/dev/null 2>&1 || true

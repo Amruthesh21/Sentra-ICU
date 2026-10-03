@@ -26,6 +26,30 @@ export async function updateUser(userId, payload) {
   return readJson(res);
 }
 
+export async function fetchUserPhotoBlob(userId) {
+  const res = await apiFetch(`/api/hospital-admin/users/${userId}/photo`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Could not load photo');
+  return res.blob();
+}
+
+export async function uploadUserPhoto(userId, file) {
+  const body = new FormData();
+  body.append('file', file);
+  const res = await apiFetch(`/api/hospital-admin/users/${userId}/photo`, {
+    method: 'POST',
+    body,
+  });
+  return readJson(res);
+}
+
+export async function deleteUserPhoto(userId) {
+  const res = await apiFetch(`/api/hospital-admin/users/${userId}/photo`, {
+    method: 'DELETE',
+  });
+  return readJson(res);
+}
+
 export async function listRoles() {
   const res = await apiFetch('/api/hospital-admin/roles');
   return readJson(res);

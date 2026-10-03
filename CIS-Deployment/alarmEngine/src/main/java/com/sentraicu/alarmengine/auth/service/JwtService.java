@@ -23,7 +23,7 @@ public class JwtService {
 
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
     private static final String INSECURE_DEFAULT_SECRET =
-            "icu-connect-v2-change-this-secret-in-production-rtwo-2026";
+            "icu-connect-v2-change-this-secret-in-production-sentra-2026";
 
     private final AuthProperties properties;
     private final SecretKey key;

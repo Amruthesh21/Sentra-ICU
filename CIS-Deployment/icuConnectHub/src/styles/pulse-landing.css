@@ -1,14 +1,17 @@
 /* Sentra ICU landing — match provided brand screens exactly */
 
-/* Unlock page scroll (app shell locks body/#root for internal scrolling) */
-html.pulse-landing-active,
-html.pulse-landing-active body {
+/* Unlock page scroll (app shell locks body/#root for internal scrolling).
+   Only html scrolls — scrolling both html and body breaks #hash nav. */
+html.pulse-landing-active {
   height: auto !important;
   min-height: 100% !important;
   overflow-x: clip !important;
   overflow-y: auto !important;
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.25rem;
 }
 
+html.pulse-landing-active body,
 html.pulse-landing-active #root {
   height: auto !important;
   min-height: 100% !important;
@@ -156,7 +159,18 @@ html.pulse-landing-active #root {
 }
 
 .pulse-hero {
-  padding: clamp(3rem, 8vw, 6.5rem) clamp(1.2rem, 4vw, 2.75rem) clamp(2.5rem, 5vw, 4rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+  align-items: stretch;
+  min-height: min(72vh, 700px);
+  overflow: hidden;
+}
+
+.pulse-hero-copyblock {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(2.8rem, 7vw, 5.5rem) clamp(1.6rem, 4vw, 3rem) clamp(2.4rem, 5vw, 3.6rem);
 }
 
 .pulse-eyebrow {
@@ -168,18 +182,11 @@ html.pulse-landing-active #root {
   font-weight: 500;
 }
 
-.pulse-hero-grid {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: clamp(1.5rem, 4vw, 3rem);
-  align-items: end;
-}
-
 .pulse-hero-title {
   margin: 0;
   font-family: var(--pulse-serif);
   font-weight: 500;
-  font-size: clamp(3.4rem, 8vw, 6.4rem);
+  font-size: clamp(3.2rem, 7.2vw, 6rem);
   line-height: 0.95;
   letter-spacing: -0.02em;
   color: #0b1220;
@@ -196,24 +203,48 @@ html.pulse-landing-active #root {
   color: #8b93a3;
 }
 
-.pulse-hero-side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1.4rem;
-  padding-bottom: 0.35rem;
-}
-
 .pulse-hero-copy {
-  margin: 0;
-  max-width: 34ch;
-  color: #667080;
+  margin: 1.5rem 0 0;
+  max-width: 38ch;
+  color: #5c6573;
   font-size: 1rem;
   line-height: 1.65;
 }
 
+.pulse-hero-shot {
+  position: relative;
+  min-height: 420px;
+  background: #e8ebef;
+}
+
+.pulse-hero-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+  display: block;
+}
+
 .pulse-visual {
-  padding: 0 clamp(1.2rem, 4vw, 2.75rem) 0;
+  padding: 0;
+}
+
+.pulse-system {
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.2rem, 4vw, 2.75rem) 0;
+  scroll-margin-top: 5.25rem;
+}
+
+.pulse-section-head {
+  margin-bottom: 1.6rem;
+}
+
+.pulse-section-head h2 {
+  margin: 0;
+  font-family: var(--pulse-serif);
+  font-weight: 500;
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .pulse-visual-frame {
@@ -330,7 +361,7 @@ html.pulse-landing-active #root {
 }
 
 .pulse-instrument {
-  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.2rem, 4vw, 2.75rem);
+  padding: clamp(2rem, 5vw, 3.2rem) 0 clamp(2.5rem, 6vw, 4rem);
 }
 
 .pulse-section-label {
@@ -372,7 +403,8 @@ html.pulse-landing-active #root {
 }
 
 .pulse-manifesto {
-  padding: 0 clamp(1.2rem, 4vw, 2.75rem) clamp(2rem, 5vw, 3.5rem);
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.2rem, 4vw, 2.75rem);
+  scroll-margin-top: 5.25rem;
 }
 
 .pulse-manifesto-row {
@@ -396,7 +428,7 @@ html.pulse-landing-active #root {
   color: #c9ced6;
 }
 
-.pulse-manifesto-body h2 {
+.pulse-manifesto-body h3 {
   margin: 0.15rem 0 0.7rem;
   font-family: var(--pulse-serif);
   font-weight: 500;
@@ -414,6 +446,7 @@ html.pulse-landing-active #root {
 
 .pulse-modules {
   padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.2rem, 4vw, 2.75rem) clamp(3rem, 6vw, 5rem);
+  scroll-margin-top: 5.25rem;
 }
 
 .pulse-modules-head {
@@ -422,6 +455,10 @@ html.pulse-landing-active #root {
   align-items: end;
   gap: 1rem;
   margin-bottom: 1.4rem;
+}
+
+.pulse-modules-head .pulse-section-label {
+  margin-bottom: 0.45rem;
 }
 
 .pulse-modules-head h2 {
@@ -527,7 +564,11 @@ html.pulse-landing-active #root {
   }
 
   .pulse-nav-links {
-    display: none;
+    grid-column: 1 / -1;
+    order: 3;
+    justify-content: flex-start;
+    gap: 1.4rem;
+    padding-top: 0.15rem;
   }
 
   .pulse-hero-grid,
@@ -535,6 +576,24 @@ html.pulse-landing-active #root {
   .pulse-modules-grid,
   .pulse-manifesto-row {
     grid-template-columns: 1fr;
+  }
+
+  .pulse-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .pulse-hero-copyblock {
+    padding-bottom: 1.6rem;
+  }
+
+  .pulse-hero-shot {
+    min-height: 280px;
+    aspect-ratio: 16 / 10;
+  }
+
+  .pulse-hero-copy {
+    max-width: none;
   }
 
   .pulse-instrument-cell {
@@ -560,9 +619,5 @@ html.pulse-landing-active #root {
 
   .pulse-visual-frame {
     aspect-ratio: 16 / 11;
-  }
-
-  .pulse-hero-side {
-    align-items: stretch;
   }
 }

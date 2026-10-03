@@ -59,10 +59,11 @@ function formatBp(vitals) {
   return '—';
 }
 
-function deriveStatus(alarms) {
+function deriveStatus(alarms, hasVitals) {
   // Status comes only from real alarm-engine events for this bed (no substring / hardcoded bleed).
   if (alarms.some((a) => String(a.severity || '').toUpperCase() === 'CRITICAL')) return 'critical';
   if (alarms.length > 0) return 'warning';
+  if (!hasVitals) return 'offline';
   return 'stable';
 }
 
@@ -120,9 +121,10 @@ export function useLiveWard({ pollMs = 4000 } = {}) {
       const mapped = rawBeds.map((bed) => {
         const bedId = bed.alarmBedId || `ICU-1-${bed.bedLabel}`;
         const vitals = vitalsByLabel[bed.bedLabel] || {};
+        const hasVitals = Object.keys(vitals).length > 0;
         const bedAlarms = alarmsForBed(alarmList, { alarmBedId: bedId, bedLabel: bed.bedLabel });
         const occupied = Boolean(bed.occupied && bed.patient);
-        const status = occupied ? deriveStatus(bedAlarms) : 'available';
+        const status = occupied ? deriveStatus(bedAlarms, hasVitals) : 'available';
         const patient = bed.patient || {};
         const unitMeta = unitList.find((u) => u.unitId === bed.unitId)
           || unitList.find((u) => (u.beds || []).some?.((b) => b.bedLabel === bed.bedLabel));
@@ -153,7 +155,7 @@ export function useLiveWard({ pollMs = 4000 } = {}) {
           liveVitalsCapable: Boolean(bed.liveVitalsCapable),
           virtualSimulatorActive: Boolean(bed.virtualSimulatorActive),
           simulationMode: bed.simulationMode || (bed.liveVitalsCapable ? 'live' : bed.virtualSimulatorActive ? 'virtual' : 'offline'),
-          hasVitals: Object.keys(vitals).length > 0,
+          hasVitals,
         };
       });
 

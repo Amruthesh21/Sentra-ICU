@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Avi Viha DV10 ventilator
  * -------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\AviVihaDV10Device.data —
+ * legacy device-simulator capture AviVihaDV10Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

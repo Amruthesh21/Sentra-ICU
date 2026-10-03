@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { addBedToUnit, createUnit, listUnits, getUnit } from '../api/units';
 import DeviceConnectivityPanel from '../components/DeviceConnectivityPanel';
+import { AdminStaffPage } from './PulseAdmin';
 
 export default function Admin({ hospitalAdmin = false }) {
-  const { user } = useAuth();
   const [units, setUnits] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitDetail, setUnitDetail] = useState(null);
@@ -98,18 +97,15 @@ export default function Admin({ hospitalAdmin = false }) {
     <div className={`admin-layout${hospitalAdmin ? ' hospital-admin-page' : ''}`}>
       <div className="page-intro admin-header">
         <div>
-          <h2 className="page-intro-title">
-            {hospitalAdmin
-              ? (user?.displayName || 'Hospital setup')
-              : 'Hospital setup'}
-          </h2>
+          {!hospitalAdmin && (
+            <h2 className="page-intro-title">Hospital setup</h2>
+          )}
           <p className="muted">
-            Create ICU units and beds locally. Live patient data and history come from hospital
-            connectivity (HL7 / FHIR / adapters) — not Connect Engine.
+            Create ICU units and beds, then map bedside devices below. Live vitals come from
+            device-ingestion (HL7 / JSON) once a monitor is connected to a bed.
           </p>
         </div>
         <div className="admin-header-actions">
-          <Link to="/connectivity" className="btn btn-primary">Open Connectivity</Link>
           {!hospitalAdmin && (
             <Link to="/analytics" className="btn btn-outline">ICU Command Center</Link>
           )}
@@ -251,6 +247,14 @@ export default function Admin({ hospitalAdmin = false }) {
       </div>
 
       <DeviceConnectivityPanel />
+
+      {hospitalAdmin ? (
+        <div className="form-card glass-card" style={{ marginTop: 16 }}>
+          <h3>Admission roster</h3>
+          <p className="muted">Doctors and nurses assigned on admission. Clinical staff can view this list; they cannot edit it.</p>
+          <AdminStaffPage />
+        </div>
+      ) : null}
     </div>
   );
 }

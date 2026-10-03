@@ -8,7 +8,6 @@ import Overview from './pages/Overview';
 import Patients from './pages/Patients';
 import Beds from './pages/Beds';
 import Alerts from './pages/Alerts';
-import Staff from './pages/Staff';
 import BedRoute from './pages/BedRoute';
 import Admin from './pages/Admin';
 import HospitalAdmin from './pages/HospitalAdmin';
@@ -23,15 +22,14 @@ import PatientManagement from './pages/PatientManagement';
 import Reports from './pages/Reports';
 import Scoring from './pages/Scoring';
 import Analytics from './pages/Analytics';
-import Connectivity from './pages/Connectivity';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import MfaVerify from './pages/MfaVerify';
 import AccountSetup from './pages/AccountSetup';
-import PulseAdmin, { AdminHome, AdminStaffPage } from './pages/PulseAdmin';
 import {
   HospitalAdminAlarmsPage,
   HospitalAdminAnalyticsPage,
+  HospitalAdminDashboardPage,
 } from './pages/HospitalAdminCenterPages';
 import { isHospitalAdminUser, isSuperAdminUser } from './utils/userRoles';
 import { homePathForUser } from './utils/authRedirect';
@@ -75,10 +73,6 @@ function HospitalAdminConfigRoute() {
   return <Admin hospitalAdmin />;
 }
 
-function ClinicalAdminUnits() {
-  return <Admin />;
-}
-
 export default function App() {
   return (
     <UiThemeProvider>
@@ -100,7 +94,17 @@ export default function App() {
               )}
             >
               <Route path="hospitals" element={<SuperAdminOnly><SuperAdminHospitals /></SuperAdminOnly>} />
-              <Route path="universal" element={<SuperAdminBlock><UniversalRoute /></SuperAdminBlock>} />
+              <Route
+                path="universal"
+                element={(
+                  <SuperAdminBlock>
+                    <ClinicalOrHospitalAdminRoute
+                      hospitalAdmin={<HospitalAdminDashboardPage />}
+                      clinical={<UniversalRoute />}
+                    />
+                  </SuperAdminBlock>
+                )}
+              />
               <Route
                 path="centers-admins"
                 element={<SuperAdminOnly><SuperAdminCentersAdmins /></SuperAdminOnly>}
@@ -121,12 +125,8 @@ export default function App() {
               <Route path="patients" element={<ClinicalStaffOnly><Patients /></ClinicalStaffOnly>} />
               <Route path="beds" element={<ClinicalStaffOnly><Beds /></ClinicalStaffOnly>} />
               <Route path="alerts" element={<ClinicalStaffOnly><Alerts /></ClinicalStaffOnly>} />
-              <Route path="staff" element={<ClinicalStaffOnly><Staff /></ClinicalStaffOnly>} />
-              <Route path="admin" element={<ClinicalStaffOnly><PulseAdmin /></ClinicalStaffOnly>}>
-                <Route index element={<AdminHome />} />
-                <Route path="staff" element={<AdminStaffPage />} />
-                <Route path="units" element={<ClinicalAdminUnits />} />
-              </Route>
+              <Route path="staff" element={<Navigate to="/overview" replace />} />
+              <Route path="admin/*" element={<Navigate to="/overview" replace />} />
               <Route path="unit" element={<Navigate to="/overview" replace />} />
               <Route
                 path="alarms"
@@ -143,7 +143,7 @@ export default function App() {
               <Route path="admissions" element={<ClinicalStaffOnly><PatientManagement /></ClinicalStaffOnly>} />
               <Route path="reports" element={<ClinicalStaffOnly><Reports /></ClinicalStaffOnly>} />
               <Route path="scoring" element={<ClinicalStaffOnly><Scoring /></ClinicalStaffOnly>} />
-              <Route path="connectivity" element={<ClinicalStaffOnly><Connectivity /></ClinicalStaffOnly>} />
+              <Route path="connectivity" element={<Navigate to="/hospital-config" replace />} />
               <Route
                 path="analytics"
                 element={(

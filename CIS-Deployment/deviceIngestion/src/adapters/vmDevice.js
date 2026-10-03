@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Philips SureSigns VM spot-check monitor
  * -------------------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\VmDevice.data —
+ * legacy device-simulator capture VmDevice.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

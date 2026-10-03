@@ -12,7 +12,7 @@ public class HubStaffEntity {
     private UUID id;
 
     @Column(name = "center_id", nullable = false)
-    private String centerId = "RTWO";
+    private String centerId = "SENTRA_ICU";
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -47,7 +47,7 @@ public class HubStaffEntity {
         if (createdAt == null) createdAt = now;
         updatedAt = now;
         if (status == null) status = "ON_DUTY";
-        if (centerId == null || centerId.isBlank()) centerId = "RTWO";
+        if (centerId == null || centerId.isBlank()) centerId = "SENTRA_ICU";
     }
 
     @PreUpdate

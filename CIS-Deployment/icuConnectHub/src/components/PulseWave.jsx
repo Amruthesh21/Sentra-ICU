@@ -48,9 +48,10 @@ function beatSamples(kind, samplesPerBeat) {
 
 /**
  * Live scrolling ECG-style waveform (canvas), not a static image.
- * status: critical | warning | stable
+ * status: critical | warning | stable | offline
+ * live: false = no device signal — baseline only, never a fake heartbeat.
  */
-export default function PulseWave({ status = 'stable', height = 48 }) {
+export default function PulseWave({ status = 'stable', height = 48, live = true }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(0);
 
@@ -59,7 +60,7 @@ export default function PulseWave({ status = 'stable', height = 48 }) {
     if (!canvas) return undefined;
 
     const ctx = canvas.getContext('2d');
-    const color = COLORS[status] || COLORS.stable;
+    const color = live ? (COLORS[status] || COLORS.stable) : '#9aa3b2';
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     // Ring buffer of y samples (-1..1-ish)
@@ -154,6 +155,13 @@ export default function PulseWave({ status = 'stable', height = 48 }) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
 
+      if (!live) {
+        pushSample(0);
+        draw();
+        rafRef.current = requestAnimationFrame(frame);
+        return;
+      }
+
       // How many samples to advance based on scroll speed
       const samplesNeeded = scrollPxPerSec * dt / 1.6;
       sampleAcc += samplesNeeded;
@@ -177,7 +185,7 @@ export default function PulseWave({ status = 'stable', height = 48 }) {
       window.removeEventListener('resize', onResize);
       ro?.disconnect();
     };
-  }, [status, height]);
+  }, [status, height, live]);
 
   return (
     <div className="pulse-wave-wrap" style={{ height }} aria-hidden="true">

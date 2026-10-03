@@ -29,7 +29,7 @@ public class AuthSecurity {
     public HubAuthUserEntity requireSuperAdmin(HttpServletRequest request) {
         HubAuthUserEntity user = requireUser(request);
         if (!user.isSuperAdmin()) {
-            throw new AuthService.AuthException("Super admin access required");
+            throw new AuthService.AuthException("Super admin access required", 403);
         }
         return user;
     }
@@ -38,11 +38,11 @@ public class AuthSecurity {
         HubAuthUserEntity user = requireUser(request);
         if (user.isSuperAdmin()) return user;
         if (user.getHospitalId() == null) {
-            throw new AuthService.AuthException("Hospital access required");
+            throw new AuthService.AuthException("Hospital access required", 403);
         }
         if (!"HOSPITAL_ADMIN".equalsIgnoreCase(user.getRole())
                 && !"ADMIN".equalsIgnoreCase(user.getRole())) {
-            throw new AuthService.AuthException("Hospital admin access required");
+            throw new AuthService.AuthException("Hospital admin access required", 403);
         }
         return user;
     }

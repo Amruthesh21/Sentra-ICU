@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Schiller (Tecme) Neumovent ventilator
  * ---------------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\SchillerNeumoventDevice.data —
+ * legacy device-simulator capture SchillerNeumoventDevice.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

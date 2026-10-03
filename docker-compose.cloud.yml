@@ -1,0 +1,25 @@
+# Cloud overlay — Hub + alarm-engine without an on-site gateway
+#
+# Never run this file alone. Combine with the app compose:
+#
+#   docker compose -p sentra-cloud -f docker-compose.poc.yml -f docker-compose.cloud.yml up -d --build
+#
+# That starts alarm-engine, Hub, notification-service, etc., and *does not*
+# start device-ingestion on the cloud host. Bedside monitors cannot reach a
+# public cloud; run docker-compose.hospital.yml on the hospital LAN instead.
+#
+# After the hospital gateway is up, set its origin on the hospital profile
+# (Super Admin → hospital → Device gateway URL), e.g. http://10.20.0.10:9050
+# reachable from this cloud over VPN. See CIS-Deployment/docs/HOSPITAL-GATEWAY.md.
+
+services:
+  device-ingestion:
+    profiles:
+      - hospital-colocated
+
+  alarm-engine:
+    environment:
+      # Empty = require a per-hospital URL in Super Admin. Do not point this
+      # at a public hostname; the gateway is not a public internet service.
+      DEVICE_INGESTION_URL: ${DEVICE_INGESTION_URL:-}
+      DEVICE_INGESTION_REQUIRE_HTTPS: ${DEVICE_INGESTION_REQUIRE_HTTPS:-false}

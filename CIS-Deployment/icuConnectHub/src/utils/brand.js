@@ -1,18 +1,16 @@
-/** User-facing product brand. Technical center id may still be RTWO for Connect Engine sync. */
+/** User-facing product brand. */
 export const BRAND_NAME = 'Sentra ICU';
 
-function scrubRtwo(text) {
+function scrubLegacyBrand(text) {
   return String(text)
     .replace(/\bRTWO\b/gi, BRAND_NAME)
+    .replace(/\bSENTRA_ICU\b/gi, BRAND_NAME)
     .replace(/\bSentra ICU(?:\s+ICU)+\b/gi, BRAND_NAME)
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Scrub legacy RTWO labels from any center/display string for the UI.
- * "RTWO JPN" → "Sentra ICU JPN", "RTWO" → "Sentra ICU"
- */
+/** Normalize any center/display string to Sentra ICU branding. */
 export function brandCenterLabel(...parts) {
   const cleaned = parts
     .flat()
@@ -29,6 +27,6 @@ export function brandCenterLabel(...parts) {
     }
   }
 
-  const scrubbed = scrubRtwo(text);
+  const scrubbed = scrubLegacyBrand(text);
   return scrubbed || BRAND_NAME;
 }

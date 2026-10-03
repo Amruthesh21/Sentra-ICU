@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.hub.service;
 
+import com.sentraicu.alarmengine.hub.HubCenterIds;
 import com.sentraicu.alarmengine.hub.entity.HubBedEntity;
 import com.sentraicu.alarmengine.hub.entity.HubUnitEntity;
 import com.sentraicu.alarmengine.hub.repo.HubBedAssignmentRepository;
@@ -14,7 +15,7 @@ import java.util.*;
 @Service
 public class HubUnitAdminService {
 
-    private static final String DEFAULT_CENTER = "RTWO";
+    private static final String DEFAULT_CENTER = HubCenterIds.CONNECT_ENGINE;
 
     private final HubUnitRepository unitRepository;
     private final HubBedRepository bedRepository;
@@ -126,7 +127,9 @@ public class HubUnitAdminService {
 
     private String resolveCenter(String centerId) {
         if (centerId == null || centerId.isBlank()) return DEFAULT_CENTER;
-        return centerId.trim().toUpperCase(Locale.ROOT);
+        String cid = centerId.trim().toUpperCase();
+        if (HubCenterIds.LEGACY_CENTER_ID.equals(cid)) return HubCenterIds.CONNECT_ENGINE;
+        return cid;
     }
 
     private Map<String, Object> toUnitSummary(HubUnitEntity unit, String centerId) {

@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Philips MX550 patient monitor (JSON protocol)
  * -----------------------------------------------------------
  * Learned from a real captured export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\MX550Device.data —
+ * legacy device-simulator capture MX550Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

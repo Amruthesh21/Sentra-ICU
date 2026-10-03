@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Draeger Evita V600 ventilator (JSON protocol)
  * -----------------------------------------------------------
  * Learned from a real captured export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\EvitaV600Device.data —
+ * legacy device-simulator capture EvitaV600Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

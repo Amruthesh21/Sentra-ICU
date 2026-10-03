@@ -1,0 +1,153 @@
+.account-hover {
+  position: relative;
+  display: inline-flex;
+}
+
+.account-hover-avatar,
+.account-hover-name {
+  cursor: default;
+  font: inherit;
+}
+
+.account-hover-avatar {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: #151a23;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.account-hover-name {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-hover-face,
+.account-hover-card-mark {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #151a23;
+  color: #fff;
+}
+
+.account-hover-face em,
+.account-hover-card-mark em {
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  display: block;
+  text-align: center;
+}
+
+.account-hover-face img,
+.account-hover-card-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.account-hover-card {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 40;
+  width: 260px;
+  padding: 12px 14px 14px;
+  border: 1px solid #e6e8ec;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  color: #0b1220;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+
+.account-hover-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  height: 10px;
+}
+
+.account-hover:hover .account-hover-card,
+.account-hover:focus-within .account-hover-card {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(8px);
+}
+
+.account-hover-card-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.account-hover-card-mark {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.account-hover-card-head strong {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.account-hover-role {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.account-hover-card dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.account-hover-card dt {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b93a0;
+  margin: 0 0 2px;
+}
+
+.account-hover-card dd {
+  margin: 0;
+  font-size: 0.82rem;
+  word-break: break-word;
+  color: #111827;
+}

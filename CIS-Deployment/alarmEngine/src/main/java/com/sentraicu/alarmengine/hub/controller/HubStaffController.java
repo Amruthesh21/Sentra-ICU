@@ -33,9 +33,6 @@ public class HubStaffController {
         return staffService.list(hospitalContextService.resolveCenterId(request), role);
     }
 
-    // Creating/editing/deactivating staff accounts is hospital-admin-only —
-    // otherwise any authenticated clinical user could create or remove
-    // other staff members' accounts.
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(
             @RequestBody Map<String, Object> body,
@@ -50,12 +47,12 @@ public class HubStaffController {
             @RequestBody Map<String, Object> body,
             HttpServletRequest request) {
         authSecurity.requireHospitalAdmin(request);
-        return ResponseEntity.ok(staffService.update(id, body));
+        return ResponseEntity.ok(staffService.update(id, body, hospitalContextService.resolveCenterId(request)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deactivate(@PathVariable UUID id, HttpServletRequest request) {
         authSecurity.requireHospitalAdmin(request);
-        return ResponseEntity.ok(staffService.deactivate(id));
+        return ResponseEntity.ok(staffService.deactivate(id, hospitalContextService.resolveCenterId(request)));
     }
 }

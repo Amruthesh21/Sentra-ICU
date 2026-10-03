@@ -40,7 +40,7 @@ const env = {
   // falling back to alarm-engine's own documented placeholder here (rather
   // than inventing a different one) so the two stay in sync by default.
   HUB_AUTH_JWT_SECRET: process.env.HUB_AUTH_JWT_SECRET
-    || 'icu-connect-v2-change-this-secret-in-production-rtwo-2026',
+    || 'icu-connect-v2-change-this-secret-in-production-sentra-2026',
 
   // Phase 2 / best-effort: waveform samples are always parsed (the CD+NA
   // decoding logic is cheap and already solved), but are only published
@@ -49,6 +49,10 @@ const env = {
   // would be inventing scope. When disabled, decoded waveforms are still
   // visible on GET /api/status for debugging.
   WAVEFORM_PUBLISH_ENABLED: /^true$/i.test(process.env.WAVEFORM_PUBLISH_ENABLED || 'false'),
+
+  // Hospital gateways sit across a VPN from cloud RabbitMQ. Retry rather
+  // than exit(1) on the first failed handshake (VPN not up yet, broker restart).
+  RABBITMQ_RECONNECT_MS: Number(process.env.RABBITMQ_RECONNECT_MS || 2000),
 };
 
 module.exports = env;

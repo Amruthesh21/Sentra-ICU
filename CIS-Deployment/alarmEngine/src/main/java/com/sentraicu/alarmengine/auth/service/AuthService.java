@@ -33,6 +33,7 @@ public class AuthService {
     private final PermissionService permissionService;
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
+    private final ProfilePhotoService profilePhotoService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
 
@@ -47,7 +48,8 @@ public class AuthService {
             EmailOtpService emailOtpService,
             PermissionService permissionService,
             JdbcTemplate jdbcTemplate,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            ProfilePhotoService profilePhotoService) {
         this.userRepository = userRepository;
         this.challengeRepository = challengeRepository;
         this.sessionRepository = sessionRepository;
@@ -59,11 +61,13 @@ public class AuthService {
         this.permissionService = permissionService;
         this.jdbcTemplate = jdbcTemplate;
         this.auditLogService = auditLogService;
+        this.profilePhotoService = profilePhotoService;
     }
 
     @Transactional
-    public Map<String, Object> login(String loginId, String password, String ipAddress, String userAgent) {
+    public Map<String, Object> login(String loginId, String password, String portal, String ipAddress, String userAgent) {
         String trimmed = loginId.trim();
+        String requestedPortal = normalizePortal(portal);
         HubAuthUserEntity user = resolveUserForLogin(trimmed)
                 .orElseThrow(() -> new AuthException("Invalid username or password"));
 
@@ -74,6 +78,12 @@ public class AuthService {
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             audit(user, "LOGIN_FAILED", "Invalid password", ipAddress);
             throw new AuthException("Invalid username or password");
+        }
+
+        String userPortal = portalFor(user);
+        if (!requestedPortal.equals(userPortal)) {
+            audit(user, "LOGIN_FAILED", "Wrong area: " + requestedPortal, ipAddress);
+            throw new AuthException("This account cannot sign in to that area");
         }
 
         if (user.isMustChangePassword()) {
@@ -317,8 +327,7 @@ public class AuthService {
     }
 
     public Map<String, Object> me(HubAuthUserEntity user) {
-        List<String> permissions = permissionService.permissionsFor(user);
-        return new LinkedHashMap<>(jwtService.userPayload(user, permissions));
+        return sessionUser(user);
     }
 
     @Transactional
@@ -429,9 +438,15 @@ public class AuthService {
         result.put("accessToken", accessToken);
         result.put("refreshToken", refreshRaw);
         result.put("sessionId", session.getId().toString());
-        result.put("user", jwtService.userPayload(user, permissions));
+        result.put("user", sessionUser(user));
         result.put("mfaRequired", false);
         return result;
+    }
+
+    private Map<String, Object> sessionUser(HubAuthUserEntity user) {
+        Map<String, Object> payload = new LinkedHashMap<>(jwtService.userPayload(user, permissionService.permissionsFor(user)));
+        payload.put("hasPhoto", profilePhotoService.hasPhoto(user.getId()));
+        return payload;
     }
 
     private void validateNewPassword(String password, String confirmPassword) {
@@ -492,9 +507,41 @@ public class AuthService {
         }
     }
 
+    static String portalFor(HubAuthUserEntity user) {
+        if (user.isSuperAdmin()) return "PLATFORM";
+        if ("HOSPITAL_ADMIN".equalsIgnoreCase(user.getRole()) || "ADMIN".equalsIgnoreCase(user.getRole())) {
+            return "HOSPITAL";
+        }
+        return "CLINICAL";
+    }
+
+    static String normalizePortal(String portal) {
+        if (portal == null || portal.isBlank()) {
+            throw new AuthException("Select Super Admin, Hospital Admin, or Clinical staff first", 400);
+        }
+        String key = portal.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (key) {
+            case "PLATFORM", "SUPER_ADMIN", "SUPERADMIN" -> "PLATFORM";
+            case "HOSPITAL", "HOSPITAL_ADMIN", "HOSPITALADMIN" -> "HOSPITAL";
+            case "CLINICAL", "CLINICIAN", "CLINICAL_STAFF", "DOCTOR", "NURSE", "STAFF" -> "CLINICAL";
+            default -> throw new AuthException("Select Super Admin, Hospital Admin, or Clinical staff first", 400);
+        };
+    }
+
     public static class AuthException extends RuntimeException {
+        private final int httpStatus;
+
         public AuthException(String message) {
+            this(message, 401);
+        }
+
+        public AuthException(String message, int httpStatus) {
             super(message);
+            this.httpStatus = httpStatus;
+        }
+
+        public int getHttpStatus() {
+            return httpStatus;
         }
     }
 }

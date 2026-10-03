@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: BPL Penlon 320 anesthesia workstation
  * ---------------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\BplPenlon320Device.data —
+ * legacy device-simulator capture BplPenlon320Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

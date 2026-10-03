@@ -37,13 +37,24 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const patchUser = useCallback((partial) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...partial };
+      const stored = getStoredAuth();
+      if (stored) setStoredAuth({ ...stored, user: next });
+      return next;
+    });
+  }, []);
+
   const value = useMemo(() => ({
     user,
     loading,
     isAuthenticated: Boolean(user && getStoredAuth()?.accessToken),
     applySession,
+    patchUser,
     logout,
-  }), [user, loading, applySession, logout]);
+  }), [user, loading, applySession, patchUser, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

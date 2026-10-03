@@ -20,7 +20,7 @@ export default function Overview() {
         <div className="pulse-panel" style={{ marginBottom: '1rem', borderColor: '#fecaca' }}>
           <p style={{ margin: 0, color: '#b91c1c' }}>{error}</p>
           <p className="pulse-muted" style={{ margin: '0.4rem 0 0' }}>
-            Start Alarm Engine + Connect Engine, then admit patients under Admissions.
+            Start the app stack, then admit a patient under Admissions.
             {' '}<button type="button" className="pulse-ack" onClick={refresh}>Retry</button>
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function Overview() {
                 </div>
                 <h3 className="pulse-monitor-name">{bed.patient}</h3>
                 <p className="pulse-monitor-dx">{bed.diagnosis}</p>
-                <PulseWave status={bed.status} />
+                <PulseWave status={bed.status} live={bed.hasVitals} />
                 <div className="pulse-vitals-row">
                   <div className="pulse-vital">
                     <span>HR</span>

@@ -14,8 +14,6 @@ import java.util.Set;
 @Service
 public class OccupiedBedService {
 
-    private static final String DEFAULT_CENTER = "RTWO";
-
     private final MongoTemplate mongoTemplate;
     private final HubBedRepository hubBedRepository;
     private final HubBedAssignmentRepository hubAssignmentRepository;
@@ -37,24 +35,13 @@ public class OccupiedBedService {
     }
 
     private void addMongoOccupiedBeds(Set<String> bedIds) {
-        Document center = mongoTemplate.findById(DEFAULT_CENTER, Document.class, "centerEntity");
-        if (center == null) {
-            return;
-        }
-        Object bedsObj = center.get("beds");
-        if (!(bedsObj instanceof List<?> beds)) {
-            return;
-        }
-        for (Object item : beds) {
-            if (!(item instanceof Document bed)) {
-                continue;
-            }
-            if (bed.get("patient") == null) {
-                continue;
-            }
-            String label = bed.getString("bedLabel");
-            if (label != null) {
-                bedIds.add(BedIdUtil.canonicalAlarmBedId(label));
+        for (Document center : mongoTemplate.findAll(Document.class, "centerEntity")) {
+            for (Document bed : getMongoBeds(center)) {
+                if (bed.get("patient") == null) continue;
+                String label = bed.getString("bedLabel");
+                if (label != null) {
+                    bedIds.add(BedIdUtil.canonicalAlarmBedId(label));
+                }
             }
         }
     }
@@ -73,23 +60,21 @@ public class OccupiedBedService {
         String canonical = BedIdUtil.canonicalAlarmBedId(bedId);
         for (String variant : BedIdUtil.allLookupIds(canonical)) {
             String label = variant.startsWith("ICU-1-") ? variant.substring("ICU-1-".length()) : variant;
-            if (hubBedRepository.findByCenterIdAndBedLabel(DEFAULT_CENTER, label)
-                    .flatMap(bed -> hubAssignmentRepository.findByBedIdAndActiveTrue(bed.getId()))
-                    .isPresent()) {
+            if (hubBedRepository.findAll().stream()
+                    .filter(bed -> bed.getBedLabel() != null && bed.getBedLabel().equalsIgnoreCase(label))
+                    .anyMatch(bed -> hubAssignmentRepository.findByBedIdAndActiveTrue(bed.getId()).isPresent())) {
                 return true;
             }
-        }
-        Document center = mongoTemplate.findById(DEFAULT_CENTER, Document.class, "centerEntity");
-        if (center == null) {
-            return false;
         }
         Set<String> labels = new LinkedHashSet<>();
         for (String variant : BedIdUtil.allLookupIds(canonical)) {
             labels.add(variant.startsWith("ICU-1-") ? variant.substring("ICU-1-".length()) : variant);
         }
-        for (Document bed : getMongoBeds(center)) {
-            if (labels.contains(bed.getString("bedLabel")) && bed.get("patient") != null) {
-                return true;
+        for (Document center : mongoTemplate.findAll(Document.class, "centerEntity")) {
+            for (Document bed : getMongoBeds(center)) {
+                if (labels.contains(bed.getString("bedLabel")) && bed.get("patient") != null) {
+                    return true;
+                }
             }
         }
         return false;

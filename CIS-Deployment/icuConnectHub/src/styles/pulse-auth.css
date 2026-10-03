@@ -60,6 +60,51 @@
   color: #0b1220;
 }
 
+.pulse-auth-title--pick {
+  margin-bottom: 0.7rem;
+}
+
+.pulse-auth-portals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pulse-auth-portal {
+  width: 100%;
+  text-align: left;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid var(--pulse-line);
+  border-radius: 2px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pulse-auth-portal:hover,
+.pulse-auth-portal:focus-visible {
+  border-color: #0b1220;
+  outline: none;
+}
+
+.pulse-auth-portal-title {
+  display: block;
+  font-family: var(--pulse-serif);
+  font-size: 1.45rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #0b1220;
+}
+
+.pulse-auth-portal-copy {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--pulse-muted);
+}
+
 .pulse-auth-field {
   margin-bottom: 1.35rem;
 }
@@ -270,9 +315,23 @@
 }
 
 .pulse-auth-dev-code strong {
+  display: block;
+  margin: 0.35rem 0 0.65rem;
   font-family: "JetBrains Mono", ui-monospace, monospace;
   letter-spacing: 0.2em;
+  font-size: 1.35rem;
   color: #0b1220;
+}
+
+.pulse-auth-use-code {
+  border: 1px solid #0b1220;
+  background: #fff;
+  color: #0b1220;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {

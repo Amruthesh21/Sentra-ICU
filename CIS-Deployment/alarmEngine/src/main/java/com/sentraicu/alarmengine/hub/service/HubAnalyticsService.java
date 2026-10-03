@@ -1,6 +1,7 @@
 package com.sentraicu.alarmengine.hub.service;
 
 import com.sentraicu.alarmengine.dto.AlarmEvent;
+import com.sentraicu.alarmengine.hub.HubCenterIds;
 import com.sentraicu.alarmengine.hub.entity.*;
 import com.sentraicu.alarmengine.hub.repo.*;
 import com.sentraicu.alarmengine.service.ActiveAlarmStore;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 @Service
 public class HubAnalyticsService {
 
-    private static final String CENTER_ID = "RTWO";
+    private static final String CENTER_ID = HubCenterIds.CONNECT_ENGINE;
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
 
     private final HubOverviewService overviewService;
@@ -84,7 +85,10 @@ public class HubAnalyticsService {
                 "deterioratingPatients", List.of());
 
         List<HubBedEntity> allBeds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(cid);
-        List<HubBedAssignmentEntity> activeAssignments = assignmentRepository.findByActiveTrue();
+        Set<UUID> centerBedIds = allBeds.stream().map(HubBedEntity::getId).collect(Collectors.toSet());
+        List<HubBedAssignmentEntity> activeAssignments = assignmentRepository.findByActiveTrue().stream()
+                .filter(a -> centerBedIds.contains(a.getBedId()))
+                .toList();
         Set<UUID> activeVisitIds = activeAssignments.stream()
                 .map(HubBedAssignmentEntity::getVisitId)
                 .collect(Collectors.toSet());
@@ -100,10 +104,10 @@ public class HubAnalyticsService {
         Map<String, Object> fluids = buildFluidAnalytics(activeVisitIds, last24h);
         Map<String, Object> labs = buildLabAnalytics(activeVisitIds, last24h);
         Map<String, Object> alarms = buildAlarmAnalytics(activeAlarmStore.getActiveAlarms(), allBeds);
-        Map<String, Object> throughput = buildThroughput(activeVisitIds, dayStart, last24h, census);
+        Map<String, Object> throughput = buildThroughput(activeVisitIds, dayStart, last24h, census, cid);
         Instant last7d = now.minus(7, ChronoUnit.DAYS);
         Instant last30d = now.minus(30, ChronoUnit.DAYS);
-        Map<String, Object> discharges = buildDischargeAnalytics(last24h, last7d, last30d, unitById);
+        Map<String, Object> discharges = buildDischargeAnalytics(last24h, last7d, last30d, unitById, cid);
         Map<String, Object> devices = buildDeviceFleet(allBeds, activeAssignments, totals);
         List<Map<String, Object>> unitAnalytics = buildUnitAnalytics(blocks, scoring, census);
         List<Map<String, Object>> riskMatrix = buildRiskMatrix(census, scoring, deteriorating);
@@ -351,6 +355,16 @@ public class HubAnalyticsService {
     }
 
     private Map<String, Object> buildAlarmAnalytics(List<AlarmEvent> alarms, List<HubBedEntity> beds) {
+        Set<String> labels = beds.stream()
+                .map(HubBedEntity::getBedLabel)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        List<AlarmEvent> scoped = alarms.stream()
+                .filter(a -> {
+                    String label = bedDeviceService.resolveBedLabel(a.getBedId());
+                    return label != null && labels.contains(label);
+                })
+                .toList();
         Map<String, Integer> byParam = new LinkedHashMap<>();
         Map<String, Integer> byUnit = new LinkedHashMap<>();
         int critical = 0, warning = 0;
@@ -365,7 +379,7 @@ public class HubAnalyticsService {
 
         Instant now = Instant.now();
         int[] hourly = new int[24];
-        for (AlarmEvent a : alarms) {
+        for (AlarmEvent a : scoped) {
             String sev = a.getSeverity() != null ? a.getSeverity().toLowerCase(Locale.ROOT) : "";
             if (sev.contains("critical")) critical++;
             else warning++;
@@ -391,7 +405,7 @@ public class HubAnalyticsService {
         }
 
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("active", alarms.size());
+        m.put("active", scoped.size());
         m.put("critical", critical);
         m.put("warning", warning);
         m.put("byParam", toSortedList(byParam, 10));
@@ -401,7 +415,8 @@ public class HubAnalyticsService {
     }
 
     private Map<String, Object> buildThroughput(Set<UUID> activeVisitIds, Instant dayStart,
-                                                Instant last24h, List<Map<String, Object>> census) {
+                                                Instant last24h, List<Map<String, Object>> census,
+                                                String centerId) {
         int admissions24h = 0, discharges24h = 0, isolation = 0;
         double losSum = 0;
         for (Map<String, Object> row : census) {
@@ -411,7 +426,10 @@ public class HubAnalyticsService {
             if (Boolean.TRUE.equals(row.get("isolation"))) isolation++;
         }
         for (HubPatientVisitEntity v : visitRepository.findAll()) {
-            if (v.getDischargedAt() != null && v.getDischargedAt().isAfter(last24h)) discharges24h++;
+            if (v.getDischargedAt() != null && v.getDischargedAt().isAfter(last24h)
+                    && visitInCenter(v.getId(), centerId)) {
+                discharges24h++;
+            }
         }
 
         Map<String, Object> m = new LinkedHashMap<>();
@@ -427,9 +445,12 @@ public class HubAnalyticsService {
 
     private Map<String, Object> buildDischargeAnalytics(Instant last24h, Instant last7d,
                                                         Instant last30d,
-                                                        Map<UUID, HubUnitEntity> unitById) {
+                                                        Map<UUID, HubUnitEntity> unitById,
+                                                        String centerId) {
         List<HubPatientVisitEntity> allDischarged =
-                visitRepository.findByStatusOrderByDischargedAtDesc("DISCHARGED");
+                visitRepository.findByStatusOrderByDischargedAtDesc("DISCHARGED").stream()
+                        .filter(v -> visitInCenter(v.getId(), centerId))
+                        .toList();
 
         int discharges24h = 0;
         int discharges7d = 0;
@@ -862,6 +883,14 @@ public class HubAnalyticsService {
             list.add(point);
         }
         return list;
+    }
+
+    private boolean visitInCenter(UUID visitId, String centerId) {
+        if (visitId == null || centerId == null) return false;
+        return assignmentRepository.findFirstByVisitIdOrderByAssignedAtDesc(visitId)
+                .flatMap(a -> bedRepository.findById(a.getBedId()))
+                .map(b -> centerId.equalsIgnoreCase(b.getCenterId()))
+                .orElse(false);
     }
 
     private List<Map<String, Object>> toSortedList(Map<String, Integer> map, int limit) {

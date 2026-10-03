@@ -51,6 +51,12 @@ enter the on-screen MFA code, then use "+ Add hospital" to onboard a demo tenant
   immediately (no restart) — it's re-read on every device connection.
 
 ## Feed it real device data (no hardware needed)
+
+The committed `bed-map.json` starts **empty** (hospital mappings are site
+data). Either map the source IP in Admin → Connect a device, or use
+`simulation/simulate.js`, which logs in and maps for you. `replay.js` only
+opens a TCP connection — without a mapping the messages land in quarantine.
+
 ```bash
 cd CIS-Deployment/deviceIngestion
 node test/replay.js test/fixtures/sample-real-device.hl7 localhost 7061
@@ -59,13 +65,19 @@ For a JSON-speaking device instead, send `test/fixtures/sample-intellivue.json`
 (or any other `sample-*.json` fixture) to `localhost:7062` the same way.
 
 The admin API (`/api/status`, `/api/quarantine`) isn't published to the host
-— it's reachable only via the Hub's nginx proxy, and requires a real Hub
-login token (see `src/server/requireHubAuth.js`). Easiest path: log into the
-Hub UI at http://localhost:7040 and use Admin → "Connect a device", which
-calls this API for you. To check by hand, get a token from `POST
-/api/auth/login` (+ `/api/auth/mfa/verify` if MFA isn't already trusted)
-against alarm-engine on :7020, then `curl -H "Authorization: Bearer
-<token>" http://localhost:7040/device-ingestion/api/status`.
+— Hub calls `/device-ingestion/*`, nginx forwards to alarm-engine, and
+alarm-engine proxies to device-ingestion (same Docker network locally, or
+the hospital gateway URL over VPN in a split deploy). Easiest path: log into
+the Hub UI at http://localhost:7040 and use Admin → "Connect a device".
+To check by hand, get a token from `POST /api/auth/login` (+ `/api/auth/mfa/verify`
+if MFA isn't already trusted) against alarm-engine on :7020, then `curl -H
+"Authorization: Bearer <token>" http://localhost:7040/device-ingestion/api/status`.
+
+## Production split (cloud Hub + hospital gateway)
+
+Laptop all-in-one above is for development. A real hospital runs
+`deviceIngestion` on the LAN and the Hub in the cloud. See
+[CIS-Deployment/docs/HOSPITAL-GATEWAY.md](../../docs/HOSPITAL-GATEWAY.md).
 
 ## Stop everything
 ```bash

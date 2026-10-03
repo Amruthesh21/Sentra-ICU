@@ -9,7 +9,7 @@ const POLL_MS = 5000;
 // new adapter shows up (under its raw deviceType) even before a label is
 // added here.
 const DEVICE_TYPE_LABELS = {
-  BplVividVueM10: 'BPL VividVue M10 (default)',
+  BplVividVueM10: 'BPL VividVue M10',
   BplAcuraS1: 'BPL Acura S1 (syringe pump)',
   AviIW6000: 'Avi IW6000 (incubator)',
   AviVihaDV10: 'Avi Viha DV10 (ventilator)',
@@ -29,8 +29,7 @@ const DEVICE_TYPE_LABELS = {
 /**
  * "Connect a device" — lets hospital staff map a patient monitor's IP
  * address to a bed, without anyone touching a server or a config file.
- * Talks to the device-ingestion service (see
- * CIS-Deployment/deviceIngestion) via the /device-ingestion proxy.
+ * Talks to the hospital device-ingestion gateway through the Hub API proxy.
  *
  * Two ways to map a device:
  *  - It already sent data from an unmapped IP -> shows up under
@@ -110,18 +109,20 @@ export default function DeviceConnectivityPanel() {
 
   const deviceTypeOptions = useMemo(
     () => [
-      { value: '', label: DEVICE_TYPE_LABELS.BplVividVueM10 || 'Default (BPL VividVue M10)' },
-      ...deviceTypes
-        .filter((d) => d.deviceType !== 'BplVividVueM10')
-        .map((d) => ({
-          value: d.deviceType,
-          label: `${DEVICE_TYPE_LABELS[d.deviceType] || d.deviceType} — ${d.protocol.toUpperCase()}`,
-        })),
+      { value: '', label: 'Select model…' },
+      ...deviceTypes.map((d) => ({
+        value: d.deviceType,
+        label: `${DEVICE_TYPE_LABELS[d.deviceType] || d.deviceType} — ${d.protocol.toUpperCase()}`,
+      })),
     ],
     [deviceTypes],
   );
 
   async function handleMap(ip, bedLabel, deviceType) {
+    if (!deviceType) {
+      setError('Pick a device model first');
+      return;
+    }
     if (!bedLabel) {
       setError('Pick a bed first');
       return;
@@ -157,8 +158,8 @@ export default function DeviceConnectivityPanel() {
 
   async function handleManualAdd(e) {
     e.preventDefault();
-    if (!manualIp.trim() || !manualBedLabel) {
-      setError('Enter a device IP and pick a bed');
+    if (!manualIp.trim() || !manualBedLabel || !manualDeviceType) {
+      setError('Enter a device IP, pick a bed, and select a model');
       return;
     }
     await handleMap(manualIp.trim(), manualBedLabel, manualDeviceType);
@@ -190,7 +191,18 @@ export default function DeviceConnectivityPanel() {
       </p>
 
       {message && <div className="message success">{message}</div>}
-      {error && <div className="message error">{error}</div>}
+      {error && (
+        <div className="message error">
+          {error}
+          {/gateway/i.test(error) && (
+            <p className="muted" style={{ margin: '8px 0 0' }}>
+              The cloud Hub cannot reach this hospital&apos;s on-site gateway.
+              Confirm VPN, that device-ingestion is running, and that a platform
+              administrator set the correct gateway URL on the hospital profile.
+            </p>
+          )}
+        </div>
+      )}
 
       <h4 style={{ fontSize: '0.85rem', marginBottom: 8 }}>
         Devices waiting to be connected
@@ -244,7 +256,7 @@ export default function DeviceConnectivityPanel() {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      disabled={busyKey === `map-${u.ip}`}
+                      disabled={busyKey === `map-${u.ip}` || !pickedDeviceTypeByIp[u.ip] || !pickedBedByIp[u.ip]}
                       onClick={() => handleMap(u.ip, pickedBedByIp[u.ip], pickedDeviceTypeByIp[u.ip])}
                     >
                       {busyKey === `map-${u.ip}` ? 'Connecting…' : 'Connect'}
@@ -276,7 +288,11 @@ export default function DeviceConnectivityPanel() {
                 <tr key={ip}>
                   <td className="mono">{ip}</td>
                   <td>{bedId}</td>
-                  <td className="muted">{DEVICE_TYPE_LABELS[deviceType] || deviceType || DEVICE_TYPE_LABELS.BplVividVueM10}</td>
+                  <td className="muted">
+                    {DEVICE_TYPE_LABELS[deviceType]
+                      || deviceType
+                      || 'BPL VividVue M10'}
+                  </td>
                   <td>
                     <button
                       type="button"
@@ -318,8 +334,8 @@ export default function DeviceConnectivityPanel() {
           </select>
         </div>
         <div className="form-group">
-          <label>Device model</label>
-          <select value={manualDeviceType} onChange={(e) => setManualDeviceType(e.target.value)}>
+          <label>Device model *</label>
+          <select required value={manualDeviceType} onChange={(e) => setManualDeviceType(e.target.value)}>
             {deviceTypeOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}

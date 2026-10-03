@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.service;
 
+import com.sentraicu.alarmengine.hub.HubCenterIds;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -13,7 +14,7 @@ import java.util.Map;
 @Service
 public class BedDeviceService {
 
-    private static final String DEFAULT_CENTER = "RTWO";
+    private static final String DEFAULT_CENTER = HubCenterIds.CONNECT_ENGINE;
 
     private final MongoTemplate mongoTemplate;
     private final DeviceCatalogService deviceCatalogService;
@@ -25,6 +26,9 @@ public class BedDeviceService {
 
     public Document findBedByLabel(String bedLabel) {
         Document center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(DEFAULT_CENTER)), Document.class, "centerEntity");
+        if (center == null) {
+            center = mongoTemplate.findOne(new Query(Criteria.where("_id").is(HubCenterIds.LEGACY_CENTER_ID)), Document.class, "centerEntity");
+        }
         if (center == null) {
             return null;
         }

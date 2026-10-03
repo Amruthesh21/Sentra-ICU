@@ -48,6 +48,7 @@ const EMPTY_FORM = {
   adminEmail: '',
   adminDisplayName: '',
   adminPassword: '',
+  deviceIngestionUrl: '',
 };
 
 export default function SuperAdminHospitals() {
@@ -352,6 +353,21 @@ export default function SuperAdminHospitals() {
                     Generate
                   </button>
                 </div>
+              </div>
+              <div className="form-group">
+                <label>Device gateway URL</label>
+                <input
+                  type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  placeholder="https://gw.hospital.example:9050"
+                  value={form.deviceIngestionUrl}
+                  onChange={(e) => setForm({ ...form, deviceIngestionUrl: e.target.value })}
+                />
+                <p className="muted" style={{ marginTop: 6, fontSize: '0.8rem' }}>
+                  Origin of this hospital&apos;s on-site device-ingestion service (VPN or private link).
+                  Leave blank for a local all-in-one stack.
+                </p>
               </div>
               <p className="order-info-banner">
                 Give this temporary password to the hospital admin. On first sign-in they use their email and this password, then set username and a new password.

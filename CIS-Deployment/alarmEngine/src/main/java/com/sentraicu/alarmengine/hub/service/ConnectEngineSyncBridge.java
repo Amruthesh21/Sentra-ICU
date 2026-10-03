@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.hub.service;
 
+import com.sentraicu.alarmengine.hub.HubCenterIds;
 import com.sentraicu.alarmengine.hub.entity.HubBedEntity;
 import com.sentraicu.alarmengine.hub.entity.HubPatientEntity;
 import com.sentraicu.alarmengine.hub.entity.HubPatientVisitEntity;
@@ -35,8 +36,11 @@ import java.util.*;
 public class ConnectEngineSyncBridge {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectEngineSyncBridge.class);
-    private static final String CENTER_ID = "RTWO";
-    private static final String CENTER_LOCATION = "JPN";
+    private static final String CENTER_ID = HubCenterIds.CONNECT_ENGINE;
+    private static final String CENTER_LOCATION = HubCenterIds.CONNECT_ENGINE_LOCATION;
+    private static final String MONGO_CENTER_CLASS = "com.sentraicu.alarmengine.mongo.CenterEntity";
+    private static final String MONGO_BED_CLASS = "com.sentraicu.alarmengine.mongo.BedEntity";
+    private static final String MONGO_PATIENT_CLASS = "com.sentraicu.alarmengine.mongo.PatientInfoEntity";
 
     private final MongoTemplate mongoTemplate;
 
@@ -96,7 +100,7 @@ public class ConnectEngineSyncBridge {
         if (patientEntity == null) {
             patientEntity = new Document();
             patientEntity.put("_id", upid);
-            patientEntity.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.PatientInfoEntity");
+            patientEntity.put("_class", MONGO_PATIENT_CLASS);
         }
 
         patientEntity.put("name", patient.getFullName());
@@ -191,7 +195,7 @@ public class ConnectEngineSyncBridge {
         created.put("centerName", centerId);
         created.put("centerLocation", CENTER_LOCATION);
         created.put("beds", new ArrayList<>());
-        created.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.CenterEntity");
+        created.put("_class", MONGO_CENTER_CLASS);
         mongoTemplate.save(created, "centerEntity");
         return created;
     }
@@ -203,7 +207,7 @@ public class ConnectEngineSyncBridge {
         String ip = bed.getDeviceIp() != null ? bed.getDeviceIp() : DeviceCatalogService.SIMULATOR_IP;
         mongoBed.put("ip", CenterAdminService.encryptIp(ip));
         mongoBed.put("simulationMode", bed.getSimulationMode() != null ? bed.getSimulationMode() : "virtual");
-        mongoBed.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.BedEntity");
+        mongoBed.put("_class", MONGO_BED_CLASS);
         return mongoBed;
     }
 

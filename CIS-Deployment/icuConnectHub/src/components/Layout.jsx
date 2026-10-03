@@ -4,6 +4,7 @@ import NavIcon from './NavIcon';
 import PulseLogo from './PulseLogo';
 import HubAlarmMonitor from './HubAlarmMonitor';
 import UiThemeSwitcher from './UiThemeSwitcher';
+import AccountHoverCard from './AccountHoverCard';
 import { BED_DETAIL_TABS, resolveBedTab } from '../constants/bedDetailTabs';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -55,11 +56,7 @@ const PAGE_META = {
   },
   '/admin': {
     title: 'Administration',
-    subtitle: 'Create ICU units and beds (hospital feed via Connectivity)',
-  },
-  '/connectivity': {
-    title: 'Connectivity',
-    subtitle: 'Hospital HL7 · FHIR · adapters — ready when they approve a path',
+    subtitle: 'Create ICU units and beds, then map bedside devices',
   },
   '/hospital-admin': {
     title: 'Hospital Administration',
@@ -180,14 +177,6 @@ export default function Layout() {
               <span className="nav-label">Reports</span>
             </NavLink>
           )}
-          {showNav('/connectivity') && (
-            <NavLink to="/connectivity" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title="Hospital Connectivity">
-              <span className="nav-icon-wrap">
-                <NavIcon name="hub" />
-              </span>
-              <span className="nav-label">Connectivity</span>
-            </NavLink>
-          )}
           <a href="http://127.0.0.1:7031" className="nav-item" title="Mobile PWA" target="_blank" rel="noreferrer">
             <span className="nav-icon-wrap">
               <NavIcon name="smartphone" />
@@ -233,9 +222,7 @@ export default function Layout() {
             <UiThemeSwitcher />
             <span className="ax-live-pill app-chrome-live"><span className="ax-live-dot" /> Live</span>
             <LiveClock className="app-chrome-clock" />
-            {user?.displayName && (
-              <span className="app-chrome-user" title={user.email}>{user.displayName}</span>
-            )}
+            {user && <AccountHoverCard user={user} variant="name" />}
             <button
               type="button"
               className="app-chrome-logout"

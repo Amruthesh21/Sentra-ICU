@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useLiveWard } from '../hooks/useLiveWard';
 
 function assignmentLine(s) {
@@ -39,11 +38,8 @@ export default function Staff() {
     return (
       <div className="pulse-panel">
         <p className="pulse-muted" style={{ margin: 0 }}>
-          No staff roster yet. Add intensivists and nurses under Admin → Staff.
+          No staff roster yet. Ask your hospital admin to add doctors and nurses.
         </p>
-        <Link to="/admin/staff" className="pulse-btn-dark" style={{ marginTop: '0.75rem', display: 'inline-flex' }}>
-          + Add staff
-        </Link>
       </div>
     );
   }

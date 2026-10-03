@@ -14,6 +14,7 @@ import {
   updateHospitalAdmin,
 } from '../api/superAdmin';
 import AdminCredentialsModal, { generateTempPassword } from '../components/AdminCredentialsModal';
+import { brandCenterLabel } from '../utils/brand';
 
 const STATUS_OPTIONS = [
   { id: 'all', label: 'Any status' },
@@ -362,11 +363,10 @@ export default function SuperAdminCentersAdmins() {
         </div>
 
         <div className="clinical-table-wrap order-table-wrap">
-          <table className="clinical-table order-table sa-platform-table">
+          <table className="clinical-table order-table sa-platform-table sa-platform-table--centers">
             <thead>
               <tr>
                 <th>Hospital</th>
-                <th>Code</th>
                 <th>Center</th>
                 <th>Location</th>
                 <th>Hospital Admin</th>
@@ -377,7 +377,7 @@ export default function SuperAdminCentersAdmins() {
             </thead>
             <tbody>
               {filteredOverviewRows.length === 0 && (
-                <tr><td colSpan={8} className="muted order-empty">No records match your filters.</td></tr>
+                <tr><td colSpan={7} className="muted order-empty">No records match your filters.</td></tr>
               )}
               {filteredOverviewRows.map((row) => {
                 const centerActive = row.centerId ? isActiveStatus(row.centerStatus) : null;
@@ -388,21 +388,29 @@ export default function SuperAdminCentersAdmins() {
                     <td>
                       <button
                         type="button"
-                        className="sa-table-link"
+                        className="sa-table-link sa-table-link--block"
                         onClick={() => row.hospitalId && selectHospital(row.hospitalId)}
                       >
-                        {row.hospitalName || '—'}
+                        <div className="sa-table-cell-stack">
+                          <strong>{row.hospitalName || '—'}</strong>
+                          <span className="muted sa-mono">{row.hospitalCode || '—'}</span>
+                        </div>
                       </button>
                     </td>
-                    <td className="sa-mono">{row.hospitalCode || '—'}</td>
                     <td>
                       <div className="sa-table-cell-stack">
-                        <strong className="sa-mono">{row.centerId || '—'}</strong>
-                        {row.centerName && <span className="muted">{row.centerName}</span>}
+                        <strong>{row.centerId ? brandCenterLabel(row.centerName || row.centerId) : '—'}</strong>
                       </div>
                     </td>
                     <td>{row.location || '—'}</td>
-                    <td className="order-by">{row.adminLabel}</td>
+                    <td>
+                      {row.admins?.length ? row.admins.map((admin) => (
+                        <div key={admin.id || admin.email} className="sa-table-cell-stack">
+                          <strong>{admin.displayName || '—'}</strong>
+                          <span className="muted">{admin.email}</span>
+                        </div>
+                      )) : '—'}
+                    </td>
                     <td><StatusPill active={hospActive} /></td>
                     <td>
                       {row.centerId ? <StatusPill active={centerActive} /> : <span className="muted">—</span>}
@@ -538,7 +546,7 @@ export default function SuperAdminCentersAdmins() {
                         </td>
                       )}
                       <td>{a.displayName}</td>
-                      <td className="order-by">{a.email}</td>
+                      <td>{a.email}</td>
                       <td><StatusPill active={!!a.active} /></td>
                       <td className="col-actions">
                         <TableActions

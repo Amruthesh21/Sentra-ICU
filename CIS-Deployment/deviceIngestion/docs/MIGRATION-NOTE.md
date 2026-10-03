@@ -52,16 +52,16 @@ referenced, copied, or used as a source for this service. The original BPL
 VividVue M10 adapter was built and validated entirely against two real HL7
 exports captured directly from that device (its live output and its own
 built-in demo-mode output), treated as raw protocol data. Connect Engine's
-own internal Mongo `_class` discriminator strings (e.g.
-`com.rtwo.med.device.connect.mongo.dal.entities.*`, still present in
+own internal Mongo `_class` discriminator strings (historically
+`com.rtwo.med.device.connect.mongo.dal.entities.*`, now rewritten in
 `alarm-engine`'s `ConnectEngineSyncBridge.java` / `CenterAdminService.java`
-for writing documents Connect-Engine-based readers can deserialize) were
-left untouched and were never referenced.
+to Sentra ICU package names) were
+left as document metadata and were never referenced.
 
 **The other 14 adapters are a different, later situation, recorded here for
 an honest provenance trail:** the user separately pointed at, and
 explicitly confirmed rights to, Connect Engine's own device *simulator*
-(`E:\RTWO - Workspace\Deployment\Simulation\` — the compiled jar plus
+(legacy device-simulator workspace — the compiled jar plus
 per-device `deviceData/*.data` captures and `xml/drivers.xml`'s port map) —
 a distinct asset from the server source above, not covered by the same
 restriction. That confirmation is what this note is recording, not

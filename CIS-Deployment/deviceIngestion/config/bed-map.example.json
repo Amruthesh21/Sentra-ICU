@@ -1,6 +1,5 @@
 {
-  "_comment": "Copy this to bed-map.json and fill in your real device IPs. Bed identity always comes from this mapping, never from the device message itself — see src/bedMapping/bedMap.js. A plain bedId string (like the first two entries) uses the default adapter (BplVividVueM10, HL7). For any other device model, use the {bedId, deviceType} object form (third entry) — deviceType must match one of adapters/registry.js's registered adapters, and the device must be pointed at the right port for its protocol family (HL7_PORT for HL7 adapters, JSON_PORT for JSON ones).",
-  "127.0.0.1": "ICU-1-BED-01",
-  "192.168.1.50": "ICU-1-BED-02",
-  "192.168.1.51": { "bedId": "ICU-1-BED-03", "deviceType": "IntelliVue" }
+  "_comment": "Copy this to bed-map.json and fill in real device IPs, or use Admin → Connect a device (preferred). Bed identity always comes from this mapping, never from the device message — see src/bedMapping/bedMap.js. A plain bedId string uses the default adapter (BplVividVueM10, HL7). For any other model, use {bedId, deviceType}. The committed bed-map.json starts empty: hospital mappings are site data and must not be committed.",
+  "192.168.1.50": "ICU-1-BED-01",
+  "192.168.1.51": { "bedId": "ICU-1-BED-02", "deviceType": "IntelliVue" }
 }

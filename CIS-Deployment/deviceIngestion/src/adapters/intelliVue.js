@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Philips IntelliVue patient monitor (JSON protocol)
  * -------------------------------------------------------------
  * Learned from a real captured export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\IntelliVueDevice.data —
+ * legacy device-simulator capture IntelliVueDevice.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source, not referenced for anything beyond this file's
  * raw protocol bytes).

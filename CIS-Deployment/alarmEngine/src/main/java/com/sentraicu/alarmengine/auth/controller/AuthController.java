@@ -32,7 +32,9 @@ public class AuthController {
         if (loginId == null || password == null) {
             throw new AuthService.AuthException("Username and password are required");
         }
-        return ResponseEntity.ok(authService.login(loginId, password, clientIp(request), request.getHeader("User-Agent")));
+        String portal = body.getOrDefault("portal", body.get("area"));
+        return ResponseEntity.ok(authService.login(
+                loginId, password, portal, clientIp(request), request.getHeader("User-Agent")));
     }
 
     @PostMapping("/mfa/verify")

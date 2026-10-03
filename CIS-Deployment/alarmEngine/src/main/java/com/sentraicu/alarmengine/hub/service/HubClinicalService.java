@@ -223,7 +223,18 @@ public class HubClinicalService {
         return toNoteMap(note);
     }
 
-    @Transactional
+    public UUID visitIdForNote(UUID noteId) {
+        return noteRepository.findById(noteId)
+                .orElseThrow(() -> new IllegalArgumentException("Note not found"))
+                .getVisitId();
+    }
+
+    public UUID visitIdForOrder(UUID orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"))
+                .getVisitId();
+    }
+
     public Map<String, Object> updateNote(UUID noteId, Map<String, Object> request) {
         HubClinicalNoteEntity note = noteRepository.findById(noteId)
                 .orElseThrow(() -> new IllegalArgumentException("Note not found"));

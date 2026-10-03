@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Service
 public class HubOverviewService {
 
-    private static final String CENTER_ID = "RTWO";
+    private static final String CENTER_ID = HubCenterIds.CONNECT_ENGINE;
     private static final Set<String> PHYSIO_PARAMS = Set.of(
             "SpO2", "Temp1", "Temp2", "Heart Rate", "HeartRate", "Pulse",
             "Resp.Rate", "Resp Rate", "HR", "FiO2", "BP", "NIBP"
@@ -95,14 +95,18 @@ public class HubOverviewService {
         int deviceAlarms = 0;
 
         for (AlarmEvent alarm : activeAlarms) {
-            String label = alarmBedIdToLabel.getOrDefault(alarm.getBedId(),
-                    bedDeviceService.resolveBedLabel(alarm.getBedId()));
-            if (label != null) {
-                alarmsByBedLabel.computeIfAbsent(label, k -> new ArrayList<>()).add(alarm);
-                HubBedEntity bed = bedByLabel.get(label);
-                if (bed != null && bed.getUnitId() != null) {
-                    alarmsByUnit.computeIfAbsent(bed.getUnitId(), k -> new ArrayList<>()).add(alarm);
+            String label = alarmBedIdToLabel.get(alarm.getBedId());
+            if (label == null) {
+                String resolved = bedDeviceService.resolveBedLabel(alarm.getBedId());
+                if (resolved != null && bedByLabel.containsKey(resolved)) {
+                    label = resolved;
                 }
+            }
+            if (label == null) continue;
+            alarmsByBedLabel.computeIfAbsent(label, k -> new ArrayList<>()).add(alarm);
+            HubBedEntity bed = bedByLabel.get(label);
+            if (bed != null && bed.getUnitId() != null) {
+                alarmsByUnit.computeIfAbsent(bed.getUnitId(), k -> new ArrayList<>()).add(alarm);
             }
             if (isPhysiological(alarm)) {
                 physiologicalAlarms++;
@@ -251,13 +255,13 @@ public class HubOverviewService {
         return result;
     }
 
-    /** Replace legacy RTWO labels so APIs never surface the old brand. */
+    /** Replace leftover old-product labels so APIs never surface them. */
     private static String scrubBrandLabel(String value) {
         if (value == null || value.isBlank()) {
             return HubCenterIds.BRAND_DISPLAY;
         }
         String scrubbed = value
-                .replaceAll("(?i)\\bRTWO\\b", HubCenterIds.BRAND_DISPLAY)
+                .replaceAll("(?i)\\b" + HubCenterIds.LEGACY_CENTER_ID + "\\b", HubCenterIds.BRAND_DISPLAY)
                 .replaceAll("(?i)\\bSentra ICU(?:\\s+ICU)+\\b", HubCenterIds.BRAND_DISPLAY)
                 .replaceAll("\\s+", " ")
                 .trim();
@@ -275,8 +279,8 @@ public class HubOverviewService {
                 || upper.equals("SENTRA ICU")
                 || upper.equals("SENTRA ICU JPN")
                 || upper.equals("SENTRA")
-                || upper.equals("RTWO JPN")
-                || upper.equals("RTWO")
+                || upper.equals(HubCenterIds.LEGACY_CENTER_ID + " JPN")
+                || upper.equals(HubCenterIds.LEGACY_CENTER_ID)
                 || upper.equals("MAIN ICU")
                 || upper.equals("JPN")) {
             return "General";

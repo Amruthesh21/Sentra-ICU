@@ -4,10 +4,14 @@ import com.sentraicu.alarmengine.auth.entity.HubAuthUserEntity;
 import com.sentraicu.alarmengine.auth.security.AuthSecurity;
 import com.sentraicu.alarmengine.auth.service.AuditLogService;
 import com.sentraicu.alarmengine.auth.service.HospitalAdminService;
+import com.sentraicu.alarmengine.auth.service.ProfilePhotoService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,14 +22,17 @@ public class HospitalAdminController {
 
     private final AuthSecurity authSecurity;
     private final HospitalAdminService hospitalAdminService;
+    private final ProfilePhotoService photoService;
     private final AuditLogService auditLogService;
 
     public HospitalAdminController(
             AuthSecurity authSecurity,
             HospitalAdminService hospitalAdminService,
+            ProfilePhotoService photoService,
             AuditLogService auditLogService) {
         this.authSecurity = authSecurity;
         this.hospitalAdminService = hospitalAdminService;
+        this.photoService = photoService;
         this.auditLogService = auditLogService;
     }
 
@@ -81,6 +88,53 @@ public class HospitalAdminController {
                 "Updated user " + userId,
                 clientIp(request));
         return updated;
+    }
+
+    @GetMapping("/users/{userId}/photo")
+    public ResponseEntity<byte[]> getUserPhoto(
+            @PathVariable UUID userId,
+            HttpServletRequest request) {
+        HubAuthUserEntity admin = authSecurity.requireHospitalAdmin(request);
+        UUID hospitalId = resolveHospitalId(request, admin);
+        return photoService.toResponse(
+                hospitalAdminService.getUserPhoto(hospitalId, userId).orElse(null));
+    }
+
+    @PostMapping(path = "/users/{userId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadUserPhoto(
+            @PathVariable UUID userId,
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest request) throws IOException {
+        HubAuthUserEntity admin = authSecurity.requireHospitalAdmin(request);
+        assertAdminCanManage(admin);
+        UUID hospitalId = resolveHospitalId(request, admin);
+        hospitalAdminService.saveUserPhoto(hospitalId, userId, file);
+        auditLogService.record(
+                admin,
+                hospitalId,
+                "HOSPITAL",
+                "USER_PHOTO_UPDATED",
+                "Updated photo for user " + userId,
+                clientIp(request));
+        return Map.of("ok", true, "hasPhoto", true);
+    }
+
+    @DeleteMapping("/users/{userId}/photo")
+    public Map<String, Object> deleteUserPhoto(
+            @PathVariable UUID userId,
+            HttpServletRequest request) {
+        HubAuthUserEntity admin = authSecurity.requireHospitalAdmin(request);
+        assertAdminCanManage(admin);
+        UUID hospitalId = resolveHospitalId(request, admin);
+        hospitalAdminService.deleteUserPhoto(hospitalId, userId);
+        auditLogService.record(
+                admin,
+                hospitalId,
+                "HOSPITAL",
+                "USER_PHOTO_REMOVED",
+                "Removed photo for user " + userId,
+                clientIp(request));
+        return Map.of("ok", true, "hasPhoto", false);
     }
 
     @GetMapping("/roles")

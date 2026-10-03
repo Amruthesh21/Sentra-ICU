@@ -1,6 +1,7 @@
 package com.sentraicu.alarmengine.hub.service;
 
 import com.sentraicu.alarmengine.dto.DeviceDataMessage;
+import com.sentraicu.alarmengine.hub.HubCenterIds;
 import com.sentraicu.alarmengine.hub.entity.*;
 import com.sentraicu.alarmengine.hub.repo.*;
 import com.sentraicu.alarmengine.service.LatestVitalsStore;
@@ -22,7 +23,7 @@ import java.util.*;
 @Service
 public class HubAdmissionService {
 
-    private static final String CENTER_ID = "RTWO";
+    private static final String CENTER_ID = HubCenterIds.CONNECT_ENGINE;
 
     private final HubPatientRepository patientRepository;
     private final HubPatientVisitRepository visitRepository;
@@ -67,10 +68,18 @@ public class HubAdmissionService {
     }
 
     public List<Map<String, Object>> searchPatients(String query) {
+        return searchPatients(query, null);
+    }
+
+    public List<Map<String, Object>> searchPatients(String query, String centerId) {
         if (query == null || query.trim().length() < 2) {
             return List.of();
         }
-        return patientRepository.search(query.trim()).stream().map(this::toPatientSummary).toList();
+        String q = query.trim();
+        List<HubPatientEntity> matches = (centerId == null || centerId.isBlank())
+                ? patientRepository.search(q)
+                : patientRepository.searchInCenter(q, normalizeCenterId(centerId));
+        return matches.stream().map(this::toPatientSummary).toList();
     }
 
     public List<Map<String, Object>> listBeds(UUID unitId, boolean allUnits, String centerId) {
@@ -406,10 +415,17 @@ public class HubAdmissionService {
         if (readmit) {
             patient = patientRepository.findByMrn(mrn)
                     .orElseThrow(() -> new IllegalArgumentException("Patient not found for readmit"));
+            if (!patientInCenter(patient.getId(), resolvedCenter)) {
+                throw new IllegalArgumentException("Patient not found for readmit");
+            }
             applyDemographics(patient, request);
         } else {
-            if (patientRepository.findByMrn(mrn).isPresent()) {
-                throw new IllegalArgumentException("MRN already exists — use Readmission tab");
+            Optional<HubPatientEntity> existing = patientRepository.findByMrn(mrn);
+            if (existing.isPresent()) {
+                if (patientInCenter(existing.get().getId(), resolvedCenter)) {
+                    throw new IllegalArgumentException("MRN already exists — use Readmission tab");
+                }
+                throw new IllegalArgumentException("MRN already exists");
             }
             patient = new HubPatientEntity();
             patient.setMrn(mrn);
@@ -491,7 +507,7 @@ public class HubAdmissionService {
                 new Query(Criteria.where("_id").is(resolvedCenter)), Document.class, "centerEntity");
         if (center == null) return;
 
-        ensureCenterInPostgres(resolvedCenter, center);
+        ensureCenterInPostgres(resolvedCenter);
 
         Object bedsObj = center.get("beds");
         if (!(bedsObj instanceof List<?> list)) return;
@@ -513,17 +529,27 @@ public class HubAdmissionService {
         }
     }
 
-    private void ensureCenterInPostgres(String centerId, Document mongoCenter) {
+    private void ensureCenterInPostgres(String centerId) {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM hub_centers WHERE id = ?", Integer.class, centerId);
         if (count != null && count > 0) return;
+        // Do not insert an unowned center — Super Admin provisions hub_centers with hospital_id.
+    }
 
-        String name = mongoCenter != null ? mongoCenter.getString("name") : null;
-        if (name == null || name.isBlank()) name = centerId;
-        String location = mongoCenter != null ? mongoCenter.getString("location") : null;
-        jdbcTemplate.update(
-                "INSERT INTO hub_centers (id, name, location, status) VALUES (?, ?, ?, 'ACTIVE')",
-                centerId, name, location);
+    private boolean patientInCenter(UUID patientId, String centerId) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM hub_patient_visits v
+                JOIN hub_bed_assignments a ON a.visit_id = v.id
+                JOIN hub_beds b ON b.id = a.bed_id
+                WHERE v.patient_id = ?
+                  AND LOWER(b.center_id) = LOWER(?)
+                """,
+                Integer.class,
+                patientId,
+                centerId);
+        return count != null && count > 0;
     }
 
     private String normalizeCenterId(String centerId) {

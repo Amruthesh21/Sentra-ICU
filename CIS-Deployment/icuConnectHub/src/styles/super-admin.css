@@ -207,6 +207,11 @@
   scrollbar-gutter: stable;
 }
 
+.pulse-content.sa-content {
+  padding: 1.15rem 1.5rem 1.75rem;
+  overflow-x: auto;
+}
+
 .sa-content::-webkit-scrollbar {
   width: 10px;
 }
@@ -716,7 +721,7 @@
 }
 
 .sa-filter-row--3 {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.55fr) minmax(0, 1.35fr);
+  grid-template-columns: minmax(180px, 1.1fr) minmax(140px, 0.55fr) minmax(240px, 1.35fr);
 }
 
 .sa-table-panel {
@@ -724,24 +729,83 @@
   padding: 16px 18px;
 }
 
+.sa-table-panel .clinical-table-wrap,
+.sa-table-panel .order-table-wrap {
+  overflow-x: auto;
+}
+
+.sa-platform-table.order-table,
 .sa-platform-table {
+  table-layout: auto;
+  width: 100%;
+  min-width: 1080px;
+}
+
+.sa-platform-table th,
+.sa-platform-table td {
+  vertical-align: top;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.sa-platform-table .sa-mono {
+  white-space: nowrap;
+}
+
+.sa-platform-table .order-by {
+  word-break: break-word;
+}
+
+.sa-platform-table--centers th:nth-child(1),
+.sa-platform-table--centers td:nth-child(1) { min-width: 200px; }
+.sa-platform-table--centers th:nth-child(2),
+.sa-platform-table--centers td:nth-child(2) { min-width: 140px; }
+.sa-platform-table--centers th:nth-child(3),
+.sa-platform-table--centers td:nth-child(3) { min-width: 90px; white-space: nowrap; }
+.sa-platform-table--centers th:nth-child(4),
+.sa-platform-table--centers td:nth-child(4) { min-width: 220px; }
+.sa-platform-table--centers th:nth-child(5),
+.sa-platform-table--centers td:nth-child(5),
+.sa-platform-table--centers th:nth-child(6),
+.sa-platform-table--centers td:nth-child(6) { min-width: 108px; white-space: nowrap; }
+.sa-platform-table--centers th.col-actions,
+.sa-platform-table--centers td.col-actions { min-width: 150px; white-space: nowrap; }
+
+.sa-platform-table--admins {
+  min-width: 920px;
+}
+
+.sa-platform-table--admins th:nth-child(1),
+.sa-platform-table--admins td:nth-child(1) { min-width: 200px; }
+.sa-platform-table--admins th:nth-child(2),
+.sa-platform-table--admins td:nth-child(2) { min-width: 160px; }
+.sa-platform-table--admins th:nth-child(3),
+.sa-platform-table--admins td:nth-child(3) { min-width: 240px; }
+.sa-platform-table--admins th:nth-child(4),
+.sa-platform-table--admins td:nth-child(4) { min-width: 96px; white-space: nowrap; }
+.sa-platform-table--admins th.col-actions,
+.sa-platform-table--admins td.col-actions { min-width: 210px; white-space: nowrap; }
+
+.sa-platform-table--registry,
+.sa-platform-table--hospitals {
   min-width: 980px;
 }
 
-.sa-platform-table th:nth-child(1) { width: 14%; }
-.sa-platform-table th:nth-child(2) { width: 8%; }
-.sa-platform-table th:nth-child(3) { width: 14%; }
-.sa-platform-table th:nth-child(4) { width: 8%; }
-.sa-platform-table th:nth-child(5) { width: 22%; }
-.sa-platform-table th:nth-child(6) { width: 9%; }
-.sa-platform-table th:nth-child(7) { width: 9%; }
-.sa-platform-table th:nth-child(8) { width: 16%; }
-
-.sa-platform-table--admins th:nth-child(1) { width: auto; }
-
-.sa-platform-table--hospitals {
-  min-width: 900px;
-}
+.sa-platform-table--registry th:nth-child(1),
+.sa-platform-table--registry td:nth-child(1) { width: 64px; white-space: nowrap; }
+.sa-platform-table--registry th:nth-child(2),
+.sa-platform-table--registry td:nth-child(2) { min-width: 240px; }
+.sa-platform-table--registry th:nth-child(3),
+.sa-platform-table--registry td:nth-child(3) { min-width: 200px; }
+.sa-platform-table--registry th:nth-child(4),
+.sa-platform-table--registry td:nth-child(4),
+.sa-platform-table--registry th:nth-child(5),
+.sa-platform-table--registry td:nth-child(5) { width: 88px; white-space: nowrap; }
+.sa-platform-table--registry th:nth-child(6),
+.sa-platform-table--registry td:nth-child(6) { width: 104px; white-space: nowrap; }
+.sa-platform-table--registry th.col-manage,
+.sa-platform-table--registry td.col-manage { width: 110px; white-space: nowrap; }
 
 .sa-platform-table--hospitals th:nth-child(1) { width: 16%; }
 .sa-platform-table--hospitals th:nth-child(2) { width: 10%; }
@@ -762,6 +826,7 @@
   padding: 0;
   border: none;
   background: transparent;
+  grid-template-columns: minmax(140px, 200px) minmax(260px, 1fr) auto;
 }
 
 .sa-hospitals-filter .sa-filter-field--count {
@@ -802,6 +867,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+
+.sa-table-cell-stack + .sa-table-cell-stack {
+  margin-top: 8px;
 }
 
 .sa-table-row--muted {
@@ -902,7 +972,6 @@
 .sa-filter-bar {
   padding: 16px 18px;
   margin-bottom: 16px;
-  overflow: hidden;
 }
 
 .sa-filter-row {
@@ -911,6 +980,14 @@
   gap: 16px;
   align-items: end;
   width: 100%;
+}
+
+.sa-filter-row.sa-filter-row--3 {
+  grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 0.7fr) minmax(280px, 1.4fr);
+}
+
+.sa-filter-row.sa-hospitals-filter {
+  grid-template-columns: minmax(160px, 220px) minmax(280px, 1fr) auto;
 }
 
 .sa-filter-row--4 {
@@ -951,7 +1028,7 @@
 }
 
 .sa-filter-field--grow {
-  min-width: 0;
+  min-width: 260px;
 }
 
 .sa-list-panel {
@@ -1603,6 +1680,30 @@
 
 .sa-hospital-detail-audit-panel {
   width: 100%;
+}
+
+.sa-gateway-card {
+  margin-bottom: 18px;
+}
+
+.sa-gateway-card h4 {
+  margin: 0 0 8px;
+}
+
+.sa-gateway-form label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sa-gateway-form input {
+  flex: 1;
+}
+
+.sa-gateway-status {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
 }
 
 .sa-hospital-detail-audit-panel .sa-audit-page {

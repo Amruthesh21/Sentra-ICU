@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Draeger Savina 300 ventilator (JSON protocol)
  * -----------------------------------------------------------
  * Learned from a real captured export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\DraegerSavina300Device.data —
+ * legacy device-simulator capture DraegerSavina300Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

@@ -76,11 +76,9 @@ export const NAV_PERMISSIONS = {
   '/patients': ['patient.read', 'patient.write', 'patient.create'],
   '/beds': ['dashboard.unit', 'patient.read'],
   '/alerts': ['alarm.read'],
-  '/staff': ['dashboard.unit'],
   '/admissions': ['patient.read', 'patient.write', 'patient.create'],
   '/alarms': ['alarm.read'],
   '/analytics': ['kpi.read'],
   '/scoring': ['scoring.read'],
   '/reports': ['reports.read', 'reports.write'],
-  '/connectivity': ['dashboard.unit', 'dashboard.universal', 'kpi.read'],
 };

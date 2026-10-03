@@ -86,6 +86,12 @@ public class HubFluidService {
         return toMap(entry);
     }
 
+    public UUID visitIdForEntry(UUID entryId) {
+        return fluidRepository.findById(entryId)
+                .orElseThrow(() -> new IllegalArgumentException("Fluid entry not found"))
+                .getVisitId();
+    }
+
     @Transactional
     public Map<String, Object> stopRunning(UUID entryId) {
         HubFluidEntryEntity entry = fluidRepository.findById(entryId)

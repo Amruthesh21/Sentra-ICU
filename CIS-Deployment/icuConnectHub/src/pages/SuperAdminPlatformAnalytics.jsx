@@ -297,7 +297,7 @@ export default function SuperAdminPlatformAnalytics() {
                           </div>
                         </td>
                         <td>
-                          <Link to={`/?hospitalId=${row.hospitalId}`} className="pax-table-link">Open →</Link>
+                          <Link to={`/hospitals?hospitalId=${row.hospitalId}`} className="pax-table-link">Open →</Link>
                         </td>
                       </tr>
                     );

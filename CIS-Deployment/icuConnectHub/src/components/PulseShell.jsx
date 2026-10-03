@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import PulseLogo from './PulseLogo';
+import AccountHoverCard from './AccountHoverCard';
 import { useAuth } from '../context/AuthContext';
 import { getActiveAlarms } from '../api/hub';
 import '../styles/pulse-clinical.css';
@@ -10,13 +11,10 @@ const NAV = [
   { to: '/patients', label: 'Patients', icon: 'patients' },
   { to: '/beds', label: 'Beds', icon: 'beds' },
   { to: '/alerts', label: 'Alerts', icon: 'alerts', badge: true },
-  { to: '/staff', label: 'Staff', icon: 'staff' },
-  { to: '/admin', label: 'Admin', icon: 'admin' },
 ];
 
 const TOOLS = [
   { to: '/admissions', label: 'Admissions' },
-  { to: '/connectivity', label: 'Connectivity' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/scoring', label: 'Scoring' },
   { to: '/reports', label: 'Reports' },
@@ -24,17 +22,12 @@ const TOOLS = [
 ];
 
 function titleForPath(pathname) {
-  if (pathname.startsWith('/admin/staff')) return 'Admin · Staff';
-  if (pathname.startsWith('/admin/units')) return 'Admin · Units';
-  if (pathname.startsWith('/admin')) return 'Admin';
   if (pathname.startsWith('/bed/')) return 'Bed Detail';
   const map = {
     '/overview': 'Overview',
     '/patients': 'Patients',
     '/beds': 'Beds',
     '/alerts': 'Alerts',
-    '/staff': 'Staff',
-    '/connectivity': 'Connectivity',
     '/analytics': 'Analytics',
     '/scoring': 'Scoring',
     '/reports': 'Reports',
@@ -89,6 +82,51 @@ function NavGlyph({ name }) {
       </svg>
     );
   }
+  if (name === 'analytics') {
+    return (
+      <svg {...common}>
+        <path d="M4 19V10M10 19V5M16 19v-7M22 19H2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (name === 'users') {
+    return (
+      <svg {...common}>
+        <circle cx="9" cy="8" r="2.4" />
+        <circle cx="16" cy="9" r="2" />
+        <path d="M4 19c.5-3 2.5-4.6 5-4.6S13.5 16 14 19" strokeLinecap="round" />
+        <path d="M14.5 14.8c1.3-.5 2.8-.4 4 .5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (name === 'audit') {
+    return (
+      <svg {...common}>
+        <path d="M7 4h10a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+        <path d="M9 9h6M9 13h6M9 17h4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (name === 'hospitals') {
+    return (
+      <svg {...common}>
+        <path d="M4 20V8l8-4 8 4v12" />
+        <path d="M10 20v-6h4v6M12 8v2" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (name === 'centers') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="2.2" />
+        <circle cx="5" cy="7" r="1.6" />
+        <circle cx="19" cy="7" r="1.6" />
+        <circle cx="6" cy="18" r="1.6" />
+        <circle cx="18" cy="18" r="1.6" />
+        <path d="M10.2 11 6.4 8.2M13.8 11l3.8-2.8M10.4 13.6 7.2 16.8M13.6 13.6l3.2 3.2" />
+      </svg>
+    );
+  }
   return (
     <svg {...common}>
       <circle cx="9" cy="8" r="2.4" />
@@ -99,33 +137,34 @@ function NavGlyph({ name }) {
   );
 }
 
-function initials(name = '') {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() || '')
-    .join('') || 'DA';
-}
-
 function todayLabel() {
   const d = new Date();
   return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
-export default function PulseShell({ children }) {
+export default function PulseShell({
+  children,
+  nav = NAV,
+  tools = TOOLS,
+  titles = null,
+  titleFor = null,
+  toolsLabel = 'Tools',
+  contentClassName = '',
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [alertCount, setAlertCount] = useState(0);
   const [search, setSearch] = useState('');
   const isPatients = location.pathname === '/patients';
+  const showAlertBadge = nav.some((item) => item.badge);
 
   useEffect(() => {
     setSearch('');
   }, [location.pathname]);
 
   useEffect(() => {
+    if (!showAlertBadge) return undefined;
     let alive = true;
     async function refreshBadge() {
       try {
@@ -143,10 +182,11 @@ export default function PulseShell({ children }) {
       clearInterval(id);
       window.removeEventListener('pulse-alerts-changed', refreshBadge);
     };
-  }, [location.pathname]);
+  }, [location.pathname, showAlertBadge]);
 
-  const pageTitle = titleForPath(location.pathname);
-  const avatar = useMemo(() => initials(user?.displayName || 'Dr Admin'), [user]);
+  const pageTitle = titleFor
+    ? titleFor(location.pathname, location.search)
+    : (titles && titles[location.pathname]) || titleForPath(location.pathname);
 
   useEffect(() => {
     document.title = `${pageTitle} · Sentra ICU`;
@@ -167,12 +207,12 @@ export default function PulseShell({ children }) {
           <PulseLogo size="sm" />
         </div>
         <nav className="pulse-side-nav">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => `pulse-side-link${isActive || (item.to === '/admin' && location.pathname.startsWith('/admin')) ? ' is-active' : ''}`}
+              className={({ isActive }) => `pulse-side-link${isActive ? ' is-active' : ''}`}
             >
               <NavGlyph name={item.icon} />
               <span>{item.label}</span>
@@ -180,16 +220,20 @@ export default function PulseShell({ children }) {
             </NavLink>
           ))}
 
-          <div className="pulse-side-tools-label">Tools</div>
-          {TOOLS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `pulse-side-link pulse-side-link--tool${isActive ? ' is-active' : ''}`}
-            >
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {tools.length > 0 ? (
+            <>
+              <div className="pulse-side-tools-label">{toolsLabel}</div>
+              {tools.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => `pulse-side-link pulse-side-link--tool${isActive ? ' is-active' : ''}`}
+                >
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </>
+          ) : null}
         </nav>
         <button
           type="button"
@@ -240,10 +284,10 @@ export default function PulseShell({ children }) {
               </svg>
               {todayLabel()}
             </div>
-            <div className="pulse-avatar" title={user?.email || ''}>{avatar}</div>
+            <AccountHoverCard user={user} />
           </div>
         </header>
-        <div className="pulse-content">
+        <div className={`pulse-content${contentClassName ? ` ${contentClassName}` : ''}`}>
           {children || <Outlet context={outletContext} />}
         </div>
       </div>

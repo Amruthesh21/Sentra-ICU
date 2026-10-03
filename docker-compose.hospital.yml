@@ -1,0 +1,52 @@
+# Hospital-site device gateway only.
+#
+# Bedside monitors (HL7 :7061, JSON :7062) talk to this host on the hospital
+# LAN. This process publishes vitals to cloud RabbitMQ over VPN and exposes
+# an HTTP admin API (:9050) so the cloud Hub can map beds and read waveforms.
+# Do not publish 9050 to the public internet — restrict it to the VPN.
+#
+# Copy .env.hospital.example to .env.hospital, fill in the cloud RabbitMQ
+# URL and the same HUB_AUTH_JWT_SECRET as the cloud alarm-engine, then:
+#
+#   docker compose --env-file .env.hospital -f docker-compose.hospital.yml up -d --build
+#
+# Full walkthrough: CIS-Deployment/docs/HOSPITAL-GATEWAY.md
+
+networks:
+  hospital_lan:
+    driver: bridge
+
+volumes:
+  hospital_gateway_config:
+
+services:
+  device-ingestion:
+    build: ./CIS-Deployment/deviceIngestion
+    container_name: CIS-device-ingestion
+    restart: unless-stopped
+    ports:
+      - "${DEVICE_INGESTION_HL7_PORT:-7061}:6661"
+      - "${DEVICE_INGESTION_JSON_PORT:-7062}:6662"
+      # Cloud Hub/alarm-engine proxy this over VPN. Bind to a VPN interface
+      # in production (e.g. 10.8.0.2:9050:9050) rather than 0.0.0.0.
+      - "${DEVICE_INGESTION_HTTP_BIND:-0.0.0.0}:${DEVICE_INGESTION_HTTP_PORT:-9050}:9050"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      RABBITMQ_URL: ${HOSPITAL_RABBITMQ_URL:?Set HOSPITAL_RABBITMQ_URL to the cloud broker (VPN AMQP URL)}
+      DEVICE_DATA_QUEUE: ${DEVICE_DATA_QUEUE:-alarm-engine.device.data.queue}
+      HUB_AUTH_JWT_SECRET: ${HUB_AUTH_JWT_SECRET:?Must match the cloud alarm-engine HUB_AUTH_JWT_SECRET}
+      HTTP_PORT: 9050
+      HL7_PORT: 6661
+      JSON_PORT: 6662
+      BED_MAP_PATH: /app/config/bed-map.json
+    volumes:
+      - hospital_gateway_config:/app/config
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9050/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - hospital_lan

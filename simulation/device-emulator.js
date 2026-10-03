@@ -3,7 +3,7 @@
  * Sentra ICU — device emulator
  * ------------------------------
  * Makes THIS machine act like a real bedside device on the network — same
- * idea as RTWO's original device-simulation jar (connect out to the
+ * idea as the original device-simulation jar (connect out to the
  * server, replay a real captured export), just built into this repo's own
  * zero-dependency tooling instead of a separate Java jar.
  *

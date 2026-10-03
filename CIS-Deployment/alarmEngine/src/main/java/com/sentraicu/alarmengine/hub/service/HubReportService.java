@@ -171,15 +171,15 @@ public class HubReportService {
         return report;
     }
 
-    public List<Map<String, Object>> listReportablePatients(String unitId) {
-        return listPatientsForCohort(unitId, false);
+    public List<Map<String, Object>> listReportablePatients(String unitId, String centerId) {
+        return listPatientsForCohort(unitId, false, centerId);
     }
 
-    public List<Map<String, Object>> listDischargedPatients(String unitId) {
-        return listPatientsForCohort(unitId, true);
+    public List<Map<String, Object>> listDischargedPatients(String unitId, String centerId) {
+        return listPatientsForCohort(unitId, true, centerId);
     }
 
-    private List<Map<String, Object>> listPatientsForCohort(String unitId, boolean discharged) {
+    private List<Map<String, Object>> listPatientsForCohort(String unitId, boolean discharged, String centerId) {
         if (discharged) {
             List<Map<String, Object>> patients = new ArrayList<>();
             for (HubPatientVisitEntity visit : visitRepository.findByStatusOrderByDischargedAtDesc("DISCHARGED")) {
@@ -187,6 +187,10 @@ public class HubReportService {
                 if (patient == null) continue;
                 HubBedEntity bed = resolveBed(visit.getId());
                 if (bed == null) continue;
+                if (centerId != null && bed.getCenterId() != null
+                        && !centerId.equalsIgnoreCase(bed.getCenterId())) {
+                    continue;
+                }
                 if (unitId != null && !unitId.isBlank() && bed.getUnitId() != null
                         && !bed.getUnitId().toString().equals(unitId)) {
                     continue;
@@ -197,7 +201,7 @@ public class HubReportService {
         }
 
         List<Map<String, Object>> patients = new ArrayList<>();
-        List<HubBedEntity> beds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel("RTWO");
+        List<HubBedEntity> beds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(centerId);
         for (HubBedEntity bed : beds) {
             if (unitId != null && !unitId.isBlank() && bed.getUnitId() != null
                     && !bed.getUnitId().toString().equals(unitId)) {

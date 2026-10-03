@@ -42,6 +42,7 @@ export default function SuperAdminHospitalDetail({ hospitalId, onBack }) {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [credentials, setCredentials] = useState(null);
+  const [gatewayUrl, setGatewayUrl] = useState('');
 
   const refresh = useCallback(async () => {
     const [hospital, audit] = await Promise.all([
@@ -49,6 +50,7 @@ export default function SuperAdminHospitalDetail({ hospitalId, onBack }) {
       listAuditLogs({ hospitalId, limit: 100 }),
     ]);
     setDetail(hospital);
+    setGatewayUrl(hospital.deviceIngestionUrl || '');
     setAuditLogs(Array.isArray(audit) ? audit : []);
   }, [hospitalId]);
 
@@ -172,6 +174,49 @@ export default function SuperAdminHospitalDetail({ hospitalId, onBack }) {
             Deactivate hospital
           </button>
         </div>
+      </div>
+
+      <div className="form-card glass-card sa-gateway-card">
+        <h4>Hospital device gateway</h4>
+        <p className="muted">
+          On-site device-ingestion origin that this hospital&apos;s monitors talk to.
+          The cloud Hub reaches it over VPN to map beds and show live waveforms.
+          Leave blank to use the cloud default (<code>DEVICE_INGESTION_URL</code>).
+        </p>
+        <form
+          className="sa-gateway-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            runAction(
+              'gateway',
+              () => updateHospital(detail.id, { deviceIngestionUrl: gatewayUrl }),
+              gatewayUrl.trim()
+                ? `Device gateway saved for ${detail.name}`
+                : `Device gateway cleared — ${detail.name} will use the cloud default`,
+            );
+          }}
+        >
+          <label htmlFor="hospital-gateway-url">Gateway URL</label>
+          <div className="sa-password-field-row">
+            <input
+              id="hospital-gateway-url"
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              placeholder="http://10.20.0.10:9050"
+              value={gatewayUrl}
+              onChange={(e) => setGatewayUrl(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary" disabled={busyKey === 'gateway'}>
+              Save
+            </button>
+          </div>
+          <p className="muted sa-gateway-status">
+            {detail.deviceGatewayConfigured
+              ? `Configured: ${detail.deviceIngestionUrl}`
+              : 'Not set — using the deployment default, if any.'}
+          </p>
+        </form>
       </div>
 
       <div className="sa-hospital-detail-grid sa-hospital-detail-grid--page">

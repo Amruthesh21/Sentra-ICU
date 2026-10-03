@@ -209,5 +209,6 @@ export function statusLabel(status) {
   if (status === 'critical') return 'Critical';
   if (status === 'warning') return 'Warning';
   if (status === 'stable') return 'Stable';
+  if (status === 'offline') return 'No signal';
   return 'Available';
 }

@@ -105,6 +105,27 @@ const MODULES = [
   },
 ];
 
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.history.replaceState(null, '', `#${id}`);
+}
+
+function NavJump({ to, children }) {
+  return (
+    <a
+      href={`#${to}`}
+      onClick={(e) => {
+        e.preventDefault();
+        scrollToSection(to);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
 function LiveMonitorBar() {
   const [bpm, setBpm] = useState(72);
 
@@ -138,6 +159,12 @@ export default function Landing() {
     document.title = 'Sentra ICU';
     document.documentElement.classList.add('pulse-landing-active');
     document.body.classList.add('pulse-landing-active');
+    const id = window.location.hash.replace('#', '');
+    if (id) {
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
     return () => {
       document.documentElement.classList.remove('pulse-landing-active');
       document.body.classList.remove('pulse-landing-active');
@@ -149,9 +176,9 @@ export default function Landing() {
       <header className="pulse-nav">
         <PulseLogo size="md" />
         <nav className="pulse-nav-links" aria-label="Landing">
-          <a href="#system">System</a>
-          <a href="#manifesto">Manifesto</a>
-          <a href="#features">Features</a>
+          <NavJump to="system">System</NavJump>
+          <NavJump to="manifesto">Manifesto</NavJump>
+          <NavJump to="features">Features</NavJump>
         </nav>
         <Link to="/login" className="pulse-btn pulse-btn--solid">
           Launch <span aria-hidden="true">↗</span>
@@ -159,33 +186,20 @@ export default function Landing() {
       </header>
 
       <section className="pulse-hero">
-        <p className="pulse-eyebrow">Critical care intelligence platform</p>
-        <div className="pulse-hero-grid">
+        <div className="pulse-hero-copyblock">
+          <p className="pulse-eyebrow">Critical care intelligence platform</p>
           <h1 className="pulse-hero-title">
             <span>The unit,</span>
             <em>in one</em>
             <span>heartbeat.</span>
           </h1>
-          <div className="pulse-hero-side">
-            <p className="pulse-hero-copy">
-              A next-generation critical care command surface. Real-time vitals, smart alerts,
-              and AI-ready clinical insight — rendered with the precision the unit demands.
-            </p>
-            <Link to="/login" className="pulse-btn pulse-btn--ghost">
-              Enter dashboard <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
+          <p className="pulse-hero-copy">
+            A next-generation critical care command surface. Real-time vitals, smart alerts,
+            and AI-ready clinical insight — rendered with the precision the unit demands.
+          </p>
         </div>
-      </section>
-
-      <section className="pulse-visual" id="system" aria-label="Live unit preview">
-        <div className="pulse-visual-frame">
-          <img
-            src="/pulse-icu-hero-room.png"
-            alt="ICU room"
-            className="pulse-visual-img"
-          />
-          <LiveMonitorBar />
+        <div className="pulse-hero-shot">
+          <img src="/pulse-hero-team.png" alt="Doctors and nurses" />
         </div>
       </section>
 
@@ -200,24 +214,43 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="pulse-instrument">
-        <p className="pulse-section-label">The instrument</p>
-        <div className="pulse-instrument-grid">
-          {INSTRUMENT.map((item) => (
-            <div key={item.label} className="pulse-instrument-cell">
-              <div className="pulse-instrument-value">{item.value}</div>
-              <div className="pulse-instrument-label">{item.label}</div>
-            </div>
-          ))}
+      <section className="pulse-system" id="system">
+        <header className="pulse-section-head">
+          <p className="pulse-section-label">System</p>
+          <h2>The instrument behind the bay.</h2>
+        </header>
+        <div className="pulse-visual" aria-label="Live unit preview">
+          <div className="pulse-visual-frame">
+            <img
+              src="/pulse-icu-hero-room.png"
+              alt="ICU room"
+              className="pulse-visual-img"
+            />
+            <LiveMonitorBar />
+          </div>
+        </div>
+        <div className="pulse-instrument">
+          <div className="pulse-instrument-grid">
+            {INSTRUMENT.map((item) => (
+              <div key={item.label} className="pulse-instrument-cell">
+                <div className="pulse-instrument-value">{item.value}</div>
+                <div className="pulse-instrument-label">{item.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="pulse-manifesto" id="manifesto">
+        <header className="pulse-section-head">
+          <p className="pulse-section-label">Manifesto</p>
+          <h2>System manifesto</h2>
+        </header>
         {MANIFESTO.map((item) => (
           <article key={item.n} className="pulse-manifesto-row">
             <div className="pulse-manifesto-num">{item.n}</div>
             <div className="pulse-manifesto-body">
-              <h2>{item.title}</h2>
+              <h3>{item.title}</h3>
               <p>{item.body}</p>
             </div>
           </article>
@@ -225,10 +258,13 @@ export default function Landing() {
       </section>
 
       <section className="pulse-modules" id="features">
-        <div className="pulse-modules-head">
-          <h2>Everything, on screen.</h2>
+        <header className="pulse-section-head pulse-modules-head">
+          <div>
+            <p className="pulse-section-label">Features</p>
+            <h2>Everything, on screen.</h2>
+          </div>
           <span>06 modules</span>
-        </div>
+        </header>
         <div className="pulse-modules-grid">
           {MODULES.map((m) => (
             <article key={m.id} className={`pulse-module${m.highlight ? ' is-dark' : ''}`}>

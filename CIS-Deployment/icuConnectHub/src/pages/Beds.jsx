@@ -12,7 +12,7 @@ export default function Beds() {
     return (
       <div className="pulse-panel">
         <p style={{ color: '#b91c1c' }}>{error}</p>
-        <p className="pulse-muted">Create units/beds in Admin, then admit patients.</p>
+        <p className="pulse-muted">Create units/beds in Hospital Admin, then admit patients.</p>
       </div>
     );
   }

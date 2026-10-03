@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 SA_EMAIL="${SA_EMAIL:-monish.reddy@invensis.net}"
-SA_PASSWORD="${SA_PASSWORD:-Rtwo@2026}"
+SA_PASSWORD="${SA_PASSWORD:-SentraDemo@2026}"
 
 ENV_FILE=".env"
 touch "$ENV_FILE"

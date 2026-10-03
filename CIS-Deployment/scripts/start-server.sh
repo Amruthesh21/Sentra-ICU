@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start full RTWO stack on Linux server (infra + apps). Safe to re-run.
+# Start full Sentra ICU stack on Linux server (infra + apps). Safe to re-run.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

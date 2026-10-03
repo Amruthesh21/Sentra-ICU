@@ -24,5 +24,46 @@ export function resolveReturnPath(returnTo) {
 
 export function redirectAfterLogin(navigate, user, searchParams) {
   const returnTo = resolveReturnPath(searchParams?.get('returnTo'));
-  navigate(returnTo || homePathForUser(user), { replace: true });
+  const home = homePathForUser(user);
+  if (!returnTo) {
+    navigate(home, { replace: true });
+    return;
+  }
+  if (isSuperAdminUser(user) && !isPlatformPath(returnTo)) {
+    navigate(home, { replace: true });
+    return;
+  }
+  if (isHospitalAdminUser(user) && !isHospitalAdminPath(returnTo)) {
+    navigate(home, { replace: true });
+    return;
+  }
+  if (!isSuperAdminUser(user) && !isHospitalAdminUser(user) && !isClinicalPath(returnTo)) {
+    navigate(home, { replace: true });
+    return;
+  }
+  navigate(returnTo, { replace: true });
+}
+
+function isPlatformPath(path) {
+  return path.startsWith('/hospitals')
+    || path.startsWith('/centers-admins')
+    || path.startsWith('/platform-analytics')
+    || path.startsWith('/audit-logs');
+}
+
+function isHospitalAdminPath(path) {
+  return path.startsWith('/hospital-config')
+    || path.startsWith('/users')
+    || path.startsWith('/audit-log')
+    || path.startsWith('/universal')
+    || path.startsWith('/analytics')
+    || path.startsWith('/alarms');
+}
+
+function isClinicalPath(path) {
+  if (isPlatformPath(path)) return false;
+  if (path.startsWith('/hospital-config') || path.startsWith('/users') || path.startsWith('/audit-log')) {
+    return false;
+  }
+  return true;
 }

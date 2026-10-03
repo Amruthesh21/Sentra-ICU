@@ -35,13 +35,16 @@ export async function getQuarantine() {
   return data.unmappedSources || [];
 }
 
-/** `deviceType` is optional — omit it (or pass '') for the default adapter
- * (BPL VividVue M10, HL7). See adapters/deviceAdapter.md server-side for
- * the full registered list. */
+/** Maps an IP to a bed. `deviceType` must be a registered adapter id
+ * (see GET /api/device-types). The Hub UI requires a model to be chosen
+ * rather than silently assuming BPL VividVue M10. */
 export async function mapDevice(ip, bedId, deviceType) {
+  if (!deviceType) {
+    throw new Error('Pick a device model first');
+  }
   return readJson(await authFetch(`${BASE}/api/bed-map`, {
     method: 'POST',
-    body: JSON.stringify(deviceType ? { ip, bedId, deviceType } : { ip, bedId }),
+    body: JSON.stringify({ ip, bedId, deviceType }),
   }));
 }
 

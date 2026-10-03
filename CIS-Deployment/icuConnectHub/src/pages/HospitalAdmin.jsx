@@ -1,13 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  createRole, createUser, listRoles, listUsers, updateRole,
+  createRole, createUser, deleteUserPhoto, fetchUserPhotoBlob, listRoles, listUsers,
+  updateRole, updateUser, uploadUserPhoto,
 } from '../api/hospitalAdmin';
 import PermissionPicker from '../components/PermissionPicker';
 import { ALL_ASSIGNABLE_KEYS } from '../constants/permissionsCatalog';
 
+const EMPTY_USER = {
+  email: '', displayName: '', password: '', roleId: '', role: '',
+};
+
 function filterAssignable(perms = []) {
   const allowed = new Set(ALL_ASSIGNABLE_KEYS);
   return perms.filter((p) => allowed.has(p));
+}
+
+function userInitials(name = '') {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '—';
 }
 
 function StatusPill({ active }) {
@@ -27,13 +41,25 @@ export default function HospitalAdmin() {
   const [error, setError] = useState(null);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
-  const [userForm, setUserForm] = useState({
-    email: '', displayName: '', password: '', roleId: '', role: '',
-  });
+  const [userForm, setUserForm] = useState(EMPTY_USER);
   const [roleForm, setRoleForm] = useState({
     name: '', description: '', permissions: [],
   });
   const [editingRole, setEditingRole] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState({});
+  const photoInputRef = useRef(null);
+  const modalPreviewUrlRef = useRef(null);
+
+  function dropModalPreview() {
+    if (modalPreviewUrlRef.current) {
+      URL.revokeObjectURL(modalPreviewUrlRef.current);
+      modalPreviewUrlRef.current = null;
+    }
+  }
 
   async function refresh() {
     const [u, r] = await Promise.all([listUsers(), listRoles()]);
@@ -53,15 +79,126 @@ export default function HospitalAdmin() {
     })();
   }, []);
 
-  async function handleCreateUser(e) {
+  useEffect(() => {
+    let cancelled = false;
+    const created = [];
+    (async () => {
+      const next = {};
+      for (const u of users) {
+        if (!u.hasPhoto) continue;
+        try {
+          const blob = await fetchUserPhotoBlob(u.id);
+          if (!blob) continue;
+          const url = URL.createObjectURL(blob);
+          created.push(url);
+          if (cancelled) {
+            URL.revokeObjectURL(url);
+            continue;
+          }
+          next[u.id] = url;
+        } catch {
+          /* skip missing photos */
+        }
+      }
+      if (!cancelled) setPhotoUrls(next);
+    })();
+    return () => {
+      cancelled = true;
+      created.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [users]);
+
+  function resetUserModal() {
+    dropModalPreview();
+    setEditingUser(null);
+    setUserForm(EMPTY_USER);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setRemovePhoto(false);
+  }
+
+  function openCreateUser() {
+    resetUserModal();
+    setUserModalOpen(true);
+  }
+
+  async function openEditUser(user) {
+    dropModalPreview();
+    setEditingUser(user);
+    setUserForm({
+      email: user.email || '',
+      displayName: user.displayName || '',
+      password: '',
+      roleId: user.roleId || '',
+      role: user.role || '',
+    });
+    setPhotoFile(null);
+    setRemovePhoto(false);
+    setPhotoPreview(photoUrls[user.id] || null);
+    setUserModalOpen(true);
+    if (!user.hasPhoto) return;
+    try {
+      const blob = await fetchUserPhotoBlob(user.id);
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      modalPreviewUrlRef.current = url;
+      setPhotoPreview(url);
+    } catch {
+      /* keep initials if the photo cannot be loaded */
+    }
+  }
+
+  function closeUserModal() {
+    setUserModalOpen(false);
+    resetUserModal();
+  }
+
+  function onPhotoChosen(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    dropModalPreview();
+    const url = URL.createObjectURL(file);
+    modalPreviewUrlRef.current = url;
+    setPhotoFile(file);
+    setRemovePhoto(false);
+    setPhotoPreview(url);
+  }
+
+  function onClearPhoto() {
+    dropModalPreview();
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setRemovePhoto(true);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  }
+
+  async function handleSaveUser(e) {
     e.preventDefault();
     setMessage(null);
     setError(null);
     try {
-      await createUser(userForm);
-      setMessage('User created');
-      setUserForm({ email: '', displayName: '', password: '', roleId: '', role: '' });
-      setUserModalOpen(false);
+      let userId = editingUser?.id;
+      if (editingUser) {
+        const payload = {
+          displayName: userForm.displayName,
+          roleId: userForm.roleId,
+          role: userForm.role,
+        };
+        if (userForm.password) payload.password = userForm.password;
+        await updateUser(editingUser.id, payload);
+      } else {
+        const created = await createUser(userForm);
+        userId = created.id;
+        setEditingUser(created);
+      }
+      if (userId && photoFile) {
+        await uploadUserPhoto(userId, photoFile);
+      } else if (userId && removePhoto && editingUser) {
+        await deleteUserPhoto(userId);
+      }
+      setMessage(editingUser ? 'User updated' : 'User created');
+      closeUserModal();
       await refresh();
     } catch (err) {
       setError(err.message);
@@ -104,6 +241,8 @@ export default function HospitalAdmin() {
     return <div className="empty-state glass-card hospital-admin-page"><h2>Loading users &amp; roles…</h2></div>;
   }
 
+  const previewName = userForm.displayName || userForm.email || '';
+
   return (
     <div className="order-mgmt hospital-admin-page ha-staff-page">
       {message && <div className="message success">{message}</div>}
@@ -138,10 +277,10 @@ export default function HospitalAdmin() {
             <div>
               <h3 className="order-mgmt-title">Hospital users</h3>
               <p className="ha-panel-sub">
-                Staff accounts for nurses, physicians, and other clinical roles.
+                Staff accounts for nurses, physicians, and other clinical roles. Photo is set here, not by the staff member.
               </p>
             </div>
-            <button type="button" className="btn btn-primary" onClick={() => setUserModalOpen(true)}>
+            <button type="button" className="btn btn-primary" onClick={openCreateUser}>
               + Create user
             </button>
           </div>
@@ -149,24 +288,45 @@ export default function HospitalAdmin() {
             <table className="clinical-table order-table sa-platform-table sa-platform-table--users">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Staff</th>
                   <th>Email</th>
                   <th>Role</th>
                   <th>Status</th>
+                  <th className="col-manage">Edit</th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="muted order-empty">No users yet. Click &quot;+ Create user&quot; to add staff.</td>
+                    <td colSpan={5} className="muted order-empty">No users yet. Click &quot;+ Create user&quot; to add staff.</td>
                   </tr>
                 )}
                 {users.map((u) => (
                   <tr key={u.id} className={!u.active ? 'sa-table-row--muted' : ''}>
-                    <td>{u.displayName || '—'}</td>
+                    <td>
+                      <span className="ha-user-cell">
+                        <span className="ha-user-photo-preview ha-user-photo-preview--table" aria-hidden="true">
+                          {photoUrls[u.id] ? (
+                            <img src={photoUrls[u.id]} alt="" />
+                          ) : (
+                            <em>{userInitials(u.displayName || u.email)}</em>
+                          )}
+                        </span>
+                        {u.displayName || '—'}
+                      </span>
+                    </td>
                     <td className="order-by">{u.email}</td>
                     <td>{u.role || '—'}</td>
                     <td><StatusPill active={!!u.active} /></td>
+                    <td className="col-manage">
+                      <button
+                        type="button"
+                        className="sa-table-btn sa-table-btn--manage"
+                        onClick={() => openEditUser(u)}
+                      >
+                        Edit →
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -235,16 +395,44 @@ export default function HospitalAdmin() {
       )}
 
       {userModalOpen && (
-        <div className="order-modal-overlay" onClick={() => setUserModalOpen(false)}>
+        <div className="order-modal-overlay" onClick={closeUserModal}>
           <div className="order-modal" onClick={(e) => e.stopPropagation()}>
             <div className="order-modal-head">
-              <h3>+ Create user</h3>
-              <button type="button" className="order-modal-close" onClick={() => setUserModalOpen(false)}>×</button>
+              <h3>{editingUser ? `Edit user — ${editingUser.displayName || editingUser.email}` : '+ Create user'}</h3>
+              <button type="button" className="order-modal-close" onClick={closeUserModal}>×</button>
             </div>
-            <form className="order-form" onSubmit={handleCreateUser}>
+            <form className="order-form" onSubmit={handleSaveUser}>
+              <div className="form-group">
+                <label>Photo</label>
+                <div className="ha-user-photo-field">
+                  <span className="ha-user-photo-preview" aria-hidden="true">
+                    {photoPreview ? <img src={photoPreview} alt="" /> : <em>{userInitials(previewName)}</em>}
+                  </span>
+                  <div>
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={onPhotoChosen}
+                    />
+                    <p className="ha-user-photo-hint">JPEG, PNG or WebP. 1 MB max. Shown on the account chip.</p>
+                    {(photoPreview || (editingUser?.hasPhoto && !removePhoto)) ? (
+                      <button type="button" className="sa-table-btn" onClick={onClearPhoto}>
+                        Remove photo
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
               <div className="form-group">
                 <label><span className="req">*</span> Email</label>
-                <input required type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} />
+                <input
+                  required
+                  type="email"
+                  value={userForm.email}
+                  disabled={!!editingUser}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                />
               </div>
               <div className="form-group">
                 <label>Display name</label>
@@ -267,12 +455,22 @@ export default function HospitalAdmin() {
                 </select>
               </div>
               <div className="form-group">
-                <label><span className="req">*</span> Temporary password</label>
-                <input required type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} />
+                <label>
+                  {editingUser ? 'Temporary password' : <><span className="req">*</span> Temporary password</>}
+                </label>
+                <input
+                  required={!editingUser}
+                  type="password"
+                  value={userForm.password}
+                  placeholder={editingUser ? 'Leave blank to keep current' : ''}
+                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                />
               </div>
               <div className="order-modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setUserModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create user</button>
+                <button type="button" className="btn btn-outline" onClick={closeUserModal}>Cancel</button>
+                <button type="submit" className="btn btn-primary">
+                  {editingUser ? 'Save user' : 'Create user'}
+                </button>
               </div>
             </form>
           </div>

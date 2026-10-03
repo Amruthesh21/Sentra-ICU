@@ -22,16 +22,18 @@ cp config/bed-map.example.json config/bed-map.json   # then edit with real devic
 RABBITMQ_URL="amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting" npm start
 ```
 
-Env vars (all optional, defaults shown — see [src/env.js](src/env.js)):
+Env vars (all optional unless noted — see [src/env.js](src/env.js)):
 
 | Var | Default | Purpose |
 |---|---|---|
-| `RABBITMQ_URL` | `amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting` | Same vhost/creds as alarm-engine |
+| `RABBITMQ_URL` | `amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting` | Same vhost/creds as alarm-engine. **Required** in a hospital split (`HOSPITAL_RABBITMQ_URL` in compose). |
 | `DEVICE_DATA_QUEUE` | `alarm-engine.device.data.queue` | Must match alarm-engine's `alarm.rabbitmq.device-data-queue` property |
-| `HTTP_PORT` | `9050` | Admin/health API |
+| `HTTP_PORT` | `9050` | Admin/health API (VPN-only in production) |
 | `HL7_PORT` | `6661` | TCP port HL7-speaking devices connect to |
 | `JSON_PORT` | `6662` | TCP port JSON-speaking devices connect to — a separate port/protocol, not a replacement for `HL7_PORT` |
-| `BED_MAP_PATH` | `config/bed-map.json` | Admin-editable IP → bed mapping |
+| `BED_MAP_PATH` | `config/bed-map.json` | Admin-editable IP → bed mapping (starts empty; use Hub Connect a device) |
+| `HUB_AUTH_JWT_SECRET` | (placeholder) | Must match alarm-engine. **Required** in production. |
+| `RABBITMQ_RECONNECT_MS` | `2000` | First reconnect delay; backs off to 30s |
 | `WAVEFORM_PUBLISH_ENABLED` | `false` | See "Waveforms" below |
 
 ## Admin API
@@ -46,8 +48,9 @@ Env vars (all optional, defaults shown — see [src/env.js](src/env.js)):
 - `GET /api/device-types` — every adapter actually registered, with which protocol/port each needs
 
 These are also exposed through the Hub UI — see "Connect a device" on the Hospital Admin
-page (`icuConnectHub`, proxied at `/device-ingestion/*`) so staff never have to hand-edit
-`bed-map.json` on the server.
+page (`icuConnectHub`, proxied at `/device-ingestion/*` through alarm-engine so the Hub
+does not need this process on the same host). In production this service runs on the
+hospital LAN; see [docs/HOSPITAL-GATEWAY.md](../docs/HOSPITAL-GATEWAY.md).
 
 ## Testing
 

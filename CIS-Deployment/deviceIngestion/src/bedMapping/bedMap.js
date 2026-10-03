@@ -14,6 +14,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 const env = require('../env');
 
 function loadRawMap() {
@@ -62,7 +63,20 @@ function getBedMap() {
 }
 
 function saveRawMap(map) {
+  fs.mkdirSync(path.dirname(env.BED_MAP_PATH), { recursive: true });
   fs.writeFileSync(env.BED_MAP_PATH, `${JSON.stringify(map, null, 2)}\n`, 'utf8');
+}
+
+/** Creates an empty bed-map.json if the hospital volume is new. */
+function ensureBedMapFile() {
+  try {
+    if (!fs.existsSync(env.BED_MAP_PATH)) {
+      saveRawMap({});
+      console.log(`[bedMap] created empty ${env.BED_MAP_PATH}`);
+    }
+  } catch (err) {
+    console.error(`[bedMap] could not create ${env.BED_MAP_PATH}: ${err.message}`);
+  }
 }
 
 /** Adds or overwrites one IP -> bedId entry. Used by the "Connect a device"
@@ -84,4 +98,4 @@ function removeMapping(ip) {
   return map;
 }
 
-module.exports = { resolveBedId, resolveMapping, getBedMap, normalizeIp, setMapping, removeMapping };
+module.exports = { resolveBedId, resolveMapping, getBedMap, normalizeIp, setMapping, removeMapping, ensureBedMapFile };

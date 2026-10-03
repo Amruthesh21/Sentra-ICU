@@ -14,6 +14,16 @@ function readPending() {
   }
 }
 
+function digitsFrom(value) {
+  return String(value || '').replace(/\D/g, '').slice(0, 6).split('');
+}
+
+function padDigits(list) {
+  const next = [...list];
+  while (next.length < 6) next.push('');
+  return next.slice(0, 6);
+}
+
 export default function MfaVerify() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -24,6 +34,7 @@ export default function MfaVerify() {
   const [error, setError] = useState(null);
   const [resendIn, setResendIn] = useState(30);
   const inputs = useRef([]);
+  const submitting = useRef(false);
 
   useEffect(() => {
     if (!pending?.mfaToken) {
@@ -37,31 +48,26 @@ export default function MfaVerify() {
     return () => clearTimeout(t);
   }, [resendIn]);
 
-  function setDigitAt(index, value) {
-    const v = value.replace(/\D/g, '').slice(-1);
-    const next = [...digits];
-    next[index] = v;
-    setDigits(next);
-    if (v && index < 5) inputs.current[index + 1]?.focus();
+  function applyCode(code, startAt = 0) {
+    const chars = digitsFrom(code);
+    if (!chars.length) return;
+    setDigits((current) => {
+      const next = [...current];
+      chars.forEach((ch, i) => {
+        if (startAt + i < 6) next[startAt + i] = ch;
+      });
+      return padDigits(next);
+    });
+    inputs.current[Math.min(startAt + chars.length, 5)]?.focus();
   }
 
-  function handlePaste(e) {
-    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (!text) return;
-    e.preventDefault();
-    const next = text.split('');
-    while (next.length < 6) next.push('');
-    setDigits(next.slice(0, 6));
-    inputs.current[Math.min(text.length, 5)]?.focus();
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const code = digits.join('');
-    if (code.length !== 6) {
+  async function submitCode(code) {
+    if (submitting.current) return;
+    if (!/^\d{6}$/.test(code)) {
       setError('Enter the 6-digit verification code');
       return;
     }
+    submitting.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -73,19 +79,57 @@ export default function MfaVerify() {
       redirectAfterLogin(navigate, session.user, params);
     } catch (err) {
       setError(err.message || 'Verification failed');
-    } finally {
+      submitting.current = false;
       setLoading(false);
     }
+  }
+
+  function setDigitAt(index, value) {
+    const raw = value.replace(/\D/g, '');
+    if (raw.length > 1) {
+      applyCode(raw, index);
+      if (raw.length >= 6) submitCode(raw.slice(0, 6));
+      return;
+    }
+    const next = [...digits];
+    next[index] = raw.slice(-1);
+    setDigits(next);
+    if (raw && index < 5) inputs.current[index + 1]?.focus();
+    if (next.join('').length === 6) submitCode(next.join(''));
+  }
+
+  function handlePaste(e) {
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!text) return;
+    e.preventDefault();
+    const next = padDigits(text.split(''));
+    setDigits(next);
+    inputs.current[Math.min(text.length, 5)]?.focus();
+    if (text.length === 6) submitCode(text);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    await submitCode(digits.join(''));
   }
 
   async function handleResend() {
     try {
       const result = await resendMfa(pending.mfaToken);
-      const updated = { ...pending, devOtp: result.devOtp || null };
+      const updated = {
+        ...pending,
+        mfaToken: result.mfaToken || pending.mfaToken,
+        devOtp: result.devOtp || null,
+        emailSent: !!result.emailSent,
+        emailDeliveryFailed: !!result.emailDeliveryFailed,
+        maskedEmail: result.maskedEmail || pending.maskedEmail,
+      };
       setPending(updated);
       sessionStorage.setItem('icu_mfa_pending', JSON.stringify(updated));
+      setDigits(['', '', '', '', '', '']);
       setResendIn(30);
       setError(null);
+      inputs.current[0]?.focus();
     } catch (err) {
       setError(err.message);
     }
@@ -93,17 +137,36 @@ export default function MfaVerify() {
 
   if (!pending?.mfaToken) return null;
 
+  const emailLabel = pending.maskedEmail || pending.email;
+  const showOnScreenCode = Boolean(pending.devOtp);
+
   return (
     <PulseAuthShell eyebrowRight="MFA · SECURE GATE">
       <p className="pulse-auth-eyebrow">Identity verification</p>
       <h1 className="pulse-auth-title">Confirm access.</h1>
       <p className="pulse-auth-hint">
-        Enter the 6-digit code sent to <strong>{pending.email}</strong>
+        {pending.emailSent
+          ? <>Enter the 6-digit code sent to <strong>{emailLabel}</strong>.</>
+          : showOnScreenCode
+            ? <>Email is not sending on this laptop (SMTP is off). Use the on-screen code.</>
+            : <>Enter the 6-digit code for <strong>{emailLabel}</strong>.</>}
       </p>
 
-      {pending.devOtp && (
+      {showOnScreenCode && (
         <div className="pulse-auth-dev-code">
-          Dev-mode verification code: <strong>{pending.devOtp}</strong>
+          <div>On-screen verification code</div>
+          <strong>{pending.devOtp}</strong>
+          <button
+            type="button"
+            className="pulse-auth-use-code"
+            onClick={() => {
+              const next = padDigits(digitsFrom(pending.devOtp));
+              setDigits(next);
+              submitCode(pending.devOtp);
+            }}
+          >
+            Use this code
+          </button>
         </div>
       )}
 
@@ -114,7 +177,8 @@ export default function MfaVerify() {
               key={i}
               ref={(el) => { inputs.current[i] = el; }}
               inputMode="numeric"
-              maxLength={1}
+              autoComplete={i === 0 ? 'one-time-code' : 'off'}
+              maxLength={i === 0 ? 6 : 1}
               value={d}
               onChange={(e) => setDigitAt(i, e.target.value)}
               onKeyDown={(e) => {
@@ -144,7 +208,9 @@ export default function MfaVerify() {
       </div>
 
       <p className="pulse-auth-alt">
-        <Link to="/login">← Back to sign in</Link>
+        <Link to={pending?.portal ? `/login?portal=${encodeURIComponent(pending.portal)}` : '/login'}>
+          ← Back to sign in
+        </Link>
       </p>
     </PulseAuthShell>
   );

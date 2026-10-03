@@ -1,6 +1,5 @@
 package com.sentraicu.alarmengine.auth.service;
 
-import com.sentraicu.alarmengine.hub.HubCenterIds;
 import com.sentraicu.alarmengine.auth.entity.HubAuthUserEntity;
 import com.sentraicu.alarmengine.auth.entity.HubHospitalEntity;
 import com.sentraicu.alarmengine.auth.entity.HubRoleEntity;
@@ -8,6 +7,9 @@ import com.sentraicu.alarmengine.auth.repo.HubAuthUserRepository;
 import com.sentraicu.alarmengine.auth.repo.HubHospitalRepository;
 import com.sentraicu.alarmengine.auth.repo.HubRoleRepository;
 import com.sentraicu.alarmengine.auth.repo.HubUserRoleRepository;
+import com.sentraicu.alarmengine.deviceingestion.DeviceIngestionProperties;
+import com.sentraicu.alarmengine.deviceingestion.DeviceIngestionUrlValidator;
+import com.sentraicu.alarmengine.service.CenterAdminService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ public class SuperAdminService {
     private final HubRoleRepository roleRepository;
     private final HubUserRoleRepository userRoleRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final DeviceIngestionProperties deviceIngestionProperties;
+    private final CenterAdminService centerAdminService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public SuperAdminService(
@@ -30,12 +34,16 @@ public class SuperAdminService {
             HubAuthUserRepository userRepository,
             HubRoleRepository roleRepository,
             HubUserRoleRepository userRoleRepository,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate,
+            DeviceIngestionProperties deviceIngestionProperties,
+            CenterAdminService centerAdminService) {
         this.hospitalRepository = hospitalRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.deviceIngestionProperties = deviceIngestionProperties;
+        this.centerAdminService = centerAdminService;
     }
 
     public List<Map<String, Object>> listHospitals() {
@@ -136,6 +144,9 @@ public class SuperAdminService {
         hospital.setName(name);
         hospital.setCode(code);
         hospital.setStatus("ACTIVE");
+        if (body.containsKey("deviceIngestionUrl")) {
+            hospital.setDeviceIngestionUrl(normalizeGatewayUrl(body.get("deviceIngestionUrl")));
+        }
         hospitalRepository.save(hospital);
 
         seedDefaultRoles(hospital.getId());
@@ -147,13 +158,13 @@ public class SuperAdminService {
         }
 
         HubAuthUserEntity admin = createHospitalAdmin(hospital.getId(), adminEmail, adminName, adminPassword);
-        linkConnectEngineCenter(hospital.getId());
+        String centerId = provisionHospitalCenter(hospital.getId(), code, name);
 
         Map<String, Object> result = toHospitalSummary(hospital);
         result.put("status", "created");
         result.put("adminUser", toUserSummary(admin));
         result.put("tempPassword", adminPassword);
-        result.put("linkedCenterId", HubCenterIds.CONNECT_ENGINE);
+        result.put("linkedCenterId", centerId);
         return result;
     }
 
@@ -225,12 +236,24 @@ public class SuperAdminService {
     @Transactional
     public Map<String, Object> updateHospitalStatus(UUID hospitalId, Map<String, String> body) {
         HubHospitalEntity hospital = requireHospital(hospitalId);
-        String status = normalizeStatus(body.get("status"));
-        hospital.setStatus(status);
-        hospitalRepository.save(hospital);
-        if ("INACTIVE".equals(status)) {
-            deactivateHospitalUsers(hospitalId);
+        boolean changed = false;
+        if (body.containsKey("deviceIngestionUrl")) {
+            hospital.setDeviceIngestionUrl(normalizeGatewayUrl(body.get("deviceIngestionUrl")));
+            changed = true;
         }
+        String statusRaw = trim(body.get("status"));
+        if (statusRaw != null) {
+            String status = normalizeStatus(statusRaw);
+            hospital.setStatus(status);
+            changed = true;
+            if ("INACTIVE".equals(status)) {
+                deactivateHospitalUsers(hospitalId);
+            }
+        }
+        if (!changed) {
+            throw new IllegalArgumentException("Nothing to update");
+        }
+        hospitalRepository.save(hospital);
         return toHospitalSummary(hospital);
     }
 
@@ -326,29 +349,52 @@ public class SuperAdminService {
         return result;
     }
 
-    private void linkConnectEngineCenter(UUID hospitalId) {
-        linkCenter(
-                hospitalId,
-                HubCenterIds.CONNECT_ENGINE,
-                HubCenterIds.CONNECT_ENGINE,
-                HubCenterIds.CONNECT_ENGINE_LOCATION);
+    private String provisionHospitalCenter(UUID hospitalId, String code, String name) {
+        String centerId = code.toUpperCase(Locale.ROOT);
+        Integer taken = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM hub_centers WHERE id = ? AND hospital_id IS NOT NULL AND hospital_id <> ?",
+                Integer.class,
+                centerId,
+                hospitalId);
+        if (taken != null && taken > 0) {
+            String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+            centerId = (centerId.length() > 25 ? centerId.substring(0, 25) : centerId) + "_" + suffix;
+            if (centerId.length() > 32) centerId = centerId.substring(0, 32);
+        }
+        linkCenter(hospitalId, centerId, name, null);
+        centerAdminService.provisionEmptyCenter(centerId, name, null);
+        return centerId;
     }
 
     private void linkCenter(UUID hospitalId, String centerId, String name, String location) {
         String id = centerId.toUpperCase(Locale.ROOT);
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM hub_centers WHERE id = ?", Integer.class, id);
-        if (count != null && count > 0) {
+        List<UUID> owners = jdbcTemplate.query(
+                "SELECT hospital_id FROM hub_centers WHERE id = ?",
+                (rs, rowNum) -> {
+                    Object raw = rs.getObject("hospital_id");
+                    if (raw == null) return null;
+                    if (raw instanceof UUID uuid) return uuid;
+                    return UUID.fromString(raw.toString());
+                },
+                id);
+        if (!owners.isEmpty()) {
+            UUID owner = owners.get(0);
+            if (owner != null && !owner.equals(hospitalId)) {
+                throw new AuthService.AuthException("Center is already linked to another hospital", 403);
+            }
             jdbcTemplate.update(
-                    "UPDATE hub_centers SET hospital_id = ?, status = 'ACTIVE' WHERE id = ?", hospitalId, id);
-        } else {
-            jdbcTemplate.update(
-                    "INSERT INTO hub_centers (id, name, location, hospital_id, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
-                    id,
+                    "UPDATE hub_centers SET hospital_id = ?, status = 'ACTIVE', name = COALESCE(?, name) WHERE id = ?",
+                    hospitalId,
                     name != null ? name : id,
-                    location,
-                    hospitalId);
+                    id);
+            return;
         }
+        jdbcTemplate.update(
+                "INSERT INTO hub_centers (id, name, location, hospital_id, status) VALUES (?, ?, ?, ?, 'ACTIVE')",
+                id,
+                name != null ? name : id,
+                location,
+                hospitalId);
     }
 
     private HubHospitalEntity requireHospital(UUID hospitalId) {
@@ -481,7 +527,14 @@ public class SuperAdminService {
         map.put("name", hospital.getName());
         map.put("code", hospital.getCode());
         map.put("status", hospital.getStatus());
+        map.put("deviceIngestionUrl", hospital.getDeviceIngestionUrl());
+        map.put("deviceGatewayConfigured",
+                hospital.getDeviceIngestionUrl() != null && !hospital.getDeviceIngestionUrl().isBlank());
         return map;
+    }
+
+    private String normalizeGatewayUrl(String raw) {
+        return DeviceIngestionUrlValidator.normalize(raw, deviceIngestionProperties.isRequireHttps());
     }
 
     private Map<String, Object> toUserSummary(HubAuthUserEntity user) {

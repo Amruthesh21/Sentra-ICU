@@ -12,6 +12,7 @@ const publisher = require('./rabbit/publisher');
 const { startTcpServer } = require('./server/tcpServer');
 const { startJsonServer } = require('./server/jsonServer');
 const { startHttpServer } = require('./server/httpServer');
+const { ensureBedMapFile } = require('./bedMapping/bedMap');
 
 async function start() {
   console.log('Starting device-ingestion service...');
@@ -19,13 +20,18 @@ async function start() {
   console.log(`  Bed map: ${env.BED_MAP_PATH}`);
   console.log(`  Waveform publish: ${env.WAVEFORM_PUBLISH_ENABLED ? 'enabled' : 'disabled (decode-only)'}`);
 
-  // Connect eagerly so a misconfigured RabbitMQ fails fast at boot rather
-  // than silently on the first device message.
-  await publisher.connect();
+  ensureBedMapFile();
 
+  // HTTP/TCP come up even if cloud RabbitMQ / VPN is not ready yet — hospital
+  // monitors can still connect; publishes wait for the broker. /health stays
+  // 200 so Docker does not kill a gateway that is waiting on the VPN.
   startHttpServer();
   startTcpServer();
   startJsonServer();
+
+  publisher.connect().catch((err) => {
+    console.error('[rabbit] initial connect failed (will keep retrying):', err.message);
+  });
 }
 
 start().catch((err) => {
@@ -33,7 +39,10 @@ start().catch((err) => {
   process.exit(1);
 });
 
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
+async function shutdown() {
   await publisher.close();
   process.exit(0);
-});
+}

@@ -55,14 +55,18 @@ async function readAuthJson(res) {
  * Login against alarm-engine's real auth API. No demo/offline fallback —
  * a failed or unreachable backend is a real error, not a silent bypass.
  */
-export async function login(username, password) {
+export async function login(username, password, portal) {
   const email = String(username || '').trim().toLowerCase();
   const pass = String(password || '');
+  const area = String(portal || '').trim().toLowerCase();
+  if (!area) {
+    throw new Error('Select Super Admin, Hospital Admin, or Clinical staff first');
+  }
 
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: email, password: pass }),
+    body: JSON.stringify({ username: email, password: pass, portal: area }),
   });
   const data = await readAuthJson(res);
 
@@ -80,8 +84,10 @@ export async function login(username, password) {
       mfaToken: data.mfaToken,
       method: data.method || 'email',
       email: data.email || email,
-      // Only present when the server's own dev-mode flag exposes it —
-      // never fabricated client-side.
+      maskedEmail: data.maskedEmail || null,
+      emailSent: !!data.emailSent,
+      emailDeliveryFailed: !!data.emailDeliveryFailed,
+      // Only present when the server exposes it (dev flag, or email failed).
       devOtp: data.devOtp || null,
     };
   }
@@ -145,6 +151,13 @@ export async function resendMfa(mfaToken) {
     body: JSON.stringify({ mfaToken }),
   });
   return readAuthJson(res);
+}
+
+export async function fetchProfilePhotoBlob() {
+  const res = await authFetch('/api/profile/photo');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Could not load photo');
+  return res.blob();
 }
 
 export async function logout() {

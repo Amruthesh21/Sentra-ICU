@@ -15,7 +15,7 @@ const SCOPE_UNIT = 'unit';
 
 function unitOptionLabel(unit) {
   const code = unit.code || unit.name;
-  if (unit.blockName && !unit.blockName.toUpperCase().includes('SENTRA') && !unit.blockName.toUpperCase().includes('RTWO')) {
+  if (unit.blockName && !unit.blockName.toUpperCase().includes('SENTRA')) {
     return `${code} · ${unit.blockName}`;
   }
   return unit.name && unit.name !== code ? `${code} — ${unit.name}` : code;

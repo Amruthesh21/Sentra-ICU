@@ -1,51 +1,84 @@
 # Sentra ICU
 
-A clinical ICU monitoring platform: real-time bedside vitals and alarms, patient
-admission/discharge, staff and unit management, clinical documentation, and
-reporting — built around a Java/Spring alarm-and-vitals backend and a React
-clinical Hub.
+Multi-hospital ICU Hub: live vitals and waveforms from bedside monitors, Super Admin / Hospital Admin / clinical consoles, and an on-site gateway that maps devices by IP — never by what the monitor claims.
 
-**New here?** Start with
-[CIS-Deployment/deviceIngestion/docs/RUNBOOK.md](CIS-Deployment/deviceIngestion/docs/RUNBOOK.md) —
-the accurate, tested, from-cold-start instructions for running this repo
-today. Everything below is an orientation map, not a run guide.
+Doctors and nurses see only the ward their hospital configured. Hospital Admin builds that ward (units, beds, logins, device map). Super Admin onboard hospitals and points each tenant at its gateway.
 
-## Services (`CIS-Deployment/`)
+```
+Bedside monitor  --HL7 :7061 / JSON :7062-->  hospital device-ingestion
+                                                      |
+                                         vitals over RabbitMQ (VPN)
+                                                      v
+Browser  --HTTPS-->  Hub  -->  alarm-engine  -->  Postgres / Mongo / RabbitMQ
+                         \-->  proxy /device-ingestion  -->  hospital :9050
+                              (bed-map, quarantine, live waveforms)
+```
 
-| Service | What it is | Container | Host port |
-|---|---|---|---|
-| `alarmEngine` | Java/Spring backend — vitals, alarm thresholds, admissions, staff, auth, reporting (Postgres + Mongo) | CIS-alarm-engine | 7020 |
-| `icuConnectHub` | React clinical Hub — the app doctors/admins actually use | CIS-icu-connect-hub | 7040 (or `HUB_UI_PORT`) |
-| `deviceIngestion` | Listens for HL7v2/MLLP and JSON from bedside monitors/ventilators/pumps (15 device models across both protocols), parses per-device-model, publishes vitals straight into alarmEngine's queue. Replaces Connect Engine for this one path — see its own [MIGRATION-NOTE.md](CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md) | CIS-device-ingestion | 7061 (HL7), 7062 (JSON); admin API is internal-only, proxied via the Hub |
-| `notificationService` | Web Push delivery for the doctor PWA | CIS-notification-service | internal only, proxied via the PWA |
-| `icuWatchPwa` | Doctor mobile PWA (watch/phone alarm notifications) | CIS-icu-watch-pwa | 7031 — **will not start standalone in this repo**; its nginx proxies to an external CIS backend/Connect Engine stack that isn't part of this repository |
+## Three consoles, one URL
 
-Infra (MongoDB, RabbitMQ, Postgres) is defined in `docker-compose.infra.yml`
-at the repo root, not under `CIS-Deployment/`.
+| Area | Who | What they do |
+|------|-----|----------------|
+| **Super Admin** | Platform operator | Create hospitals, issue hospital-admin accounts, set each site’s device gateway URL, platform analytics and audit |
+| **Hospital Admin** | One hospital | Units, beds, Connect a device (IP → bed → model), staff logins vs admission roster, hospital alarms and audit |
+| **Doctors & nurses** | Clinical staff | Overview, admit / readmit / discharge, bed chart (vitals, waveforms, trends, notes, orders, fluids, scores), alerts, reports |
 
-## Not part of the running app
+Credentials only work in the area they belong to. A monitor is never trusted to name its own bed; unmapped traffic is quarantined.
 
-- `simulation/` (repo root) — a standalone tool for exercising the whole
-  pipeline (login → admit a patient → replay real captured device data) with
-  nothing hardcoded into app source or the database. See
-  [simulation/README.md](simulation/README.md). Run it any time you want to
-  see the app working without real hardware.
-- `CIS-Deployment/scripts/` — operational scripts (start/stop, resets, RabbitMQ
-  setup, seeding). Most are still current; a few carry old "RTWO" branding in
-  comments only (cosmetic, not functional).
+## Stack
+
+| Piece | Role |
+|-------|------|
+| **icuConnectHub** | React (Vite) SPA — the Hub |
+| **alarmEngine** | Spring Boot API — auth (JWT + MFA), tenants, admissions, vitals, alarms, gateway proxy |
+| **deviceIngestion** | Node.js hospital gateway — 15 HL7/JSON adapters, bed-map, in-memory waveforms |
+| **Postgres** | Hub records (hospitals, users, visits, clinical docs) |
+| **MongoDB** | Operational bed / vitals / threshold state |
+| **RabbitMQ** | Device vitals into alarm-engine |
+| **Docker Compose** | Laptop all-in-one, or cloud Hub + one gateway per hospital |
+
+## Run it (laptop)
+
+From a cold start the accurate steps are in
+[CIS-Deployment/deviceIngestion/docs/RUNBOOK.md](CIS-Deployment/deviceIngestion/docs/RUNBOOK.md).
+
+Short version: copy `.env.example` → `.env` (set `SUPER_ADMIN_PASSWORD` and a real `HUB_AUTH_JWT_SECRET`), then:
+
+```bash
+docker compose -f docker-compose.infra.yml up -d
+docker compose -p alarampoc -f docker-compose.poc.yml up -d --build alarm-engine device-ingestion notification-service icu-connect-hub
+```
+
+Hub: [http://localhost:7040](http://localhost:7040) · API: `http://localhost:7020` · HL7: `7061` · JSON: `7062`
+
+No real monitor? Use [`simulation/`](simulation/README.md) to admit a test patient and replay captured device traffic.
+
+## Production split
+
+Bedside devices stay on the hospital LAN. The cloud runs Hub + alarm-engine + data stores. Each hospital runs **device-ingestion only**, reached over VPN. See [CIS-Deployment/docs/HOSPITAL-GATEWAY.md](CIS-Deployment/docs/HOSPITAL-GATEWAY.md).
 
 ## Docs
 
-- [CIS-Deployment/deviceIngestion/docs/RUNBOOK.md](CIS-Deployment/deviceIngestion/docs/RUNBOOK.md) — how to actually run this, today
-- [CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md](CIS-Deployment/deviceIngestion/docs/MIGRATION-NOTE.md) — what deviceIngestion replaces and why
-- [CIS-Deployment/docs/ARCHITECTURE-HANDOVER.md](CIS-Deployment/docs/ARCHITECTURE-HANDOVER.md) — deep architecture/API reference (large; some sections describe earlier iterations — cross-check against source for anything load-bearing)
-- [CIS-Deployment/docs/LIVE-SPLIT-DEPLOYMENT.md](CIS-Deployment/docs/LIVE-SPLIT-DEPLOYMENT.md) — production split-server deployment guide, written for the Connect-Engine-era topology; the hospital-side/cloud-side split concept still applies, but check current service names against the table above before following it literally
-- [.env.example](.env.example) — every environment variable this stack reads, with explanations
+| Doc | For |
+|-----|-----|
+| [Operator & training manual](CIS-Deployment/docs/SENTRA-ICU-OPERATOR-MANUAL.md) | Super Admin, Hospital Admin, and clinical how-to |
+| [RUNBOOK](CIS-Deployment/deviceIngestion/docs/RUNBOOK.md) | Local bring-up |
+| [HOSPITAL-GATEWAY](CIS-Deployment/docs/HOSPITAL-GATEWAY.md) | Cloud vs hospital install |
+| [ARCHITECTURE-HANDOVER](CIS-Deployment/docs/ARCHITECTURE-HANDOVER.md) | APIs and internals (cross-check source for anything load-bearing) |
+| [`.env.example`](.env.example) | Environment variables |
 
-## Known limitations
+## Layout
 
-- The doctor PWA (`icuWatchPwa`) needs an external CIS backend/Connect Engine
-  deployment this repo doesn't include — it's not expected to run standalone here.
-- Some docs under `CIS-Deployment/docs/` predate the deviceIngestion service
-  and the RTWO→Sentra ICU rename; treat the RUNBOOK and this README as current,
-  and the rest as background reading.
+```
+CIS-Deployment/alarmEngine/       Spring Boot
+CIS-Deployment/icuConnectHub/     React Hub
+CIS-Deployment/deviceIngestion/   Hospital gateway
+CIS-Deployment/docs/              Manual + architecture
+docker-compose*.yml               Infra, POC, cloud, hospital
+simulation/                       Pipeline exercise without hardware
+```
+
+## Notes
+
+- Do not commit `.env` or `.env.hospital`. Use the `*.example` files.
+- `icuWatchPwa` in this repo expects an external CIS stack and will not run standalone.
+- Never expose RabbitMQ or the gateway HTTP port to the public internet.

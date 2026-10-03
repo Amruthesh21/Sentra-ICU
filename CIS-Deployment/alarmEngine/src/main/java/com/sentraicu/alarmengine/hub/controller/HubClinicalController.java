@@ -38,62 +38,79 @@ public class HubClinicalController {
 
     @GetMapping("/context")
     public Map<String, Object> context(@RequestParam String bedId, HttpServletRequest request) {
+        hospitalContextService.assertBedInCenter(request, bedId);
         return clinicalService.getContext(bedId, hospitalContextService.resolveCenterId(request));
     }
 
     @GetMapping("/visits/{visitId}/history")
-    public Map<String, Object> patientHistory(@PathVariable UUID visitId) {
+    public Map<String, Object> patientHistory(@PathVariable UUID visitId, HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
         return clinicalService.getPatientHistory(visitId);
     }
 
     @GetMapping("/visits/{visitId}/notes")
-    public List<Map<String, Object>> listNotes(@PathVariable UUID visitId) {
+    public List<Map<String, Object>> listNotes(@PathVariable UUID visitId, HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
         return clinicalService.listNotes(visitId);
     }
 
     @PostMapping("/visits/{visitId}/notes")
     public ResponseEntity<Map<String, Object>> createNote(@PathVariable UUID visitId,
-                                                          @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.createNote(visitId, request));
+                                                          @RequestBody Map<String, Object> body,
+                                                          HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
+        return ResponseEntity.ok(clinicalService.createNote(visitId, body));
     }
 
     @PatchMapping("/notes/{noteId}")
     public ResponseEntity<Map<String, Object>> updateNote(@PathVariable UUID noteId,
-                                                         @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.updateNote(noteId, request));
+                                                         @RequestBody Map<String, Object> body,
+                                                         HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, clinicalService.visitIdForNote(noteId));
+        return ResponseEntity.ok(clinicalService.updateNote(noteId, body));
     }
 
     @GetMapping("/visits/{visitId}/orders")
-    public List<Map<String, Object>> listOrders(@PathVariable UUID visitId) {
+    public List<Map<String, Object>> listOrders(@PathVariable UUID visitId, HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
         return clinicalService.listOrders(visitId);
     }
 
     @PostMapping("/visits/{visitId}/orders")
     public ResponseEntity<Map<String, Object>> createOrder(@PathVariable UUID visitId,
-                                                           @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.createOrder(visitId, request));
+                                                           @RequestBody Map<String, Object> body,
+                                                           HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
+        return ResponseEntity.ok(clinicalService.createOrder(visitId, body));
     }
 
     @PatchMapping("/orders/{orderId}")
     public ResponseEntity<Map<String, Object>> updateOrder(@PathVariable UUID orderId,
-                                                           @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.updateOrderStatus(orderId, request));
+                                                           @RequestBody Map<String, Object> body,
+                                                           HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, clinicalService.visitIdForOrder(orderId));
+        return ResponseEntity.ok(clinicalService.updateOrderStatus(orderId, body));
     }
 
     @GetMapping("/visits/{visitId}/labs-imaging")
-    public Map<String, Object> listLabsImaging(@PathVariable UUID visitId) {
+    public Map<String, Object> listLabsImaging(@PathVariable UUID visitId, HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
         return clinicalService.listLabsAndImaging(visitId);
     }
 
     @PostMapping("/visits/{visitId}/labs")
     public ResponseEntity<Map<String, Object>> createLab(@PathVariable UUID visitId,
-                                                         @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.createLab(visitId, request));
+                                                         @RequestBody Map<String, Object> body,
+                                                         HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
+        return ResponseEntity.ok(clinicalService.createLab(visitId, body));
     }
 
     @PostMapping("/visits/{visitId}/imaging")
     public ResponseEntity<Map<String, Object>> createImaging(@PathVariable UUID visitId,
-                                                             @RequestBody Map<String, Object> request) {
-        return ResponseEntity.ok(clinicalService.createImaging(visitId, request));
+                                                             @RequestBody Map<String, Object> body,
+                                                             HttpServletRequest request) {
+        hospitalContextService.assertVisitInCenter(request, visitId);
+        return ResponseEntity.ok(clinicalService.createImaging(visitId, body));
     }
 }

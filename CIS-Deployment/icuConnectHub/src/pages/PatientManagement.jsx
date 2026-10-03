@@ -89,7 +89,7 @@ function emptyForm() {
       ventilated: false, inotropes: false, dialysis: false,
     },
     consent: {
-      status: 'Obtained / Pending',
+      status: '',
       videoMonitoring: true,
       audioMonitoring: false,
       researchExclusion: false,
@@ -693,7 +693,7 @@ export default function PatientManagement() {
                         e.target.value = '';
                       }}
                     >
-                      <option value="">Select co-morbidity…</option>
+                      <option value="" disabled hidden>Select</option>
                       {COMORBIDITIES.filter((name) => !form.comorbidities.includes(name)).map((name) => (
                         <option key={name} value={name}>{name}</option>
                       ))}
@@ -765,7 +765,7 @@ export default function PatientManagement() {
                 <div className="form-group">
                   <label>Admission consent status</label>
                   <select value={form.consent.status} onChange={(e) => patchNested('consent', { status: e.target.value })}>
-                    <option>Obtained / Pending</option>
+                    <option value="" disabled hidden>Select</option>
                     <option>Obtained</option>
                     <option>Pending</option>
                     <option>Declined</option>

@@ -1,5 +1,5 @@
 # Reset Hub clinical data: units, beds, patients (Postgres + Mongo mirror).
-# Keeps hospital center (RTWO) and admin user. Device catalog unchanged.
+# Keeps hospital center (SENTRA_ICU) and admin user. Device catalog unchanged.
 #
 # Usage:
 #   .\CIS-Deployment\scripts\reset-hub-clinical-data.ps1
@@ -28,7 +28,7 @@ Write-Host "Postgres: units, beds, patients cleared." -ForegroundColor Green
 
 $mongoJs = @"
 const hub = db.getSiblingDB('v2-ICU-Connect');
-const center = hub.centerEntity.updateOne({ _id: 'RTWO' }, { `$set: { beds: [] } });
+const center = hub.centerEntity.updateOne({ _id: 'SENTRA_ICU' }, { `$set: { beds: [] } });
 const patients = hub.patientInfoEntity.deleteMany({});
 print('Mongo center beds cleared: ' + center.modifiedCount);
 print('Mongo patients removed: ' + patients.deletedCount);

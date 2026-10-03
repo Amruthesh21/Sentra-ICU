@@ -3,6 +3,7 @@ package com.sentraicu.alarmengine.auth.service;
 import com.sentraicu.alarmengine.auth.entity.HubAuthUserEntity;
 import com.sentraicu.alarmengine.auth.entity.HubHospitalEntity;
 import com.sentraicu.alarmengine.auth.entity.HubRoleEntity;
+import com.sentraicu.alarmengine.auth.entity.HubUserPhotoEntity;
 import com.sentraicu.alarmengine.auth.entity.HubUserRoleEntity;
 import com.sentraicu.alarmengine.auth.repo.HubAuthUserRepository;
 import com.sentraicu.alarmengine.auth.repo.HubHospitalRepository;
@@ -12,7 +13,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.*;
 
 @Service
@@ -22,6 +25,7 @@ public class HospitalAdminService {
     private final HubHospitalRepository hospitalRepository;
     private final HubRoleRepository roleRepository;
     private final HubUserRoleRepository userRoleRepository;
+    private final ProfilePhotoService photoService;
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -30,11 +34,13 @@ public class HospitalAdminService {
             HubHospitalRepository hospitalRepository,
             HubRoleRepository roleRepository,
             HubUserRoleRepository userRoleRepository,
+            ProfilePhotoService photoService,
             JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.hospitalRepository = hospitalRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
+        this.photoService = photoService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -138,6 +144,25 @@ public class HospitalAdminService {
         return toUserDetail(user);
     }
 
+    public Optional<HubUserPhotoEntity> getUserPhoto(UUID hospitalId, UUID userId) {
+        requireHospitalUser(hospitalId, userId);
+        return photoService.get(userId);
+    }
+
+    @Transactional
+    public void saveUserPhoto(UUID hospitalId, UUID userId, MultipartFile file) throws IOException {
+        assertHospitalActive(hospitalId);
+        requireHospitalUser(hospitalId, userId);
+        photoService.save(userId, file);
+    }
+
+    @Transactional
+    public void deleteUserPhoto(UUID hospitalId, UUID userId) {
+        assertHospitalActive(hospitalId);
+        requireHospitalUser(hospitalId, userId);
+        photoService.delete(userId);
+    }
+
     public List<Map<String, Object>> listRoles(UUID hospitalId) {
         return roleRepository.findByHospitalIdOrderByNameAsc(hospitalId).stream()
                 .map(this::toRoleDetail)
@@ -237,6 +262,7 @@ public class HospitalAdminService {
         map.put("active", user.isActive());
         map.put("mustChangePassword", user.isMustChangePassword());
         map.put("lastLoginAt", user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
+        map.put("hasPhoto", photoService.hasPhoto(user.getId()));
         List<HubUserRoleEntity> links = userRoleRepository.findByUserId(user.getId());
         if (!links.isEmpty()) {
             map.put("roleId", links.get(0).getRoleId().toString());

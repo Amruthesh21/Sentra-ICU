@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Avi IW6000 neonatal incubator
  * ------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\AviIW6000Device.data —
+ * legacy device-simulator capture AviIW6000Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source, not referenced for anything beyond this file's
  * raw protocol bytes).

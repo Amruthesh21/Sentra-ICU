@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Nihon Kohden PVM-2703 patient monitor
  * ---------------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\PVM2703Device.data —
+ * legacy device-simulator capture PVM2703Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

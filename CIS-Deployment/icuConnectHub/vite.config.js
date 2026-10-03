@@ -8,9 +8,9 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:7020',
       '/device-ingestion': {
-        target: 'http://localhost:7050',
+        target: 'http://localhost:7020',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/device-ingestion/, ''),
+        rewrite: (path) => path.replace(/^\/device-ingestion/, '/api/device-ingestion'),
       },
     },
   },

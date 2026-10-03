@@ -49,9 +49,9 @@ public class HubScoringService {
         this.objectMapper = objectMapper;
     }
 
-    public List<Map<String, Object>> getDashboard() {
+    public List<Map<String, Object>> getDashboard(String centerId) {
         List<Map<String, Object>> rows = new ArrayList<>();
-        List<HubBedEntity> beds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel("RTWO");
+        List<HubBedEntity> beds = bedRepository.findByCenterIdAndActiveTrueOrderByBedLabel(centerId);
         for (HubBedEntity bed : beds) {
             Optional<HubBedAssignmentEntity> assignment =
                     assignmentRepository.findByBedIdAndActiveTrue(bed.getId());

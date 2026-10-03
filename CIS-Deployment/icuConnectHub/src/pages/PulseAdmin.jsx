@@ -27,10 +27,6 @@ export function AdminHome() {
           <h3>Admissions</h3>
           <p className="pulse-muted">Admit patients and assign attending doctor + primary nurse.</p>
         </Link>
-        <Link to="/connectivity" className="pulse-panel pulse-admin-card">
-          <h3>Connectivity</h3>
-          <p className="pulse-muted">HL7 / FHIR / adapter lab for hospital integration tests.</p>
-        </Link>
       </div>
     </div>
   );
@@ -83,14 +79,24 @@ export function AdminStaffPage() {
   }
 
   async function toggleDuty(row) {
-    await updateStaff(row.id, { status: row.onDuty ? 'OFF' : 'ON_DUTY' });
-    await load();
+    setError(null);
+    try {
+      await updateStaff(row.id, { status: row.onDuty ? 'OFF' : 'ON_DUTY' });
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function onRemove(row) {
     if (!window.confirm(`Remove ${row.fullName}?`)) return;
-    await removeStaff(row.id);
-    await load();
+    setError(null);
+    try {
+      await removeStaff(row.id);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   return (

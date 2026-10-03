@@ -4,7 +4,7 @@ const { safeLookup } = require('../core/safeLookup');
  * Adapter: Mindray Beneview T5 patient monitor
  * ---------------------------------------------------
  * Learned from a real captured HL7 export (see
- * E:\RTWO - Workspace\Deployment\Simulation\deviceData\MindrayBeneviewt5Device.data —
+ * legacy device-simulator capture MindrayBeneviewt5Device.data —
  * device simulator folder, rights confirmed separately from Connect
  * Engine's server source).
  *

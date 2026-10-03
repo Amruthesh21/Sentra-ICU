@@ -13,7 +13,7 @@ Two tools, two different jobs:
   device, replays one BPL VividVue M10 export, done. Good for "just show me
   it working" on the same machine.
 - **`device-emulator.js`** — an actual persistent network device, like
-  RTWO's old simulator jar. Run it from any machine (including a different
+  the original simulator jar. Run it from any machine (including a different
   one from wherever Sentra ICU itself runs) pointed at the server's IP, and
   it behaves like a real bedside monitor sitting on the network: connect,
   stream continuously, stay connected. You map it to a bed yourself through

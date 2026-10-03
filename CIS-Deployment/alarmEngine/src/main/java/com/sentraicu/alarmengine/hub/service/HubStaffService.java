@@ -1,5 +1,6 @@
 package com.sentraicu.alarmengine.hub.service;
 
+import com.sentraicu.alarmengine.auth.service.AuthService;
 import com.sentraicu.alarmengine.hub.entity.*;
 import com.sentraicu.alarmengine.hub.repo.*;
 import org.springframework.stereotype.Service;
@@ -64,9 +65,12 @@ public class HubStaffService {
     }
 
     @Transactional
-    public Map<String, Object> update(UUID id, Map<String, Object> request) {
+    public Map<String, Object> update(UUID id, Map<String, Object> request, String centerId) {
         HubStaffEntity e = staffRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Staff not found"));
+        if (e.getCenterId() == null || !normalize(centerId).equalsIgnoreCase(e.getCenterId())) {
+            throw new AuthService.AuthException("Staff is not in this hospital", 403);
+        }
         apply(e, request);
         HubStaffEntity saved = staffRepository.save(e);
         Map<String, List<LiveAssignment>> live = buildLiveAssignments(saved.getCenterId());
@@ -74,9 +78,12 @@ public class HubStaffService {
     }
 
     @Transactional
-    public Map<String, Object> deactivate(UUID id) {
+    public Map<String, Object> deactivate(UUID id, String centerId) {
         HubStaffEntity e = staffRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Staff not found"));
+        if (e.getCenterId() == null || !normalize(centerId).equalsIgnoreCase(e.getCenterId())) {
+            throw new AuthService.AuthException("Staff is not in this hospital", 403);
+        }
         e.setActive(false);
         e.setStatus("OFF");
         HubStaffEntity saved = staffRepository.save(e);
@@ -266,7 +273,7 @@ public class HubStaffService {
     }
 
     private static String normalize(String centerId) {
-        return centerId == null || centerId.isBlank() ? "RTWO" : centerId.trim();
+        return centerId == null || centerId.isBlank() ? "SENTRA_ICU" : centerId.trim();
     }
 
     private static String str(Object v) {

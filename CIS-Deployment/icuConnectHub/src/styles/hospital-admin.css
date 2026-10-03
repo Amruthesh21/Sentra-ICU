@@ -245,6 +245,10 @@
   align-items: stretch;
 }
 
+.pulse-content.ha-content {
+  padding: 1.15rem 1.5rem 1.75rem;
+}
+
 .ha-content > * {
   width: 100%;
   max-width: none;
@@ -370,10 +374,11 @@
   margin-top: -1px;
 }
 
-.hospital-admin-page .sa-platform-table--users th:nth-child(1) { width: 22%; }
-.hospital-admin-page .sa-platform-table--users th:nth-child(2) { width: 32%; }
-.hospital-admin-page .sa-platform-table--users th:nth-child(3) { width: 22%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(1) { width: 28%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(2) { width: 28%; }
+.hospital-admin-page .sa-platform-table--users th:nth-child(3) { width: 18%; }
 .hospital-admin-page .sa-platform-table--users th:nth-child(4) { width: 12%; }
+.hospital-admin-page .sa-platform-table--users th.col-manage { width: 10%; }
 
 .hospital-admin-page .sa-platform-table--roles th:nth-child(1) { width: 20%; }
 .hospital-admin-page .sa-platform-table--roles th:nth-child(2) { width: 38%; }
@@ -807,4 +812,64 @@
 .ha-audit-wrap .sa-audit-filters,
 .ha-audit-wrap .sa-audit-table-panel {
   max-width: none;
+}
+
+.ha-user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ha-user-photo-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ha-user-photo-preview {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #0a3d62;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ha-user-photo-preview--table {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.ha-user-photo-preview em {
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.ha-user-photo-preview--table em {
+  font-size: 0.68rem;
+}
+
+.ha-user-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ha-user-photo-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #5a8fb0;
+}
+
+.ha-user-photo-field input[type='file'] {
+  font-size: 0.8rem;
 }

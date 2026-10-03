@@ -109,13 +109,18 @@ public class SuperAdminController {
             HttpServletRequest request) {
         HubAuthUserEntity actor = authSecurity.requireSuperAdmin(request);
         Map<String, Object> result = superAdminService.updateHospitalStatus(hospitalId, body);
-        auditLogService.record(
-                actor,
-                hospitalId,
-                "PLATFORM",
-                "HOSPITAL_STATUS_CHANGED",
-                "Status set to " + body.get("status"),
-                clientIp(request));
+        boolean urlChanged = body.containsKey("deviceIngestionUrl");
+        boolean statusChanged = body.get("status") != null && !body.get("status").isBlank();
+        String action = urlChanged && !statusChanged ? "HOSPITAL_GATEWAY_UPDATED" : "HOSPITAL_STATUS_CHANGED";
+        String detail;
+        if (urlChanged && statusChanged) {
+            detail = "Updated status to " + body.get("status") + " and device gateway URL";
+        } else if (urlChanged) {
+            detail = "Updated device gateway URL";
+        } else {
+            detail = "Status set to " + body.get("status");
+        }
+        auditLogService.record(actor, hospitalId, "PLATFORM", action, detail, clientIp(request));
         return result;
     }
 

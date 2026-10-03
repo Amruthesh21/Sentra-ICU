@@ -14,18 +14,13 @@
 # Cold-start race, and why every service below carries restart: unless-stopped:
 # because infra lives in a separate compose file/project, nothing here can
 # depends_on: it, so app containers can start before Postgres/Mongo/RabbitMQ
-# are actually ready to accept connections. notification-service and
-# device-ingestion (Node) connect to their dependencies eagerly at startup
-# with no retry and exit(1) on failure — restart: unless-stopped turns that
-# into an automatic retry instead of a container that stays dead until
-# someone notices and restarts it by hand (observed live during this
-# session's verification). icu-connect-hub hits a related race: its nginx
-# config names device-ingestion by hostname and fails to start (not just
-# retry) if that container isn't resolvable yet on a cold start where every
-# app container starts together. alarm-engine (Spring) isn't known to need
-# this — its JDBC/AMQP/Mongo clients retry their own initial connection
-# instead of crashing — but carries the same restart policy as a cheap
-# backstop.
+# are actually ready to accept connections. notification-service (Node)
+# connects to its dependencies eagerly at startup with no retry and exit(1)
+# on failure — restart: unless-stopped turns that into an automatic retry.
+# device-ingestion now retries RabbitMQ with backoff (hospital VPN flaps),
+# but still carries the same restart policy. The Hub no longer names
+# device-ingestion in nginx (Connect-a-device is proxied through alarm-engine),
+# so Hub can start without a gateway on this network.
 
 networks:
   docker_compose_network:
@@ -65,6 +60,11 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-}
+      # Local all-in-one: Hub → alarm-engine → this hostname. Split cloud
+      # deployments leave this empty and set each hospital's gateway URL in
+      # Super Admin instead. See CIS-Deployment/docs/HOSPITAL-GATEWAY.md.
+      DEVICE_INGESTION_URL: ${DEVICE_INGESTION_URL:-http://CIS-device-ingestion:9050}
+      DEVICE_INGESTION_REQUIRE_HTTPS: ${DEVICE_INGESTION_REQUIRE_HTTPS:-false}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Cold-start race + restart: unless-stopped — see the top-of-file note.
@@ -123,9 +123,6 @@ services:
       - "${HUB_UI_PORT:-8000}:80"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # Cold-start race + restart: unless-stopped — see the top-of-file note.
-    # (nginx names CIS-device-ingestion by hostname and fails outright, not
-    # just retries, if it's not resolvable yet.)
     restart: unless-stopped
     networks:
       docker_compose_network:
@@ -140,18 +137,12 @@ services:
     build: ./CIS-Deployment/deviceIngestion
     container_name: CIS-device-ingestion
     ports:
-      # HTTP admin API (9050) is intentionally NOT published to the host —
-      # even though it now verifies the same Hub login token alarm-engine
-      # issues (see src/server/requireHubAuth.js), there's no reason to
-      # expose it to the wider network too. Reachable inside the docker
-      # network via the Hub's nginx proxy at /device-ingestion/*. The HL7
-      # and JSON TCP ports both stay published since real bedside
-      # monitors/ventilators connect to them directly over the network.
+      # HTTP admin API (9050) is not published to the host in the laptop
+      # all-in-one: Hub reaches it through alarm-engine's /api/device-ingestion
+      # proxy. HL7/JSON TCP ports stay published for bedside devices / simulation.
       - "${DEVICE_INGESTION_HL7_PORT:-7061}:6661"
       - "${DEVICE_INGESTION_JSON_PORT:-7062}:6662"
     # Cold-start race + restart: unless-stopped — see the top-of-file note.
-    # (src/index.js connects to RabbitMQ eagerly at startup — "fail fast at
-    # boot rather than silently on the first device message" — with no retry.)
     restart: unless-stopped
     expose:
       - "9050"
@@ -163,7 +154,7 @@ services:
       # Must match alarm-engine's hub.auth.jwt.secret (HUB_AUTH_JWT_SECRET)
       # exactly — this is what lets device-ingestion verify Hub login
       # tokens itself instead of trusting the docker network.
-      HUB_AUTH_JWT_SECRET: ${HUB_AUTH_JWT_SECRET:-icu-connect-v2-change-this-secret-in-production-rtwo-2026}
+      HUB_AUTH_JWT_SECRET: ${HUB_AUTH_JWT_SECRET:-icu-connect-v2-change-this-secret-in-production-sentra-2026}
     volumes:
       - ./CIS-Deployment/deviceIngestion/config:/app/config
     networks:

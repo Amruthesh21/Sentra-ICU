@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Service
 public class CenterAdminService {
 
-    private static final String DEFAULT_CENTER = "RTWO";
+    private static final String DEFAULT_CENTER = HubCenterIds.CONNECT_ENGINE;
     private static final String DEFAULT_LOCATION = "JPN";
 
     private final MongoTemplate mongoTemplate;
@@ -40,6 +40,21 @@ public class CenterAdminService {
 
     public Map<String, Object> getCenterOverview() {
         return getCenterOverview(DEFAULT_CENTER);
+    }
+
+    /** Empty Mongo ward for a newly provisioned hospital — never shares SENTRA_ICU beds. */
+    public void provisionEmptyCenter(String centerId, String name, String location) {
+        String cid = resolveCenterId(centerId);
+        Document existing = mongoTemplate.findOne(
+                new Query(Criteria.where("_id").is(cid)), Document.class, "centerEntity");
+        if (existing != null) return;
+        Document created = new Document();
+        created.put("_id", cid);
+        created.put("centerName", name != null && !name.isBlank() ? name.trim() : cid);
+        created.put("centerLocation", location != null ? location.trim() : "");
+        created.put("beds", new ArrayList<>());
+        created.put("_class", "com.sentraicu.alarmengine.mongo.CenterEntity");
+        mongoTemplate.save(created, "centerEntity");
     }
 
     public Map<String, Object> getCenterOverview(String centerId) {
@@ -85,7 +100,7 @@ public class CenterAdminService {
         newBed.put("_id", UUID.randomUUID().toString());
         newBed.put("bedLabel", bedLabel);
         newBed.put("ip", encryptIp(resolvedIp));
-        newBed.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.BedEntity");
+        newBed.put("_class", "com.sentraicu.alarmengine.mongo.BedEntity");
         if (live) {
             // Used to also invent a devices list here
             // (deviceCatalogService.defaultDevicesForSimulatorBed(), the
@@ -163,8 +178,10 @@ public class CenterAdminService {
     }
 
     private String resolveCenterId(String centerId) {
-        if (centerId == null || centerId.isBlank()) return DEFAULT_CENTER;
-        return centerId.trim().toUpperCase(Locale.ROOT);
+        if (centerId == null || centerId.isBlank()) return HubCenterIds.CONNECT_ENGINE;
+        String cid = centerId.trim().toUpperCase(Locale.ROOT);
+        if (HubCenterIds.LEGACY_CENTER_ID.equals(cid)) return HubCenterIds.CONNECT_ENGINE;
+        return cid;
     }
 
     /** Prefer Mongo's stored display name over Postgres hospital labels. */
@@ -186,12 +203,13 @@ public class CenterAdminService {
         return out;
     }
 
-    /** Technical center id stays RTWO for Connect Engine sync; brand as Sentra ICU in APIs/UI. */
+    /** Brand the operational center as Sentra ICU in APIs/UI. */
     private void brandCenterDisplay(String centerId, Map<String, String> display) {
         String name = display.get("centerName");
-        boolean isOpsCenter = DEFAULT_CENTER.equalsIgnoreCase(centerId);
-        boolean nameHasRtwo = name != null && name.toUpperCase(Locale.ROOT).contains("RTWO");
-        if (isOpsCenter || nameHasRtwo) {
+        boolean isOpsCenter = HubCenterIds.CONNECT_ENGINE.equalsIgnoreCase(centerId)
+                || HubCenterIds.LEGACY_CENTER_ID.equalsIgnoreCase(centerId);
+        boolean nameHasLegacy = name != null && name.toUpperCase(Locale.ROOT).contains(HubCenterIds.LEGACY_CENTER_ID);
+        if (isOpsCenter || nameHasLegacy) {
             display.put("centerName", HubCenterIds.BRAND_DISPLAY);
         }
     }
@@ -235,7 +253,7 @@ public class CenterAdminService {
         created.put("centerName", display.get("centerName"));
         created.put("centerLocation", display.get("centerLocation"));
         created.put("beds", new ArrayList<>());
-        created.put("_class", "com.rtwo.med.device.connect.mongo.dal.entities.CenterEntity");
+        created.put("_class", "com.sentraicu.alarmengine.mongo.CenterEntity");
         mongoTemplate.save(created, "centerEntity");
         return created;
     }

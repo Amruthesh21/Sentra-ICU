@@ -22,6 +22,7 @@ services:
       # change INFRA_MONGO_PASSWORD, update this URI to match.
       SPRING_DATA_MONGODB_URI: mongodb://${INFRA_MONGO_USER:-monish}:${INFRA_MONGO_PASSWORD_URLENC:-admin%40123}@host.docker.internal:7000/?authSource=admin
       ALARM_DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
+      DEVICE_INGESTION_URL: ${DEVICE_INGESTION_URL:-http://CIS-device-ingestion:9050}
     networks:
       docker_compose_network:
         ipv4_address: ${DOCKER_COMPOSE_IP_ALARM_ENGINE:-172.31.0.10}
@@ -71,12 +72,10 @@ services:
     build: ./CIS-Deployment/deviceIngestion
     container_name: CIS-device-ingestion
     ports:
-      # HTTP admin API (9050) is intentionally NOT published to the host —
-      # it verifies the same Hub login token alarm-engine issues (see
-      # src/server/requireHubAuth.js), but there's no reason to expose it to
-      # the wider network too. Reachable inside the docker network via the
-      # Hub's nginx proxy at /device-ingestion/*.
+      # HTTP admin API (9050) is not published to the host in this file.
+      # Hub reaches it through alarm-engine's /api/device-ingestion proxy.
       - "${DEVICE_INGESTION_HL7_PORT:-7061}:6661"
+      - "${DEVICE_INGESTION_JSON_PORT:-7062}:6662"
     expose:
       - "9050"
     extra_hosts:
@@ -85,7 +84,7 @@ services:
       RABBITMQ_URL: amqp://${INFRA_RABBITMQ_USER:-ICUcharting}:${INFRA_RABBITMQ_PASSWORD_URLENC:-admin%40123}@host.docker.internal:7003/ICUcharting
       DEVICE_DATA_QUEUE: alarm-engine.device.data.queue
       # Must match alarm-engine's hub.auth.jwt.secret (HUB_AUTH_JWT_SECRET).
-      HUB_AUTH_JWT_SECRET: ${HUB_AUTH_JWT_SECRET:-icu-connect-v2-change-this-secret-in-production-rtwo-2026}
+      HUB_AUTH_JWT_SECRET: ${HUB_AUTH_JWT_SECRET:-icu-connect-v2-change-this-secret-in-production-sentra-2026}
     volumes:
       - ./CIS-Deployment/deviceIngestion/config:/app/config
     networks:
