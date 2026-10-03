@@ -5,8 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-SA_EMAIL="${SA_EMAIL:-monish.reddy@invensis.net}"
-SA_PASSWORD="${SA_PASSWORD:-SentraDemo@2026}"
+SA_EMAIL="${SA_EMAIL:?Set SA_EMAIL}"
+SA_PASSWORD="${SA_PASSWORD:?Set SA_PASSWORD}"
 
 ENV_FILE=".env"
 touch "$ENV_FILE"

@@ -29,11 +29,11 @@ Set-Location $notifDir
 if (-not (Test-Path "node_modules")) { npm install }
 $env:RABBITMQ_URL = "amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting"
 $env:MONGODB_URI = "mongodb://monish:admin%40123@localhost:7000/?authSource=admin"
-$env:VAPID_PUBLIC_KEY = "BOYm_WiUJ4KhG6Viu9_zsRsR_7BCJJuCwk2lMQDflvaU9r5JLFxxVjL6gnfo1apS3hhk10Yp6cHOnlZHkFdPcA4"
-$env:VAPID_PRIVATE_KEY = "I25G74I2rXd-xArxtm_cbH5d9jCLjPqk0_R7m3dcPSs"
-$env:VAPID_EMAIL = "mailto:poc@Sentra ICU.health"
+if (-not $env:VAPID_PUBLIC_KEY) { $env:VAPID_PUBLIC_KEY = "" }
+if (-not $env:VAPID_PRIVATE_KEY) { $env:VAPID_PRIVATE_KEY = "" }
+if (-not $env:VAPID_EMAIL) { $env:VAPID_EMAIL = "mailto:admin@example.com" }
 $env:PORT = "9030"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$notifDir'; `$env:RABBITMQ_URL='amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting'; `$env:MONGODB_URI='mongodb://monish:admin%40123@localhost:7000/?authSource=admin'; `$env:VAPID_PUBLIC_KEY='BOYm_WiUJ4KhG6Viu9_zsRsR_7BCJJuCwk2lMQDflvaU9r5JLFxxVjL6gnfo1apS3hhk10Yp6cHOnlZHkFdPcA4'; `$env:VAPID_PRIVATE_KEY='I25G74I2rXd-xArxtm_cbH5d9jCLjPqk0_R7m3dcPSs'; `$env:VAPID_EMAIL='mailto:poc@Sentra ICU.health'; npm start"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$notifDir'; `$env:RABBITMQ_URL='amqp://ICUcharting:admin%40123@localhost:7003/ICUcharting'; `$env:MONGODB_URI='mongodb://monish:admin%40123@localhost:7000/?authSource=admin'; `$env:VAPID_PUBLIC_KEY='$($env:VAPID_PUBLIC_KEY)'; `$env:VAPID_PRIVATE_KEY='$($env:VAPID_PRIVATE_KEY)'; `$env:VAPID_EMAIL='$($env:VAPID_EMAIL)'; npm start"
 
 Start-Sleep -Seconds 3
 

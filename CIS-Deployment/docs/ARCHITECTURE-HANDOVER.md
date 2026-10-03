@@ -770,10 +770,10 @@ sequenceDiagram
 | Clinician | `CLINICIAN` | Unit dashboard, bed detail, clinical |
 | Admin (legacy) | `ADMIN` | Full hub admin |
 
-### 11.4 Default credentials (QA server)
+### 11.4 Bootstrap credentials
 
-- Super Admin: `monish.reddy@invensis.net` / `SentraDemo@2026`
-- MFA OTP (dev): `123456` when `HUB_AUTH_DEV_EXPOSE_OTP=true`
+Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` in `.env` (never commit them).
+MFA OTP is emailed in production. On a local laptop only, `HUB_AUTH_DEV_EXPOSE_OTP=true` can show a dummy code on screen.
 
 ---
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createOrder, listOrders, updateOrderStatus } from '../api/clinical';
+import { useAuth } from '../context/AuthContext';
 
 const ORDER_TYPES = [
   { value: 'MEDICATIONS', label: 'Medications', icon: 'medication', color: '#7c3aed' },
@@ -102,6 +103,7 @@ function StatusBadge({ status }) {
 }
 
 export default function ClinicalOrdersPanel({ visitId, bedLabel }) {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
@@ -213,7 +215,7 @@ export default function ClinicalOrdersPanel({ visitId, bedLabel }) {
     setError(null);
     const payload = {
       bedLabel,
-      orderedBy: 'monish.reddy@invensis.net',
+      orderedBy: user?.email || user?.displayName || 'clinician',
       orderType: form.orderType,
       priority: form.priority,
       notes: form.notes,
